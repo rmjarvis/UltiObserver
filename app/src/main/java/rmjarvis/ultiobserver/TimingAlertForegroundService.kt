@@ -344,10 +344,6 @@ class TimingAlertForegroundService : Service() {
             "rmjarvis.ultiobserver.extra.TIMING_ALERT_SNAPSHOT"
         internal const val EXTRA_CAP_CUE = "rmjarvis.ultiobserver.extra.CAP_CUE"
         private const val TIMING_ALERT_SERVICE_CHANNEL_ID = "timing_alert_service"
-        private const val TIMING_ALERT_SERVICE_NOTIFICATION_ID = 1001
-        private const val TIMING_ALERT_CAP_ALARM_REQUEST_CODE = 1002
-        private const val WATCH_STATUS_NOTIFICATION_ID = 1003
-        private const val WATCH_CAP_NOTIFICATION_ID = 1004
         private const val WATCH_NOTIFICATION_CHANNEL_ID = "watch_timing_cues"
 
         /**

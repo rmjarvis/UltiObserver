@@ -73,9 +73,6 @@ internal data class NavigationState(
         )
     }
 
-    val handlesBack: Boolean
-        get() = (selectedTeam != null || timingControlsOpen || rulesOpen) && pendingActionPrompt == null && playerCard == null
-
     /** Return from card choices to team actions, or from team actions to the game. */
     fun back(): NavigationState = if (rulesOpen) {
         copy(rulesOpen = false)

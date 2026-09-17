@@ -23,7 +23,7 @@ DEFAULT_PRESERVED_COVERAGE_DIR = Path(
 )
 EMULATOR_REGISTRATION_DIR = Path.home() / "Library/Caches/TemporaryItems/avd/running"
 PACKAGE_NAME = "rmjarvis.ultiobserver"
-TEST_RUNNER = "rmjarvis.ultiobserver.test/androidx.test.runner.AndroidJUnitRunner"
+TEST_RUNNER = "rmjarvis.ultiobserver.test/rmjarvis.ultiobserver.UltiObserverTestRunner"
 DIRECT_INSTRUMENTATION_EXCLUSIONS = (
     # Espresso Device requires Gradle's emulator-control gRPC connection. Direct matrix legs skip
     # this method; run it separately through Gradle only on an emulator known to provide it.

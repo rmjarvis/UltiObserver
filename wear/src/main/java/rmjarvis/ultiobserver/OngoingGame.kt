@@ -71,5 +71,4 @@ internal fun Context.updateOngoingGame(snapshot: WearStateSnapshot) {
     notifications.notify(ONGOING_GAME_NOTIFICATION_ID, notification.build())
 }
 
-internal const val ONGOING_GAME_NOTIFICATION_ID = 1
 private const val ONGOING_GAME_CHANNEL_ID = "current_game"

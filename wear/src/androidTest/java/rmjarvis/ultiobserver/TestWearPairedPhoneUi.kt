@@ -5,6 +5,7 @@ import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performTouchInput
 
 import android.graphics.Bitmap
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
 import android.os.Build
@@ -30,6 +31,8 @@ import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.printToString
 import androidx.test.espresso.Espresso.pressBackUnconditionally
+import androidx.lifecycle.Lifecycle
+import androidx.activity.result.ActivityResultLauncher
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
@@ -49,9 +52,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TestName
 import rmjarvis.ultiobserver.wearprotocol.PHONE_STATE_CAPABILITY
 import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
 
@@ -68,7 +73,10 @@ class TestWearPairedPhoneUi {
     @get:Rule
     val composeRule = createAndroidComposeRule<WatchActivity>()
 
-    /** Allow the ongoing-game notification when a fresh modern watch asks for permission. */
+    @get:Rule
+    val testName = TestName()
+
+    /** Allow notification requests except in the shortcut narrative, which exercises denial. */
     @Before
     fun allowGameNotification() {
         val notifications = composeRule.activity.getSystemService(NotificationManager::class.java)
@@ -76,6 +84,11 @@ class TestWearPairedPhoneUi {
             !notifications.areNotificationsEnabled()
         ) {
             val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            if (testName.methodName == "ongoingGame") {
+                val deny = device.wait(Until.findObject(By.text("Don’t allow")), UI_ACTION_TIMEOUT_MILLIS)
+                checkNotNull(deny) { "The watch did not request notification permission" }.click()
+                return
+            }
             val allow = device.wait(Until.findObject(By.text("Allow")), UI_ACTION_TIMEOUT_MILLIS)
             checkNotNull(allow) { "The watch did not request notification permission" }.click()
         }
@@ -137,6 +150,11 @@ class TestWearPairedPhoneUi {
         composeRule.onNode(hasContentDescription("Resume")).performClick()
         waitForContentDescription("Pause")
         dismissNotice("Back")
+        waitForText(ANIMAL)
+
+        // The countdown also toggles its controls open and closed without using Back.
+        composeRule.onNode(hasContentDescription("Countdown controls")).performClick()
+        composeRule.onNode(hasContentDescription("Countdown controls")).performClick()
         waitForText(ANIMAL)
 
         // Cancelling a water break returns to timing controls; confirming returns to the scores.
@@ -423,6 +441,15 @@ class TestWearPairedPhoneUi {
         waitForContentDescription("Undo Start halftime")
         waitForText("Halftime")
         assertEquals(2, composeRule.onAllNodesWithText("2").fetchSemanticsNodes().size)
+
+        // Halftime allows countdown adjustments, but cannot start a point before its deadline.
+        composeRule.onNode(hasContentDescription("Countdown controls")).performClick()
+        composeRule.onNodeWithText("Start point").assertDoesNotExist()
+        composeRule.onNodeWithText("Continue point").assertDoesNotExist()
+        composeRule.onNode(hasContentDescription("Pause")).performClick()
+        waitForText("Paused")
+        dismissNotice("Back")
+        waitForText(ANIMAL)
     }
 
     /** Defer and accept soft-cap, hard-cap, and game-over confirmations on the watch. */
@@ -712,6 +739,60 @@ class TestWearPairedPhoneUi {
     fun ongoingGame() {
         waitForPairedText(ANIMAL)
         val notifications = composeRule.activity.getSystemService(NotificationManager::class.java)
+
+        // Denial leaves game controls usable and does not ask again when the Activity restarts.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            assertFalse(notifications.areNotificationsEnabled())
+            composeRule.onNodeWithText(ANIMAL).assertIsEnabled()
+            assertTrue(notifications.activeNotifications.none { it.id == ONGOING_GAME_NOTIFICATION_ID })
+            composeRule.activityRule.scenario.recreate()
+            waitForPairedText(ANIMAL)
+            assertFalse(UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+                .hasObject(By.text("Allow")))
+
+            // A fresh phone snapshot can arrive while the Activity is started but not resumed.
+            // Keep the game connected without opening a permission prompt in that state.
+            val scenario = composeRule.activityRule.scenario
+            try {
+                scenario.moveToState(Lifecycle.State.CREATED)
+                scenario.moveToState(Lifecycle.State.STARTED)
+                // Compose has no test hierarchy while paused; inspect receipt on the main thread.
+                val receivedState = WatchActivity::class.java.getDeclaredMethod("getReceivedState")
+                    .apply { isAccessible = true }
+                composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
+                    var received = false
+                    scenario.onActivity { received = receivedState.invoke(it) != null }
+                    received
+                }
+                assertEquals(Lifecycle.State.STARTED, scenario.state)
+                assertFalse(UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+                    .hasObject(By.text("Allow")))
+            } finally {
+                scenario.moveToState(Lifecycle.State.RESUMED)
+            }
+            waitForPairedText(ANIMAL)
+
+            // Enabling permission later lets the resumed Activity publish the shortcut.
+            InstrumentationRegistry.getInstrumentation().uiAutomation.grantRuntimePermission(
+                composeRule.activity.packageName, Manifest.permission.POST_NOTIFICATIONS,
+            )
+            composeRule.activityRule.scenario.recreate()
+            waitForPairedText(ANIMAL)
+
+            // An already-granted request delivers its result without restarting the Activity,
+            // so the callback can recreate the shortcut from the snapshot it still holds.
+            notifications.cancel(ONGOING_GAME_NOTIFICATION_ID)
+            composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
+                notifications.activeNotifications.none { it.id == ONGOING_GAME_NOTIFICATION_ID }
+            }
+            scenario.onActivity { activity ->
+                @Suppress("UNCHECKED_CAST")
+                val permissionLauncher = WatchActivity::class.java
+                    .getDeclaredField("notificationPermission").apply { isAccessible = true }
+                    .get(activity) as ActivityResultLauncher<String>
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
 
         // A game publishes one quiet ongoing activity with a return-to-game action.
         // These are programmatic tests of the watch's ongoing-game notification.

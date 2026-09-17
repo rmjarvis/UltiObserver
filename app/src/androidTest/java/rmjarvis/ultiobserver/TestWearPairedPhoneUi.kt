@@ -191,6 +191,9 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         assertEquals(2, halftime.halftimeTargetScore)
         assertTrue(halftime.halfCapApplied)
         assertEquals(GamePhase.HALFTIME, halftime.phase)
+
+        // Keep the phone active while the watch opens halftime controls and pauses its countdown.
+        waitForGame { game -> game.countdown!!.isPaused() }
     }
 
     /** Host watch confirmations for soft cap, hard cap, and game over. */

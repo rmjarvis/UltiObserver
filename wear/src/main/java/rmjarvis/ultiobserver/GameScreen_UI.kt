@@ -1,5 +1,6 @@
 package rmjarvis.ultiobserver
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.ViewConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -381,6 +383,7 @@ private fun CountdownStatus(label: String, value: String) {
         }
         Text(
             text = value,
+            modifier = Modifier.testTag("countdown-value"),
             style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
             fontSize = 27.sp,
             fontWeight = FontWeight.Medium,
@@ -760,6 +763,9 @@ private fun TimingControls(
     onBack: () -> Unit,
     modifier: Modifier,
 ) {
+    BackHandler {
+        onBack()
+    }
     Column(
         modifier = modifier.padding(top = 3.dp, bottom = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

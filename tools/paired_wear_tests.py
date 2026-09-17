@@ -370,6 +370,10 @@ def run_narrative(
         run(adb_command(adb, serial, "shell", "rm", "-f", remote), root)
     clear_ready_file(adb, pair.phone_serial, root)
 
+    # Exercise the shortcut's first notification-permission request independently of earlier tests.
+    if narrative == "ongoingGame":
+        run(adb_command(adb, pair.watch_serial, "shell", "pm", "clear", PACKAGE_NAME), root)
+
     phone_command = paired_phone_instrumentation_command(
         adb,
         pair.phone_serial,

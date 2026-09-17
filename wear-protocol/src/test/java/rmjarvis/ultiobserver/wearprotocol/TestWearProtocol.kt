@@ -199,6 +199,7 @@ class TestWearProtocol {
                 val noGame = WearStateSnapshot(status = status, activeGame = null)
                 assertEquals(WEAR_PROTOCOL_VERSION, noGame.protocolVersion)
                 assertNull(roundTrip(WearStateSnapshot.serializer(), noGame).activeGame)
+                assertFalse(noGame.requireLongPress)
             }
         }
     }
@@ -206,6 +207,16 @@ class TestWearProtocol {
     /** Every observer command and team-action choice survives its request envelope. */
     @Test
     fun gameCommandRoundTrips() {
+        // Timing vibrations preserve their duration and the watch's acceptance result.
+        val pulse = roundTrip(WearVibrationRequest.serializer(), WearVibrationRequest(420L))
+        assertEquals(420L, pulse.durationMillis)
+        assertEquals(WearVibrationRequest(420L), pulse)
+        for (accepted in listOf(true, false)) {
+            val response = roundTrip(WearVibrationResponse.serializer(), WearVibrationResponse(accepted))
+            assertEquals(accepted, response.accepted)
+            assertEquals(WearVibrationResponse(accepted), response)
+        }
+
         // Every registered path maps back to its command, while unrelated Data Layer traffic does
         // not become an UltiObserver action.
         WearRequestAction.entries.forEach { action ->

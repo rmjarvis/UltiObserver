@@ -11,7 +11,6 @@ class TestNavigation {
     fun localNavigation() {
         var navigation = NavigationState()
         assertEquals(GameSurface.SCORE, navigation.gameScreen("playing"))
-        assertFalse(navigation.handlesBack)
 
         // Timing adjustments stay open across countdown updates and close when play resumes.
         val snapshot = navigationSnapshot()
@@ -23,14 +22,17 @@ class TestNavigation {
         )
         navigation = navigation.copy(timingControlsOpen = true)
             .receive(snapshot.copy(activeGame = timedGame), ConnectionState.CONNECTED)
-        assertTrue(navigation.handlesBack)
         assertTrue(navigation.timingControlsOpen)
         assertEquals(NavigationState(), navigation.back())
+
+        // Rules opened directly from the scores handle Back without a team or timing panel.
+        val rulesOnly = NavigationState(rulesOpen = true)
+        assertEquals(GameSurface.RULES, rulesOnly.gameScreen("playing"))
+        assertEquals(NavigationState(), rulesOnly.back())
 
         // Rules open without a cap and return to the same timing panel when dismissed.
         navigation = NavigationState(timingControlsOpen = true, rulesOpen = true)
         assertEquals(GameSurface.RULES, navigation.gameScreen("playing"))
-        assertTrue(navigation.handlesBack)
         navigation = navigation.back()
         assertFalse(navigation.rulesOpen)
         assertTrue(navigation.timingControlsOpen)
@@ -42,26 +44,28 @@ class TestNavigation {
         assertTrue(navigation.timingControlsOpen)
         assertFalse(navigation.receive(snapshot, ConnectionState.CONNECTED).timingControlsOpen)
         assertFalse(navigation.receive(snapshot, ConnectionState.DISCONNECTED).timingControlsOpen)
+        assertFalse(navigation.receive(snapshot.copy(activeGame = timedGame.copy(
+            actionsAvailable = false,
+        )), ConnectionState.CONNECTED).timingControlsOpen)
+        assertFalse(navigation.receive(snapshot.copy(activeGame = timedGame.copy(
+            countdown = null,
+        )), ConnectionState.CONNECTED).timingControlsOpen)
         navigation = navigation.back()
 
         // Opening a team enables local Back; opening cards adds one level to that hierarchy.
         navigation = navigation.copy(selectedTeam = TeamId.TEAM_ONE)
         assertEquals(GameSurface.TEAM_ACTIONS, navigation.gameScreen("playing"))
-        assertTrue(navigation.handlesBack)
         navigation = navigation.copy(cardChoiceStateToken = "playing")
         assertEquals(GameSurface.CARD_CHOICES, navigation.gameScreen("playing"))
         assertEquals("playing", navigation.cardChoiceStateToken)
         assertEquals(TeamId.TEAM_ONE, navigation.selectedTeam)
-        assertTrue(navigation.handlesBack)
 
         // Number entry and its confirmation own Back themselves, rather than skipping the picker.
         val card = WearTeamAction.PlayerCard(CardType.YELLOW, "17")
         navigation = navigation.copy(playerCard = card)
         assertEquals(card, navigation.playerCard)
         assertEquals(GameSurface.PLAYER_CARD, navigation.gameScreen("playing"))
-        assertFalse(navigation.handlesBack)
         navigation = navigation.copy(playerCard = null, pendingActionPrompt = timeoutConfirmation())
-        assertFalse(navigation.handlesBack)
         navigation = navigation.copy(pendingActionPrompt = null)
         navigation = navigation.back()
         assertEquals(GameSurface.TEAM_ACTIONS, navigation.gameScreen("playing"))
@@ -71,8 +75,11 @@ class TestNavigation {
         // Team information returns to its team actions and closes when the connection is lost.
         navigation = navigation.copy(selectedTeam = TeamId.TEAM_TWO, teamInfoOpen = true)
         assertEquals(GameSurface.TEAM_INFO, navigation.gameScreen("playing"))
-        assertTrue(navigation.handlesBack)
         assertEquals(NavigationState(), navigation.receive(snapshot, ConnectionState.DISCONNECTED))
+        assertTrue(navigation.receive(snapshot, ConnectionState.CONNECTED).teamInfoOpen)
+        assertFalse(navigation.receive(snapshot.copy(activeGame = snapshot.activeGame!!.copy(
+            actionsAvailable = false,
+        )), ConnectionState.CONNECTED).teamInfoOpen)
         navigation = navigation.back()
         assertEquals(GameSurface.TEAM_ACTIONS, navigation.gameScreen("playing"))
         assertEquals(TeamId.TEAM_TWO, navigation.selectedTeam)

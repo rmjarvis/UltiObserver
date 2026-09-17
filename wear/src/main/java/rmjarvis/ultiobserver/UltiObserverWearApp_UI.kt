@@ -2,7 +2,6 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.runtime.CompositionLocalProvider
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,12 +62,6 @@ internal fun UltiObserverWearApp(
     LaunchedEffect(snapshot, connectionState) {
         navigation = navigation.receive(snapshot, connectionState)
     }
-    BackHandler(
-        enabled = navigation.handlesBack,
-        onBack = {
-            navigation = navigation.back()
-        },
-    )
 
     val screen = navigation.screen(snapshot, connectionState)
     when (screen) {

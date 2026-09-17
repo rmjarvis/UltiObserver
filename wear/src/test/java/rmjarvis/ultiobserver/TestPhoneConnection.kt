@@ -518,6 +518,26 @@ class TestPhoneConnection {
         assertEquals(ConnectionState.DISCONNECTED, phone.connections.last())
         assertEquals(phone.snapshot, phone.states.last().snapshot)
 
+        // History and countdown failures also release their callbacks without applying anything.
+        val retryPhone = PhoneSession()
+        retryPhone.connect()
+        retryPhone.controller.redo("playing") { applied = it }
+        retryPhone.sent.last().failure()
+        assertEquals(false, applied)
+        retryPhone.reply(true)
+        retryPhone.publish(WearStartupAcknowledgement(retryPhone.startupId()))
+        retryPhone.controller.redo("playing") { applied = it }
+        retryPhone.complete(applied = false)
+        assertEquals(false, applied)
+        var failedPrompt: WearTeamActionPrompt? = timeoutConfirmation()
+        retryPhone.controller.countdownAction("playing", WearCountdownAction.PLUS_FIVE) { result, next ->
+            applied = result
+            failedPrompt = next
+        }
+        retryPhone.sent.last().failure()
+        assertEquals(false, applied)
+        assertNull(failedPrompt)
+
         // Two overlapping retries cannot let an old lookup change the current attempt.
         phone.controller.retry()
         val oldLookup = phone.lookups.last()

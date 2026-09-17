@@ -1229,9 +1229,106 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         }
     }
 
-    /** Start misconduct timing and restart expired pulls from the watch's countdown area. */
+    /** Restart pulls and start points, rejecting requests blocked by phone state. */
     @Test
-    fun watchCountdownActions() {
+    fun watchPointStarts() {
+        val settings = Settings(timingAlerts = TimingAlertPreferences(
+            watchConnectionMode = WatchConnectionMode.WEAR_OS,
+        ))
+        val now = 1_000_000L
+
+        // An expired pull offers Restart countdown and keeps the usual undo behavior.
+        val expired = standardLiveGameState().copy(countdown = null)
+        val appState = activeWearState(settings, expired)
+        val restartDisplay = buildWearStateSnapshot(expired, settings, now).activeGame!!
+        assertEquals(listOf(WearCountdownAction.RESTART_PULL, WearCountdownAction.START_POINT),
+            restartDisplay.countdownActions)
+        assertEquals("Restart countdown", restartDisplay.countdownActions.first().label)
+        val restart = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(restartDisplay.stateToken, WearCountdownAction.RESTART_PULL))
+        val restarted = requestResponse(appState, WearRequestAction.COUNTDOWN, restart, now)
+        assertTrue(restarted.applied)
+        assertEquals(expired.restartPullCountdown(now), appState.currentGame)
+        assertTrue(restarted.snapshot.activeGame!!.countdownActions.isEmpty())
+        assertEquals("Undo Restart countdown", restarted.snapshot.activeGame!!.undoDescription)
+
+        // Once the opening countdown expires, Start point works even while the countdown remains.
+        val openingPull = appState.currentGame!!
+        val pullExpiredAt = openingPull.countdown!!.targetEpoch
+        assertEquals(GamePhase.PRE_GAME, openingPull.phase)
+        val openingChoices = buildWearStateSnapshot(openingPull, settings, pullExpiredAt)
+            .activeGame!!.countdownActions
+        assertEquals(restartDisplay.countdownActions, openingChoices)
+        val startOpeningPoint = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(openingPull), WearCountdownAction.START_POINT))
+        val openingStarted = requestResponse(appState, WearRequestAction.COUNTDOWN,
+            startOpeningPoint, pullExpiredAt)
+        assertTrue(openingStarted.applied)
+        assertEquals(openingPull.beginLivePoint(pullExpiredAt), appState.currentGame)
+        assertTrue(openingStarted.snapshot.activeGame!!.countdownActions.isEmpty())
+
+        // Between points, the observer may start play instead of restarting the countdown.
+        val betweenPoints = expired.copy(phase = GamePhase.BETWEEN_POINTS)
+        appState.updateCurrentGame(betweenPoints)
+        val choices = buildWearStateSnapshot(betweenPoints, settings, now).activeGame!!.countdownActions
+        assertEquals(listOf(WearCountdownAction.RESTART_PULL, WearCountdownAction.START_POINT), choices)
+        assertEquals("Start point", choices.last().label)
+        val startPoint = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(betweenPoints), WearCountdownAction.START_POINT))
+        val playing = requestResponse(appState, WearRequestAction.COUNTDOWN, startPoint, now)
+        assertTrue(playing.applied)
+        assertEquals(betweenPoints.beginLivePoint(now), appState.currentGame)
+        assertTrue(playing.snapshot.activeGame!!.countdownActions.isEmpty())
+        assertEquals("Undo Start point", playing.snapshot.activeGame!!.undoDescription)
+        val restored = appState.currentGame!!.undoLastAction()
+        assertEquals(GamePhase.BETWEEN_POINTS, restored.phase)
+        assertNull(restored.countdown)
+        assertEquals(choices, buildWearStateSnapshot(restored, settings, now).activeGame!!.countdownActions)
+
+        // Start point cannot be repeated once play is live.
+        val repeatedStart = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(appState.currentGame!!), WearCountdownAction.START_POINT))
+        assertFalse(requestResponse(appState, WearRequestAction.COUNTDOWN, repeatedStart, now).applied)
+
+        // A different action cannot be substituted for the one currently shown.
+        appState.updateCurrentGame(expired)
+        val wrongAction = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(expired), WearCountdownAction.START_MISCONDUCT))
+        assertFalse(requestResponse(appState, WearRequestAction.COUNTDOWN, wrongAction, now).applied)
+        assertEquals(expired, appState.currentGame)
+
+        // Halftime exposes Start point once its deadline arrives.
+        val halftime = expired.copy(phase = GamePhase.BETWEEN_POINTS).startHalftimeNow(now)
+        val halftimeEnd = halftime.countdown!!.targetEpoch
+        val halftimeState = activeWearState(settings, halftime)
+        assertEquals(WearCountdownAction.START_POINT,
+            buildWearStateSnapshot(halftime, settings, halftimeEnd).activeGame!!.timingControls!!.pointAction)
+        val startAfterHalf = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(halftime), WearCountdownAction.START_POINT))
+        assertTrue(requestResponse(halftimeState, WearRequestAction.COUNTDOWN, startAfterHalf, halftimeEnd).applied)
+        assertEquals(GamePhase.LIVE_POINT, halftimeState.currentGame!!.phase)
+
+        // Phone card entry and automatic confirmations take precedence over countdown commands.
+        val cardState = activeWearState(settings, expired)
+        cardState.updateCardEntry(expired, expectedCardEntry = null, updatedCardEntry = ActiveCardEntry(
+            team = TeamId.TEAM_ONE, cardType = CardType.YELLOW, jerseyNumber = "8",
+        ))
+        assertFalse(requestResponse(cardState, WearRequestAction.COUNTDOWN, restart, now).applied)
+        assertEquals(expired, cardState.currentGame)
+        val confirming = expired.copy(
+            pendingScoreTransition = PendingScoreTransition(ScoreTransition.HALFTIME, now),
+        )
+        val confirmationState = activeWearState(settings, confirming)
+        val restartWhileConfirming = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(confirming), WearCountdownAction.RESTART_PULL))
+        assertFalse(requestResponse(confirmationState, WearRequestAction.COUNTDOWN, restartWhileConfirming, now).applied)
+        assertEquals(confirming, confirmationState.currentGame)
+
+    }
+
+    /** Start misconduct timing, adjust and pause it, then continue play. */
+    @Test
+    fun watchCountdownControls() {
         val settings = Settings(timingAlerts = TimingAlertPreferences(
             watchConnectionMode = WatchConnectionMode.WEAR_OS,
         ))
@@ -1307,6 +1404,15 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertTrue(continued.applied)
         assertNull(offenseState.currentGame!!.countdown)
         assertNull(continued.snapshot.activeGame!!.timingControls)
+    }
+
+    /** Confirm watch-requested water breaks under each guidance mode. */
+    @Test
+    fun watchWaterBreaks() {
+        val settings = Settings(timingAlerts = TimingAlertPreferences(
+            watchConnectionMode = WatchConnectionMode.WEAR_OS,
+        ))
+        val now = 1_000_000L
 
         // Water breaks use the same prompt in every guidance mode and require a current token.
         val waterGame = standardLiveGameState(rules = GameRules().withHeatLevel(HeatLevel.MANUAL))
@@ -1331,66 +1437,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             assertEquals(waterGame.applyWaterBreak(now), waterState.currentGame)
             assertFalse(requestResponse(waterState, WearRequestAction.CONFIRM_ACTION, confirm, now).applied)
         }
-
-        // An expired pull offers Restart countdown and keeps the usual undo behavior.
-        val expired = standardLiveGameState().copy(countdown = null)
-        appState.updateCurrentGame(expired)
-        val restartDisplay = buildWearStateSnapshot(expired, settings, now).activeGame!!
-        assertEquals(listOf(WearCountdownAction.RESTART_PULL, WearCountdownAction.START_POINT),
-            restartDisplay.countdownActions)
-        assertEquals("Restart countdown", restartDisplay.countdownActions.first().label)
-        val restart = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
-            WearCountdownActionRequest(restartDisplay.stateToken, WearCountdownAction.RESTART_PULL))
-        val restarted = requestResponse(appState, WearRequestAction.COUNTDOWN, restart, now)
-        assertTrue(restarted.applied)
-        assertEquals(expired.restartPullCountdown(now), appState.currentGame)
-        assertTrue(restarted.snapshot.activeGame!!.countdownActions.isEmpty())
-        assertEquals("Undo Restart countdown", restarted.snapshot.activeGame!!.undoDescription)
-
-        // Once the opening countdown expires, Start point works even while the countdown remains.
-        val openingPull = appState.currentGame!!
-        val pullExpiredAt = openingPull.countdown!!.targetEpoch
-        assertEquals(GamePhase.PRE_GAME, openingPull.phase)
-        val openingChoices = buildWearStateSnapshot(openingPull, settings, pullExpiredAt)
-            .activeGame!!.countdownActions
-        assertEquals(restartDisplay.countdownActions, openingChoices)
-        val startOpeningPoint = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
-            WearCountdownActionRequest(wearStateToken(openingPull), WearCountdownAction.START_POINT))
-        val openingStarted = requestResponse(appState, WearRequestAction.COUNTDOWN,
-            startOpeningPoint, pullExpiredAt)
-        assertTrue(openingStarted.applied)
-        assertEquals(openingPull.beginLivePoint(pullExpiredAt), appState.currentGame)
-        assertTrue(openingStarted.snapshot.activeGame!!.countdownActions.isEmpty())
-
-        // Between points, the observer may start play instead of restarting the countdown.
-        val betweenPoints = expired.copy(phase = GamePhase.BETWEEN_POINTS)
-        appState.updateCurrentGame(betweenPoints)
-        val choices = buildWearStateSnapshot(betweenPoints, settings, now).activeGame!!.countdownActions
-        assertEquals(listOf(WearCountdownAction.RESTART_PULL, WearCountdownAction.START_POINT), choices)
-        assertEquals("Start point", choices.last().label)
-        val startPoint = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
-            WearCountdownActionRequest(wearStateToken(betweenPoints), WearCountdownAction.START_POINT))
-        val playing = requestResponse(appState, WearRequestAction.COUNTDOWN, startPoint, now)
-        assertTrue(playing.applied)
-        assertEquals(betweenPoints.beginLivePoint(now), appState.currentGame)
-        assertTrue(playing.snapshot.activeGame!!.countdownActions.isEmpty())
-        assertEquals("Undo Start point", playing.snapshot.activeGame!!.undoDescription)
-        val restored = appState.currentGame!!.undoLastAction()
-        assertEquals(GamePhase.BETWEEN_POINTS, restored.phase)
-        assertNull(restored.countdown)
-        assertEquals(choices, buildWearStateSnapshot(restored, settings, now).activeGame!!.countdownActions)
-
-        // Start point cannot be repeated once play is live.
-        val repeatedStart = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
-            WearCountdownActionRequest(wearStateToken(appState.currentGame!!), WearCountdownAction.START_POINT))
-        assertFalse(requestResponse(appState, WearRequestAction.COUNTDOWN, repeatedStart, now).applied)
-
-        // A different action cannot be substituted for the one currently shown.
-        appState.updateCurrentGame(expired)
-        val wrongAction = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
-            WearCountdownActionRequest(wearStateToken(expired), WearCountdownAction.START_MISCONDUCT))
-        assertFalse(requestResponse(appState, WearRequestAction.COUNTDOWN, wrongAction, now).applied)
-        assertEquals(expired, appState.currentGame)
     }
 
     /** Exercise a watch timeout that is requested before it is confirmed and recorded. */
@@ -2523,6 +2569,36 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertEquals(WearStartupAcknowledgement("recovery"), updates.last().acknowledgement)
         appState.updateCurrentGame(appState.currentGame!!.undoLastAction())
         assertEquals(WearStartupAcknowledgement("recovery"), updates.last().acknowledgement)
+
+        // The coordinator observes this AppState, including card-entry changes without a new game.
+        assertEquals(appState, coordinators.getValue(appState).appState)
+        assertNotNull(appState.onStateChanged)
+        val entry = ActiveCardEntry(TeamId.TEAM_ONE, CardType.YELLOW, "8")
+        val beforeEntry = updates.size
+        appState.updateCardEntry(appState.currentGame!!, null, entry)
+        assertEquals(beforeEntry + 1, updates.size)
+        assertNotNull(updates.last().snapshot.activeGame!!.phoneCardEntry)
+        appState.updateCardEntry(appState.currentGame!!, entry, null)
+        assertNull(updates.last().snapshot.activeGame!!.phoneCardEntry)
+
+        // Unrelated navigation does not publish; disabling Wear publishes once, then stays quiet.
+        val beforeNavigation = updates.size
+        appState.openSettings()
+        val afterNavigation = updates.size
+        appState.openTimingCueSettings()
+        assertEquals(afterNavigation, updates.size)
+        assertTrue(afterNavigation >= beforeNavigation)
+        val disabled = settings.copy(timingAlerts = settings.timingAlerts.copy(
+            watchConnectionMode = WatchConnectionMode.OFF,
+        ))
+        appState.updateSettings(disabled)
+        assertEquals(WearSnapshotStatus.DISABLED, updates.last().snapshot.status)
+        val disabledUpdates = updates.size
+        appState.updateSettings(disabled.copy(showDefenseCountdowns = true))
+        assertEquals(disabledUpdates, updates.size)
+        appState.updateSettings(settings)
+        assertEquals(disabledUpdates + 1, updates.size)
+        assertEquals(WearSnapshotStatus.ACTIVE_GAME, updates.last().snapshot.status)
     }
 
     /** Exercise coordinator rejection paths shared across watch request types. */

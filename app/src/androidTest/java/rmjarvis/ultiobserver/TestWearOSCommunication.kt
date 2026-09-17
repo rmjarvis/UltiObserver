@@ -82,6 +82,13 @@ class TestWearOSCommunication {
         )
         assertFalse(sendFailure.vibrate(420L))
 
+        // A cancelled transport task also returns control for phone fallback.
+        val cancelled = WearVibrationSender(
+            findWatch = { Tasks.forResult(capability) },
+            sendRequest = { _, _ -> Tasks.forCanceled() },
+        )
+        assertFalse(cancelled.vibrate(420L))
+
         // An empty discovery result never submits a vibration request.
         val empty = object : CapabilityInfo {
             override fun getName() = WATCH_VIBRATION_CAPABILITY

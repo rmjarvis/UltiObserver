@@ -109,6 +109,9 @@ internal fun TeamActionsScreen(
     onTimeout: () -> Unit,
     onCancel: () -> Unit,
 ) {
+    BackHandler {
+        onCancel()
+    }
     TeamScreenScaffold(display.team) {
         BoxWithConstraints(
             modifier = Modifier
@@ -253,6 +256,9 @@ internal fun TeamInfoScreen(
     nameInfo: List<WearGuidanceLineSnapshot>,
     onBack: () -> Unit,
 ) {
+    BackHandler {
+        onBack()
+    }
     TeamScreenScaffold(team) {
         Column(
             modifier = Modifier.fillMaxSize().padding(top = 28.dp, start = 24.dp, end = 24.dp),
@@ -299,6 +305,9 @@ internal fun CardChoiceScreen(
     onBlue: () -> Unit,
     onCancel: () -> Unit,
 ) {
+    BackHandler {
+        onCancel()
+    }
     TeamScreenScaffold(display.team) {
         Box(
             modifier = Modifier

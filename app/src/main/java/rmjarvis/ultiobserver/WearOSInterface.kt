@@ -99,7 +99,6 @@ internal fun handleWearRequest(
                 game != null &&
                 snapshot.activeCardEntry == null &&
                 game.pendingGameDecision() == null &&
-                game.phase != GamePhase.GAME_OVER &&
                 (request.action in game.wearCountdownActions(now) ||
                     request.action in game.wearTimingControls(now, snapshot.settings)?.all().orEmpty())
             ) {
