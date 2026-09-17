@@ -31,9 +31,11 @@ import rmjarvis.ultiobserver.wearprotocol.WearRulesReferenceItemSnapshot
 /** Show the phone's current rules reference, with room for long values to wrap and scroll. */
 @Composable
 internal fun RulesReferenceScreen(items: List<WearRulesReferenceItemSnapshot>, onBack: () -> Unit) {
-    BackHandler {
-        onBack()
-    }
+    BackHandler(
+        onBack = {
+            onBack()
+        },
+    )
     UltiObserverTheme {
         AppScaffold(
             timeText = { AppTimeText() },

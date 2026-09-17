@@ -638,7 +638,9 @@ private fun RatioChooserBadge(badge: RatioChooserDisplay, modifier: Modifier) {
         modifier = modifier.height(RatioBadgeHeight * 0.7f)
             .clip(shape)
             .border(1.dp, Color.White.copy(alpha = 0.7f), shape)
-            .semantics { contentDescription = badge.description },
+            .semantics {
+                contentDescription = badge.description
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         listOf(badge.men, badge.women).forEach { segment ->

@@ -24,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -147,29 +146,9 @@ private fun LandscapeMoreActionsRegion(
     val density = LocalDensity.current
     var leftViewportHeightPx by remember { mutableIntStateOf(0) }
     var leftViewportTopPx by remember { mutableIntStateOf(0) }
-    var measuredCategory by remember { mutableStateOf<MoreActionsCategory?>(null) }
-    var selectedHeaderTopPx by remember { mutableIntStateOf(0) }
-    var selectedHeaderHeightPx by remember { mutableIntStateOf(0) }
     var alignedCategory by remember { mutableStateOf<MoreActionsCategory?>(null) }
     var selectedHeaderCenterPx by remember { mutableIntStateOf(0) }
     var actionCardHeightPx by remember { mutableIntStateOf(0) }
-    LaunchedEffect(
-        selectedCategory,
-        measuredCategory,
-        selectedHeaderTopPx,
-        selectedHeaderHeightPx,
-        leftViewportTopPx,
-        leftViewportHeightPx,
-    ) {
-        if (
-            alignedCategory != selectedCategory &&
-            measuredCategory == selectedCategory
-        ) {
-            selectedHeaderCenterPx =
-                selectedHeaderTopPx - leftViewportTopPx + selectedHeaderHeightPx / 2
-            alignedCategory = selectedCategory
-        }
-    }
     val actionCardTopPx = if (
         alignedCategory == selectedCategory && actionCardHeightPx < leftViewportHeightPx
     ) {
@@ -203,9 +182,12 @@ private fun LandscapeMoreActionsRegion(
                     var cardModifier = Modifier.fillMaxWidth()
                     if (category == selectedCategory) {
                         cardModifier = cardModifier.onGloballyPositioned { coordinates ->
-                            measuredCategory = category
-                            selectedHeaderTopPx = coordinates.positionInRoot().y.roundToInt()
-                            selectedHeaderHeightPx = coordinates.size.height
+                            if (alignedCategory != category) {
+                                selectedHeaderCenterPx =
+                                    coordinates.positionInRoot().y.roundToInt() -
+                                        leftViewportTopPx + coordinates.size.height / 2
+                                alignedCategory = category
+                            }
                         }
                     }
                     Card(

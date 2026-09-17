@@ -256,9 +256,11 @@ internal fun TeamInfoScreen(
     nameInfo: List<WearGuidanceLineSnapshot>,
     onBack: () -> Unit,
 ) {
-    BackHandler {
-        onBack()
-    }
+    BackHandler(
+        onBack = {
+            onBack()
+        },
+    )
     TeamScreenScaffold(team) {
         Column(
             modifier = Modifier.fillMaxSize().padding(top = 28.dp, start = 24.dp, end = 24.dp),

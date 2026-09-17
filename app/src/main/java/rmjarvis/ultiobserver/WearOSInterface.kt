@@ -102,24 +102,25 @@ internal fun handleWearRequest(
                 (request.action in game.wearCountdownActions(now) ||
                     request.action in game.wearTimingControls(now, snapshot.settings)?.all().orEmpty())
             ) {
-                if (request.action == WearCountdownAction.WATER_BREAK) {
-                    nextPrompt = WearActionConfirmation.WaterBreak(
-                        request.stateToken,
-                        GamePrompt.ManualWaterBreak(game).wearSnapshot(snapshot.settings.ruleGuidanceMode),
-                    )
-                } else {
-                    // No else branch: every WearCountdownAction value is handled.
-                    val updated = when (request.action) {
-                        WearCountdownAction.START_MISCONDUCT -> game.startMisconductCountdown(now)
-                        WearCountdownAction.RESTART_PULL -> game.restartPullCountdown(now)
-                        WearCountdownAction.START_POINT -> game.beginLivePoint(now)
-                        WearCountdownAction.CONTINUE_POINT -> game.continueLivePoint()
-                        WearCountdownAction.OFFENSE_SET -> game.reportOffenseSet(now)
-                        WearCountdownAction.MINUS_FIVE -> game.addTimeToCountdown(-5)
-                        WearCountdownAction.PLUS_FIVE -> game.addTimeToCountdown(5)
-                        WearCountdownAction.PAUSE, WearCountdownAction.RESUME -> game.toggleCountdownPaused(now)
-                        WearCountdownAction.WATER_BREAK -> error("Water break requires confirmation")
+                // No else branch: every WearCountdownAction value is handled.
+                val updated = when (request.action) {
+                    WearCountdownAction.START_MISCONDUCT -> game.startMisconductCountdown(now)
+                    WearCountdownAction.RESTART_PULL -> game.restartPullCountdown(now)
+                    WearCountdownAction.START_POINT -> game.beginLivePoint(now)
+                    WearCountdownAction.CONTINUE_POINT -> game.continueLivePoint()
+                    WearCountdownAction.OFFENSE_SET -> game.reportOffenseSet(now)
+                    WearCountdownAction.MINUS_FIVE -> game.addTimeToCountdown(-5)
+                    WearCountdownAction.PLUS_FIVE -> game.addTimeToCountdown(5)
+                    WearCountdownAction.PAUSE, WearCountdownAction.RESUME -> game.toggleCountdownPaused(now)
+                    WearCountdownAction.WATER_BREAK -> {
+                        nextPrompt = WearActionConfirmation.WaterBreak(
+                            request.stateToken,
+                            GamePrompt.ManualWaterBreak(game).wearSnapshot(snapshot.settings.ruleGuidanceMode),
+                        )
+                        null
                     }
+                }
+                if (updated != null) {
                     applied = appState.updateCurrentGame(game, updated)
                 }
             }

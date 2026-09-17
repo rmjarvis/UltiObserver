@@ -71,7 +71,6 @@ internal class WearPhoneCoordinator(
      */
     fun handleRequest(requestedActionPath: String, request: WearCommandRequest, now: Long) {
         return synchronized(appState) {
-            check(!handlingWatchRequest)
             handlingWatchRequest = true
             try {
                 val response = handleWearRequest(

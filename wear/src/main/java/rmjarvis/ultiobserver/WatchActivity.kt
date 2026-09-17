@@ -19,7 +19,9 @@ class WatchActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
-        receivedState?.snapshot?.let { snapshot -> updateOngoingGame(snapshot) }
+        receivedState?.let { state ->
+            updateOngoingGame(state.snapshot)
+        }
     }
     private val stateClient by lazy {
         StateClient(
