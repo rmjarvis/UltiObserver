@@ -134,6 +134,7 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.device)
     androidTestImplementation(libs.androidx.espresso.intents)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.mockito.android)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

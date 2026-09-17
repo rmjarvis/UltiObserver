@@ -5,8 +5,14 @@ import android.accessibilityservice.AccessibilityService
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
+import android.media.AudioAttributes
 import android.os.Build
+import android.os.VibrationAttributes
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.service.notification.StatusBarNotification
 import java.io.FileInputStream
 import java.time.LocalDate
@@ -20,11 +26,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.decodeFromString
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentCaptor
+import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.eq
+import org.mockito.Mockito.doReturn
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
 import androidx.core.content.ContextCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -753,6 +767,66 @@ class TestTimingAlerts {
             assertTrue(context.hasExactTimingAlertAlarmAccess())
         } else {
             context.hasExactTimingAlertAlarmAccess()
+        }
+
+        // Mockito's Android mock maker requires Android 9 or later.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+
+        // Control hardware responses without depending on the real device's vibrator.
+        val legacyVibrator = mock(Vibrator::class.java)
+        val hapticContext = object : ContextWrapper(context) {
+            override fun getSystemService(name: String): Any? = if (name == Context.VIBRATOR_SERVICE) {
+                legacyVibrator
+            } else {
+                super.getSystemService(name)
+            }
+        }
+        val effect = VibrationEffect.createOneShot(420L, VibrationEffect.DEFAULT_AMPLITUDE)
+
+        // Missing hardware suppresses the pulse independently of the real device's hardware.
+        doReturn(false).`when`(legacyVibrator).hasVibrator()
+        assertFalse(hapticContext.hasTimingCueHaptics(sdkInt = Build.VERSION_CODES.R))
+        hapticContext.performTimingCueHaptic(420L, sdkInt = Build.VERSION_CODES.R)
+        verify(legacyVibrator, never()).vibrate(any(VibrationEffect::class.java),
+            any(AudioAttributes::class.java))
+
+        // Android 11 uses the legacy vibrator service and audio attributes.
+        doReturn(true).`when`(legacyVibrator).hasVibrator()
+        assertTrue(hapticContext.hasTimingCueHaptics(sdkInt = Build.VERSION_CODES.R))
+        hapticContext.performTimingCueHaptic(420L, sdkInt = Build.VERSION_CODES.R)
+        val legacyAttributes = ArgumentCaptor.forClass(AudioAttributes::class.java)
+        verify(legacyVibrator).vibrate(eq(effect), legacyAttributes.capture())
+        assertEquals(AudioAttributes.USAGE_NOTIFICATION_EVENT, legacyAttributes.value.usage)
+
+        // Android 12 obtains its vibrator from the manager but still uses audio attributes.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val managedVibrator = mock(Vibrator::class.java)
+            val manager = mock(VibratorManager::class.java)
+            doReturn(managedVibrator).`when`(manager).defaultVibrator
+            val managedContext = object : ContextWrapper(context) {
+                override fun getSystemService(name: String): Any? {
+                    return if (name == Context.VIBRATOR_MANAGER_SERVICE) {
+                        manager
+                    } else {
+                        super.getSystemService(name)
+                    }
+                }
+            }
+            doReturn(true).`when`(managedVibrator).hasVibrator()
+            assertTrue(managedContext.hasTimingCueHaptics(sdkInt = Build.VERSION_CODES.S))
+            managedContext.performTimingCueHaptic(420L, sdkInt = Build.VERSION_CODES.S)
+            val effect = VibrationEffect.createOneShot(420L, VibrationEffect.DEFAULT_AMPLITUDE)
+            val audioAttributes = ArgumentCaptor.forClass(AudioAttributes::class.java)
+            verify(managedVibrator).vibrate(eq(effect), audioAttributes.capture())
+            assertEquals(AudioAttributes.USAGE_NOTIFICATION_EVENT, audioAttributes.value.usage)
+
+            // Android 13 and later use vibration attributes for the same notification cue.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                managedContext.performTimingCueHaptic(420L, sdkInt = Build.VERSION_CODES.TIRAMISU)
+                val vibrationAttributes = ArgumentCaptor.forClass(VibrationAttributes::class.java)
+                verify(managedVibrator).vibrate(eq(effect), vibrationAttributes.capture())
+                assertEquals(VibrationAttributes.USAGE_NOTIFICATION, vibrationAttributes.value.usage)
+            }
         }
     }
 

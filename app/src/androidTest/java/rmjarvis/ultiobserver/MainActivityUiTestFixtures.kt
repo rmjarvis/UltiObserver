@@ -35,7 +35,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 
-private const val LANDSCAPE_COVERAGE_AVD = "Pixel_5"
+private const val LANDSCAPE_COVERAGE_AVD = "Pixel_4a"
 
 private val explicitControlDismissalCoverageAvds = setOf(
     // These devices cover explicit dialog controls such as OK and Cancel, while the rest of the
@@ -61,7 +61,7 @@ abstract class MainActivityUiTestFixtures {
         ruleGuidanceTimeoutMillis = 5_000L
     }
 
-    /// Restore Home and use Landscape on Pixel 5 or Portrait elsewhere for each UI-test narrative.
+    /// Restore Home and use Landscape on Pixel 4a or Portrait elsewhere for each UI-test narrative.
     @Before
     fun prepareUiTest() {
         composeRule.activityRule.scenario.onActivity { activity ->

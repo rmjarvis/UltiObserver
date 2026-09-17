@@ -354,9 +354,14 @@ private fun TimingAlertPreferences.vibrationRepeatSpacingMillis(): Long {
     return vibrationDurationMillis + TIMING_ALERT_REPEAT_HAPTIC_GAP_MS
 }
 
-/// Return whether the device reports usable timing-cue haptics.
-internal fun Context.hasTimingCueHaptics(): Boolean {
-    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+/**
+ * Return whether the device reports usable timing-cue haptics.
+ *
+ * @param sdkInt Android API version. Production code always uses the default device version;
+ * tests can override it to exercise behavior for different Android versions.
+ */
+internal fun Context.hasTimingCueHaptics(sdkInt: Int = Build.VERSION.SDK_INT): Boolean {
+    val vibrator = if (sdkInt >= Build.VERSION_CODES.S) {
         getSystemService(VibratorManager::class.java).defaultVibrator
     } else {
         getSystemService(Vibrator::class.java)
@@ -368,19 +373,24 @@ internal fun Context.hasTimingCueHaptics(): Boolean {
  * Perform a timing-cue haptic pulse when the device supports vibration.
  *
  * @param durationMillis The requested vibration duration in milliseconds.
+ * @param sdkInt Android API version. Production code always uses the default device version;
+ * tests can override it to exercise behavior for different Android versions.
  */
-internal fun Context.performTimingCueHaptic(durationMillis: Long) {
+internal fun Context.performTimingCueHaptic(
+    durationMillis: Long,
+    sdkInt: Int = Build.VERSION.SDK_INT,
+) {
     // Devices without usable vibration hardware should ignore haptic cues without crashing.
-    if (!hasTimingCueHaptics()) {
+    if (!hasTimingCueHaptics(sdkInt)) {
         return
     }
-    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    val vibrator = if (sdkInt >= Build.VERSION_CODES.S) {
         getSystemService(VibratorManager::class.java).defaultVibrator
     } else {
         getSystemService(Vibrator::class.java)
     }
     val effect = VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
         vibrator.vibrate(
             effect,
             VibrationAttributes.createForUsage(VibrationAttributes.USAGE_NOTIFICATION),

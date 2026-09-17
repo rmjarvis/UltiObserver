@@ -6,8 +6,14 @@ import android.app.Activity
 import android.app.Instrumentation
 import android.content.pm.PackageManager
 import android.content.Intent
+import android.content.Context
+import android.content.ContextWrapper
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.Settings
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -50,6 +56,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.hamcrest.Matchers.allOf
+import org.mockito.Mockito.doReturn
+import org.mockito.Mockito.mock
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /// Tests for Home, top-level navigation, profile, settings, and archived-game UI pathways.
@@ -1677,6 +1685,72 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-observer-1")
             .performScrollTo()
             .assertTextContains("Observer 2")
+    }
+
+    /** A phone without vibration hardware can still offer timing-cue vibration on a watch. */
+    @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.P) // Mockito requires Android 9 or later.
+    fun watchVibrationWithoutPhoneHardware() {
+        // Substitute only the phone's hardware response; use the real settings and navigation.
+        val vibrator = mock(Vibrator::class.java)
+        doReturn(false).`when`(vibrator).hasVibrator()
+        val manager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            mock(VibratorManager::class.java).also {
+                doReturn(vibrator).`when`(it).defaultVibrator
+            }
+        } else {
+            null
+        }
+        val context = object : ContextWrapper(composeRule.activity) {
+            override fun getSystemService(name: String): Any? {
+                return when {
+                    name == Context.VIBRATOR_SERVICE -> vibrator
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                        name == Context.VIBRATOR_MANAGER_SERVICE -> manager
+                    else -> super.getSystemService(name)
+                }
+            }
+        }
+        setTimingAlertPreferences(TimingAlertPreferences(
+            globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
+            vibrateWithSounds = true,
+        ))
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appState.openSettings()
+            activity.setContent {
+                CompositionLocalProvider(LocalContext provides context) {
+                    UltiObserverTheme(dynamicColor = false) {
+                        UltiObserverApp(
+                            appState = activity.appState,
+                            previousRunCrashed = false,
+                            displayOrientation = ActiveGameFullOrientation.PORTRAIT,
+                            wearWatchAvailable = true,
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.onNodeWithTag("settings-vibration-length")
+            .performScrollTo().assertIsNotEnabled()
+
+        // Selecting watch vibration enables the controls and explains the cue's destination.
+        composeRule.onNodeWithTag("settings-watch-connection-WEAR_OS")
+            .performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-vibration-length")
+            .performScrollTo().assertIsEnabled()
+        composeRule.onNodeWithTag("settings-open-timing-cue-settings")
+            .performScrollTo().performClick()
+        waitForText("The watch will currently vibrate instead for any cues with sounds.",
+            substring = true)
+
+        // Redirecting vibrations to this phone removes the unavailable vibration alternative.
+        tapTopBarBack()
+        composeRule.onNodeWithTag("settings-vibrate-on-watch").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-open-timing-cue-settings")
+            .performScrollTo().performClick()
+        waitForText("Cue sound settings")
+        composeRule.onAllNodesWithText("will currently vibrate instead", substring = true)
+            .assertCountEquals(0)
     }
 
     /// Open Archived games from Home and wait until the page is visible.

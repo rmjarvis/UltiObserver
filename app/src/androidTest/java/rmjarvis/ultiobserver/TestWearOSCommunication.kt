@@ -1,10 +1,13 @@
 package rmjarvis.ultiobserver
 
+import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import com.google.android.gms.tasks.TaskCompletionSource
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.CapabilityInfo
 import com.google.android.gms.wearable.Node
+import com.google.android.gms.wearable.MessageEvent
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,7 +15,8 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import rmjarvis.ultiobserver.wearprotocol.WATCH_VIBRATION_CAPABILITY
+import org.mockito.Mockito.doReturn
+import org.mockito.Mockito.mock
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearVibrationRequest
@@ -37,19 +41,23 @@ class TestWearOSCommunication {
             service.onRequest("watch", "/unknown", byteArrayOf())
         }
         assertEquals("Only startup uses the request/reply path", unknown.message)
+
+        // The manifest accepts our whole path prefix; unknown messages must be ignored.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        val message = mock(MessageEvent::class.java)
+        doReturn("/ultiobserver/unknown").`when`(message).path
+        service.onMessageReceived(message)
     }
 
     /** Exercise vibration acceptance, failure, and timeout paths. */
     @Test
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.P) // Mockito requires Android 9 or later.
     fun vibrationDelivery() = runBlocking {
-        val capability = object : CapabilityInfo {
-            override fun getName() = WATCH_VIBRATION_CAPABILITY
-            override fun getNodes() = setOf(object : Node {
-                override fun getId() = "watch"
-                override fun getDisplayName() = "Watch"
-                override fun isNearby() = true
-            })
-        }
+        val watch = mock(Node::class.java)
+        doReturn("watch").`when`(watch).id
+        doReturn(true).`when`(watch).isNearby
+        val capability = mock(CapabilityInfo::class.java)
+        doReturn(setOf(watch)).`when`(capability).nodes
 
         // Forward the exact pulse duration and honor the watch's reply.
         var accepted = true
@@ -90,10 +98,8 @@ class TestWearOSCommunication {
         assertFalse(cancelled.vibrate(420L))
 
         // An empty discovery result never submits a vibration request.
-        val empty = object : CapabilityInfo {
-            override fun getName() = WATCH_VIBRATION_CAPABILITY
-            override fun getNodes() = emptySet<Node>()
-        }
+        val empty = mock(CapabilityInfo::class.java)
+        doReturn(emptySet<Node>()).`when`(empty).nodes
         assertFalse(WearVibrationSender(
             findWatch = { Tasks.forResult(empty) },
             sendRequest = { _, _ -> error("No watch was found") },
