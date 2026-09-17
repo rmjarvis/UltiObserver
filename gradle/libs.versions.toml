@@ -20,11 +20,13 @@ wearToolingPreview = "1.0.0"
 wearOngoing = "1.1.0"
 uiautomator = "2.4.0"
 playServicesWearable = "20.0.1"
+mockito = "5.23.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-fragment = { group = "androidx.fragment", name = "fragment", version.ref = "fragment" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+mockito-android = { group = "org.mockito", name = "mockito-android", version.ref = "mockito" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-espresso-device = { group = "androidx.test.espresso", name = "espresso-device", version.ref = "espressoDevice" }

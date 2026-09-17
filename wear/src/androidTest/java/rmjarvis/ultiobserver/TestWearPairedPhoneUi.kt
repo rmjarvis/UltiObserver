@@ -57,6 +57,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestName
+import org.mockito.Mockito.doReturn
+import org.mockito.Mockito.mock
 import rmjarvis.ultiobserver.wearprotocol.PHONE_STATE_CAPABILITY
 import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
 
@@ -925,10 +927,8 @@ class TestWearPairedPhoneUi {
             // An empty capability node set represents the phone leaving reachability. Invoke
             // the Android callback directly: manifest capabilities cannot be withdrawn by API.
             // This proves callback forwarding, not Android's delivery of capability events.
-            val unavailable = object : CapabilityInfo {
-                override fun getName() = PHONE_STATE_CAPABILITY
-                override fun getNodes() = emptySet<com.google.android.gms.wearable.Node>()
-            }
+            val unavailable = mock(CapabilityInfo::class.java)
+            doReturn(emptySet<com.google.android.gms.wearable.Node>()).`when`(unavailable).nodes
             composeRule.runOnIdle { client.onCapabilityChanged(unavailable) }
             assertEquals(ConnectionState.DISCONNECTED, connection.get())
             assertEquals(original, received.get())
