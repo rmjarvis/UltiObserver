@@ -39,6 +39,43 @@ release to become available.
 
 .. _Open UltiObserver in Google Play: https://play.google.com/store/apps/details?id=rmjarvis.ultiobserver
 
+If you use the watch companion, check for updates on the watch as well as the phone.
+You can manage its updates through **Play Store** on the watch. If the two apps have
+incompatible communication versions, the watch will identify which device needs an
+update. Update that app, then tap **Retry** on the watch. Their displayed release
+numbers do not have to match when their communication versions are compatible.
+
+Installing on a Wear OS Watch
+-----------------------------
+
+UltiObserver has an optional companion app for Wear OS smart watches. If you have
+one, we highly recommend also installing UltiObserver on your watch.
+Install the phone app first using the instructions above, and pair your watch with
+that phone using the watch manufacturer's companion app.
+
+1. Make sure Google Play on the watch uses the same Google account that joined the
+   testers group and opted into the test.
+2. Open the `UltiObserver Google Play listing`_ on your phone. Use the device selector
+   beside the installation controls to select your watch and install UltiObserver on it.
+   The exact controls may vary with your version of Google Play.
+3. Alternatively, open **Play Store** on the watch and look under **Apps on your phone**
+   for UltiObserver, then tap **Install**. While we are still in closed testing, a regular
+   search will not discover UltiObserver.
+4. Open UltiObserver on the phone. In `Settings`, set **Watch connection** to **Wear OS**,
+   then open UltiObserver on the watch.
+
+The watch should show **No active game** until you start or resume a game on the phone.
+See `Wear OS Companion App` for usage instructions and `Watch Troubleshooting` if it
+does not connect.
+
+If Google Play does not offer the watch installation, check the account on both devices,
+confirm that the watch is connected, and allow time for the watch release to become
+available. Installing the phone app alone does not necessarily install the watch app.
+Google's `Wear OS app installation help`_ describes the available installation controls.
+
+.. _UltiObserver Google Play listing: https://play.google.com/store/apps/details?id=rmjarvis.ultiobserver
+.. _Wear OS app installation help: https://support.google.com/wearos/answer/7314014
+
 Android Support
 ---------------
 
