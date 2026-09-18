@@ -1,3 +1,26 @@
+import java.util.Properties
+
+val releaseSigningPropertiesFile = rootProject.file("release-signing.properties")
+val releaseSigningProperties = Properties().apply {
+    if (releaseSigningPropertiesFile.isFile) {
+        releaseSigningPropertiesFile.inputStream().use { load(it) }
+    }
+}
+val releaseSigningPropertyNames = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+val missingReleaseSigningProperties = releaseSigningPropertyNames.filter { name ->
+    releaseSigningPropertiesFile.isFile && releaseSigningProperties.getProperty(name).isNullOrBlank()
+}
+require(missingReleaseSigningProperties.isEmpty()) {
+    "Missing release signing properties in ${releaseSigningPropertiesFile.name}: " +
+        missingReleaseSigningProperties.joinToString(", ")
+}
+val hasReleaseSigningProperties = releaseSigningPropertiesFile.isFile
+
+fun releaseSigningProperty(name: String): String {
+    return releaseSigningProperties.getProperty(name)
+        ?: error("Missing release signing property: $name")
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.firebase.crashlytics)
@@ -21,10 +44,21 @@ android {
         applicationId = "rmjarvis.ultiobserver"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.3.1"
+        versionCode = 9
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (hasReleaseSigningProperties) {
+            create("localRelease") {
+                storeFile = rootProject.file(releaseSigningProperty("storeFile"))
+                storePassword = releaseSigningProperty("storePassword")
+                keyAlias = releaseSigningProperty("keyAlias")
+                keyPassword = releaseSigningProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -38,6 +72,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (hasReleaseSigningProperties) {
+                signingConfig = signingConfigs.getByName("localRelease")
+            }
         }
     }
 
@@ -54,6 +91,11 @@ android {
 dependencies {
     implementation(project(":shared"))
     implementation(project(":wear-protocol"))
+    constraints {
+        implementation(libs.androidx.fragment) {
+            because("Play Services otherwise packages the obsolete Fragment 1.1.0")
+        }
+    }
     implementation(platform(libs.androidx.compose.bom))
     implementation(platform(libs.firebase.bom))
     implementation(libs.androidx.activity.compose)
