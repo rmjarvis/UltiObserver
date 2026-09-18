@@ -1,6 +1,8 @@
 package rmjarvis.ultiobserver
 
 import android.graphics.Bitmap
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
@@ -15,20 +17,22 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.io.FileInputStream
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import java.time.ZoneId
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
  * Generate the public documentation and Play Store screenshot narrative.
  *
- * This is deliberately separate from ordinary UI verification. It drives the real UI at a
- * changes the emulator wall clock to create the requested event-log times and
+ * This is deliberately separate from ordinary UI verification. It drives the real UI,
+ * advances fixture timing to create the requested event-log times, and
  * writes full-display PNG captures for the host-side screenshot driver to collect.
  */
 @RunWith(AndroidJUnit4::class)
 class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
+    private val includeWatch =
+        InstrumentationRegistry.getArguments().getString("includeWatch") == "true"
     private val outputDirectory = File(
         instrumentation.targetContext.getExternalFilesDir(null),
         "release-screenshots",
@@ -37,8 +41,8 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
     /** Generate the complete July 2026 Red Fish Blue Fish vs Rippit screenshot set. */
     @Test
     fun generateScreenshots() {
-        require(currentAvdName() == "Pixel_8") {
-            "Release screenshots must run on Pixel_8, not ${currentAvdName()}."
+        require(currentAvdName() == "Pixel_7") {
+            "Release screenshots must run on Pixel_7, not ${currentAvdName()}."
         }
         outputDirectory.deleteRecursively()
         check(outputDirectory.mkdirs()) { "Could not create $outputDirectory" }
@@ -220,6 +224,7 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
         recordTechnicalFoul(TeamId.TEAM_TWO)
 
         advanceToUnlockedPoint(LocalDateTime.of(2026, 7, 6, 11, 54))
+        captureWatch("captureCardChoices")
         openCardsDialog(TeamId.TEAM_ONE)
         tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         waitForText("Yellow card")
@@ -247,6 +252,29 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
         goal(TeamId.TEAM_TWO)
         advanceToUnlockedPoint(LocalDateTime.of(2026, 7, 6, 12, 6))
         goal(TeamId.TEAM_ONE)
+        if (includeWatch) {
+            setClock(2026, 7, 6, 12, 6, 20)
+            captureWatch("captureMainScreen")
+        }
+    }
+
+    /** Hold the phone narrative while the host runs the matching paired-watch capture. */
+    private fun captureWatch(method: String) {
+        if (!includeWatch) {
+            return
+        }
+        setTimingAlertPreferences(
+            TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
+        )
+        val filesDir = instrumentation.targetContext.filesDir
+        val done = File(filesDir, "release-watch-done")
+        done.delete()
+        File(filesDir, "release-watch-ready").writeText(method)
+        composeRule.waitUntil(timeoutMillis = 120_000) {
+            done.isFile
+        }
+        File(filesDir, "release-watch-ready").delete()
+        setTimingAlertPreferences(TimingAlertPreferences())
     }
 
     /// Fill the remaining score, apply the third-card penalty and soft cap, and capture summary UI.
@@ -289,8 +317,6 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
         setClock(2026, 7, 6, 12, 44)
         openCardsDialog(TeamId.TEAM_ONE)
         tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
-        waitForText("Blue Card")
-        clickText("Offense")
         waitForText("Misconduct penalty")
         capture("ThirdCardPenalty.png")
         clickText("OK")
@@ -380,7 +406,7 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
     private fun recordBlueCard(team: TeamId) {
         openCardsDialog(team)
         tapCardDialogAction(team, "Blue")
-        waitForText("Blue Card")
+        waitForText("Misconduct")
         clickText("OK")
     }
 
@@ -433,7 +459,7 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
         composeRule.waitForIdle()
     }
 
-    /// Set the emulator wall clock through the userdebug image's root shell.
+    /// Advance the screenshot fixture to an official tournament time.
     private fun setClock(
         year: Int,
         month: Int,
@@ -445,11 +471,29 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
         setClock(LocalDateTime.of(year, month, day, hour, minute, second))
     }
 
-    /// Set the emulator wall clock through the userdebug image's root shell.
+    /** Advance fixture countdowns along with the official clock, without changing device time. */
     private fun setClock(time: LocalDateTime) {
-        val value = time.format(DateTimeFormatter.ofPattern("MMddHHmmyyyy.ss"))
-        val output = shell("su 0 date $value")
-        check(!output.contains("cannot set date")) { output }
+        val epoch = time.atZone(ZoneId.of("America/New_York")).toInstant().toEpochMilli()
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val appState = activity.appState
+            val offset = epoch - System.currentTimeMillis()
+            val delta = offset - appState.settings.officialClockOffsetMillis
+            val game = appState.currentGame
+            appState.updateOfficialClockOffset(offset)
+            if (game != null) {
+                // Clock synchronization already moves the opening countdown. For the screenshot
+                // narrative, other countdowns must advance too, as if real time had elapsed.
+                appState.updateCurrentGame(
+                    appState.currentGame!!.copy(
+                        countdown = game.countdown?.copy(
+                            targetEpoch = game.countdown.targetEpoch - delta,
+                            pausedAtEpoch = game.countdown.pausedAtEpoch?.minus(delta),
+                        ),
+                        endEpoch = game.endEpoch?.minus(delta),
+                    )
+                )
+            }
+        }
         composeRule.waitForIdle()
     }
 
@@ -469,7 +513,7 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
         }
     }
 
-    /// Capture the complete native Pixel 8 display for host-side system-bar cropping.
+    /// Capture the native Pixel 7 display and record its system-bar insets for host cropping.
     private fun capture(filename: String) {
         // waitForIdle() settles semantics but can leave the emulator Surface on the preceding
         // frame. Advance Compose time without sleeping or changing the scripted wall clock so
@@ -480,8 +524,11 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
         Thread.sleep(500)
         val bitmap = instrumentation.uiAutomation.takeScreenshot()
         check(bitmap.width == 1080 && bitmap.height == 2400) {
-            "Expected native Pixel 8 screenshot, got ${bitmap.width}x${bitmap.height}."
+            "Expected native Pixel 7 screenshot, got ${bitmap.width}x${bitmap.height}."
         }
+        val insets = ViewCompat.getRootWindowInsets(composeRule.activity.window.decorView)!!
+            .getInsets(WindowInsetsCompat.Type.systemBars())
+        File(outputDirectory, "system-bars.txt").writeText("${insets.top},${insets.bottom}")
         val output = File(outputDirectory, filename)
         output.outputStream().use { stream ->
             check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {

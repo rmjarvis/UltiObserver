@@ -86,6 +86,14 @@ android {
     buildFeatures {
         compose = true
     }
+
+    sourceSets {
+        if (providers.gradleProperty("includeReleaseScreenshotTools").isPresent) {
+            getByName("androidTest").kotlin.directories.add(
+                "../tools/release-screenshots/wear"
+            )
+        }
+    }
 }
 
 dependencies {
