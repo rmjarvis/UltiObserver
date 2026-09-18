@@ -38,6 +38,11 @@ Once you do so, the watch controls will be enabled again.
 Main Watch Screen
 -----------------
 
+.. figure:: screen-shots/WatchMainScreen.png
+   :target: _images/WatchMainScreen.png
+   :alt: Watch showing a 4–5 score, pull countdown, next timing cue, and half-cap timer.
+   :class: watch-screenshot
+
 The top half of the screen shows all the relevant time information for the game.
 The clock at the top is the official game clock, including any adjustment you made on
 the phone.
@@ -68,12 +73,22 @@ a slight vibration when the press activates.
 Team Action Screen
 ------------------
 
+.. figure:: screen-shots/WatchTeamActions.png
+   :target: _images/WatchTeamActions.png
+   :alt: Watch showing the team action buttons for Red Fish Blue Fish.
+   :class: watch-screenshot
+
 If you tap either team area from the main screen, it will take you to a screen with
 actions related to that team.
 
 The main section of this screen includes the six team action buttons, which work mostly
 the same as the corresponding buttons on phone.
 See `In-Game Events` and `Misconduct` for details about their effects.
+
+.. figure:: screen-shots/WatchCardChoices.png
+   :target: _images/WatchCardChoices.png
+   :alt: Yellow, red, and blue card choices on the watch.
+   :class: watch-screenshot
 
 The only one that works differently is the **Card** button for yellow or red cards.
 The watch only lets you record a number for the player getting the card.

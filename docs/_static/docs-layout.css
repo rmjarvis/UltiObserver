@@ -156,6 +156,20 @@ img.phone-screenshot + figcaption {
     max-width: 100%;
 }
 
+figure:has(img.watch-screenshot) {
+    float: right;
+    clear: right;
+    margin: 0.15rem 0 1rem 1.5rem;
+    width: min(34%, 11rem);
+}
+
+img.watch-screenshot {
+    display: block;
+    height: auto;
+    max-width: 100%;
+    cursor: zoom-in;
+}
+
 @media (max-width: 640px) {
     .article-container {
         max-width: 100%;
@@ -197,7 +211,8 @@ img.phone-screenshot + figcaption {
     .screenshot-row figure,
     .screenshot-grid figure,
     figure.phone-screenshot,
-    figure:has(img.phone-screenshot) {
+    figure:has(img.phone-screenshot),
+    figure:has(img.watch-screenshot) {
         float: none;
         margin: 1.25rem 0;
         width: min(50%, 11rem);
