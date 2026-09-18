@@ -397,14 +397,14 @@ class TestWearProtocol {
             ),
         )
         assertRoundTrip(WearStartupRequest.serializer(), WearStartupRequest("startup"))
-        assertRoundTrip(WearStartupResponse.serializer(), WearStartupResponse(false, 123_456L))
-        assertRoundTrip(WearStartupResponse.serializer(), WearStartupResponse(true, 123_456L))
+        assertRoundTrip(WearStartupResponse.serializer(), WearStartupResponse(false, 123_456L, "1.4.0"))
+        assertRoundTrip(WearStartupResponse.serializer(), WearStartupResponse(true, 123_456L, "1.4.0"))
 
         // Startup preserves the ID the phone acknowledges and advertises the protocol version
         // the watch checks before accepting the reply.
         val startupRequest = roundTrip(WearStartupRequest.serializer(), WearStartupRequest("startup"))
         val startupResponse = roundTrip(
-            WearStartupResponse.serializer(), WearStartupResponse(true, 123_456L),
+            WearStartupResponse.serializer(), WearStartupResponse(true, 123_456L, "1.4.0"),
         )
         assertEquals("startup", startupRequest.requestId)
         assertEquals(WEAR_PROTOCOL_VERSION, startupResponse.protocolVersion)

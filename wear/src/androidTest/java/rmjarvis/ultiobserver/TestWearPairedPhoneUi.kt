@@ -916,7 +916,7 @@ class TestWearPairedPhoneUi {
             30, TimeUnit.SECONDS,
         )
         assertTrue(phone.nodes.isNotEmpty())
-        val connection = AtomicReference(ConnectionState.CONNECTING)
+        val connection = AtomicReference<ConnectionState>(ConnectionState.CONNECTING)
         val received = AtomicReference<ReceivedState>()
         val client = StateClient(
             composeRule.activity,

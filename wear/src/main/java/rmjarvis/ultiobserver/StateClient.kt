@@ -52,6 +52,7 @@ internal class StateClient(
     private val stateUri = Uri.parse("wear://*$WEAR_STATE_PATH")
     val connection = PhoneConnectionController(
         transport = this,
+        releaseVersion = BuildConfig.VERSION_NAME,
         clock = { System.currentTimeMillis() },
         onStateReceived = onStateReceived,
         onConnectionStateChanged = onConnectionStateChanged,

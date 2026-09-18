@@ -24,6 +24,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearStartupRequest
+import rmjarvis.ultiobserver.wearprotocol.WEAR_PROTOCOL_VERSION
 import rmjarvis.ultiobserver.wearprotocol.WearStartupAcknowledgement
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
@@ -2426,8 +2428,16 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         )
         assertTrue(publications[appState].isNullOrEmpty())
 
+        // Incompatible watches receive version information without starting state synchronization.
+        for (protocol in listOf(WEAR_PROTOCOL_VERSION - 1, WEAR_PROTOCOL_VERSION + 1)) {
+            val mismatch = coordinatorFor(appState).startup(WearStartupRequest("mismatch", protocol), now)
+            assertEquals(WEAR_PROTOCOL_VERSION, mismatch.protocolVersion)
+            assertEquals(BuildConfig.VERSION_NAME, mismatch.releaseVersion)
+            assertTrue(publications[appState].isNullOrEmpty())
+        }
+
         // Enabled startup publishes state and its matching acknowledgement through the standard path.
-        val startupReply = coordinatorFor(appState).startup("first-startup", now)
+        val startupReply = coordinatorFor(appState).startup(WearStartupRequest("first-startup"), now)
         assertTrue(startupReply.enabled)
         assertEquals(now, startupReply.phoneEpochMillis)
         val startup = publications.getValue(appState).single()
@@ -2443,7 +2453,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
 
         // A fresh retry must publish even if the snapshot is unchanged. Only the retained startup
         // request ID changes; the snapshot keeps the same sequence number.
-        assertTrue(coordinatorFor(appState).startup("retry", now).enabled)
+        assertTrue(coordinatorFor(appState).startup(WearStartupRequest("retry"), now).enabled)
         val retry = publications.getValue(appState).last()
         assertEquals(later.snapshot, retry.snapshot)
         assertEquals("retry", retry.acknowledgement!!.requestId)
@@ -2466,7 +2476,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertEquals(1, publications.getValue(restartedState).last().snapshot.activeGame!!.teamOne.score)
 
         // Foreground refreshes retain a completed handshake's acknowledgement and snapshot order.
-        restartedCoordinator.startup("reconnected", now)
+        restartedCoordinator.startup(WearStartupRequest("reconnected"), now)
         val reconnected = publications.getValue(restartedState).last()
         restartedCoordinator.publishCurrentState()
         assertEquals(reconnected, publications.getValue(restartedState).last())
@@ -2474,7 +2484,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         // Enabled but idle phones also publish snapshots; absence of a game is not disconnection.
         val idleState = AppState(NoOpAppStateStorage)
         idleState.updateSettings(settings)
-        assertTrue(coordinatorFor(idleState).startup("idle", now).enabled)
+        assertTrue(coordinatorFor(idleState).startup(WearStartupRequest("idle"), now).enabled)
         assertEquals(WearSnapshotStatus.NO_ACTIVE_GAME,
             publications.getValue(idleState).single().snapshot.status)
 
@@ -2482,7 +2492,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         // number. Enabling it afterward produces the first tagged snapshot of that session.
         val disabledState = AppState(NoOpAppStateStorage)
         val disabledCoordinator = coordinatorFor(disabledState)
-        assertFalse(disabledCoordinator.startup("disabled", now).enabled)
+        assertFalse(disabledCoordinator.startup(WearStartupRequest("disabled"), now).enabled)
         disabledCoordinator.publishCurrentState()
         assertTrue(publications[disabledState].isNullOrEmpty())
         disabledState.updateSettings(settings)
@@ -2507,7 +2517,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         coordinators[appState] = WearPhoneCoordinator(
             appState, publish = { updates.add(it) }, clock = { now },
         )
-        coordinators.getValue(appState).startup("startup", now)
+        coordinators.getValue(appState).startup(WearStartupRequest("startup"), now)
         assertEquals(WearStartupAcknowledgement("startup"), updates.single().acknowledgement)
         val snapshotReceiver = WearSnapshotReceiver(updates.single().snapshot)
         updates.clear()
@@ -2565,7 +2575,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
 
         // A recovery startup replaces the command acknowledgement in that same field. Subsequent
         // phone changes retain startup until another watch request supplies its replacement.
-        coordinators.getValue(appState).startup("recovery", now)
+        coordinators.getValue(appState).startup(WearStartupRequest("recovery"), now)
         assertEquals(WearStartupAcknowledgement("recovery"), updates.last().acknowledgement)
         appState.updateCurrentGame(appState.currentGame!!.undoLastAction())
         assertEquals(WearStartupAcknowledgement("recovery"), updates.last().acknowledgement)

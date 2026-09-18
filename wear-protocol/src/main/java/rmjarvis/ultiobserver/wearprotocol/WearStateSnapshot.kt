@@ -205,15 +205,25 @@ data class WearStateSnapshot(
     val sequenceNumber: Long = 0L,
 )
 
-/** Identify a fresh request for the phone's current state, including across watch restarts. */
+/**
+ * Identify a fresh request and the watch's protocol before synchronizing game state.
+ * Keep this handshake readable across protocol versions so older apps can explain update needs.
+ */
 @Serializable
-data class WearStartupRequest(val requestId: String)
+data class WearStartupRequest(
+    val requestId: String,
+    val protocolVersion: Int = WEAR_PROTOCOL_VERSION,
+)
 
-/** Direct startup reply for connection status and clock calibration, without a game snapshot. */
+/**
+ * Stable startup reply for compatibility, connection status, and clock calibration.
+ * Preserve these fields across protocol changes; releaseVersion is informational, not a gate.
+ */
 @Serializable
 data class WearStartupResponse(
     val enabled: Boolean,
     val phoneEpochMillis: Long,
+    val releaseVersion: String,
     val protocolVersion: Int = WEAR_PROTOCOL_VERSION,
 )
 

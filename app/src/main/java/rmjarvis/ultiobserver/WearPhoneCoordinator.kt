@@ -7,6 +7,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearCommandRequest
 import rmjarvis.ultiobserver.wearprotocol.WearStateUpdate
 import rmjarvis.ultiobserver.wearprotocol.WearStartupAcknowledgement
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
+import rmjarvis.ultiobserver.wearprotocol.WearStartupRequest
+import rmjarvis.ultiobserver.wearprotocol.WEAR_PROTOCOL_VERSION
 
 /**
  * Own the phone's Wear session and publish state with the most recent request acknowledgement.
@@ -54,16 +56,21 @@ internal class WearPhoneCoordinator(
     }
 
     /** Publish enabled startup state and return connection status with the phone time. */
-    fun startup(requestId: String, now: Long): WearStartupResponse = synchronized(appState) {
+    fun startup(request: WearStartupRequest, now: Long): WearStartupResponse = synchronized(appState) {
         val state = appState.state.value
-        if (state.settings.timingAlerts.watchConnectionMode != WatchConnectionMode.WEAR_OS) {
-            return@synchronized WearStartupResponse(enabled = false, phoneEpochMillis = now)
+        val response = WearStartupResponse(
+            enabled = state.settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS,
+            phoneEpochMillis = now,
+            releaseVersion = BuildConfig.VERSION_NAME,
+        )
+        if (!response.enabled || request.protocolVersion != WEAR_PROTOCOL_VERSION) {
+            return@synchronized response
         }
-        latestAcknowledgement = WearStartupAcknowledgement(requestId)
+        latestAcknowledgement = WearStartupAcknowledgement(request.requestId)
         publish(WearStateUpdate(
             state.toWearSnapshot(snapshotTagger, now), latestAcknowledgement,
         ))
-        WearStartupResponse(enabled = true, phoneEpochMillis = now)
+        response
     }
 
     /**

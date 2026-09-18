@@ -111,6 +111,7 @@ internal data class NavigationState(
     fun screen(snapshot: WearStateSnapshot?, connection: ConnectionState): WatchScreen {
         val reachable = connection == ConnectionState.CONNECTED
         return when {
+            connection is ConnectionState.UpdateRequired -> WatchScreen.UPDATE_REQUIRED
             connection == ConnectionState.DISABLED -> WatchScreen.DISABLED
             snapshot == null && connection == ConnectionState.CONNECTING -> WatchScreen.CONNECTING
             snapshot == null -> WatchScreen.UNREACHABLE
@@ -136,7 +137,7 @@ internal data class NavigationState(
 
 /** Top-level watch surfaces, selected independently of Compose. */
 internal enum class WatchScreen {
-    DISABLED, CONNECTING, UNREACHABLE, DISCONNECTED, IDLE, CONFIRMATION, PHONE_ENTRY, ACTION_PROMPT, GAME,
+    DISABLED, CONNECTING, UNREACHABLE, DISCONNECTED, UPDATE_REQUIRED, IDLE, CONFIRMATION, PHONE_ENTRY, ACTION_PROMPT, GAME,
 }
 
 /** Local surfaces within an active phone game. */

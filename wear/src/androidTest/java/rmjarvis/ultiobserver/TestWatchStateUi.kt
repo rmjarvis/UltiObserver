@@ -144,7 +144,7 @@ class TestWatchStateUi {
     @Test
     fun phoneDiscoveryAndRetry() {
         val retryRequested = AtomicBoolean(false)
-        var connection by mutableStateOf(ConnectionState.CONNECTING)
+        var connection by mutableStateOf<ConnectionState>(ConnectionState.CONNECTING)
         show(
             state = { null },
             connection = { connection },
@@ -165,12 +165,44 @@ class TestWatchStateUi {
         assertTrue(retryRequested.get())
     }
 
+    /** An incompatible phone replaces old controls with an actionable update message. */
+    @Test
+    fun updateRequired() {
+        var connection by mutableStateOf<ConnectionState>(ConnectionState.UpdateRequired(
+            updatePhone = false, phoneVersion = "1.5.0", watchVersion = "1.4.0",
+        ))
+        val retryRequested = AtomicBoolean(false)
+        show(
+            state = { activeSnapshot() },
+            connection = { connection },
+            onRetry = { retryRequested.set(true) },
+        )
+
+        // A retained game cannot hide the update instruction or leave actions available.
+        composeRule.onNodeWithText(
+            "Update UltiObserver on your watch in Google Play.\n\nPhone: 1.5.0\nWatch: 1.4.0"
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText("Home").assertDoesNotExist()
+        composeRule.onNodeWithText("Retry").performClick()
+        assertTrue(retryRequested.get())
+
+        // The opposite mismatch specifically identifies the phone as needing the update.
+        composeRule.runOnIdle {
+            connection = ConnectionState.UpdateRequired(
+                updatePhone = true, phoneVersion = "1.4.0", watchVersion = "1.5.0",
+            )
+        }
+        composeRule.onNodeWithText(
+            "Update UltiObserver on your phone in Google Play.\n\nPhone: 1.4.0\nWatch: 1.5.0"
+        ).assertIsDisplayed()
+    }
+
     /** Test a connected phone with Wear OS disabled, then idle and disconnected states. */
     @Test
     fun disabledIdleAndDisconnectedPhoneStates() {
         val retryRequested = AtomicBoolean(false)
         var state by mutableStateOf<ReceivedState?>(null)
-        var connection by mutableStateOf(ConnectionState.DISABLED)
+        var connection by mutableStateOf<ConnectionState>(ConnectionState.DISABLED)
         show(
             state = { state },
             connection = { connection },
@@ -222,7 +254,7 @@ class TestWatchStateUi {
                 ),
             ),
         )))
-        var connection by mutableStateOf(ConnectionState.CONNECTED)
+        var connection by mutableStateOf<ConnectionState>(ConnectionState.CONNECTED)
         show(
             state = { state },
             connection = { connection },

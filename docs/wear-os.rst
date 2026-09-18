@@ -191,6 +191,18 @@ get past **Connecting…**, try these steps:
 6. If it still will not connect, restart the phone and watch, open UltiObserver on the
    phone first, then open it on the watch and try again.
 
+The watch asks me to update UltiObserver
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The version updates on the phone and the watch are separate processes. Updating one does
+not automatically update the other. So if you have updated the version of UltiObserver
+on one of the two devices, the software may be incompatible with the other one.
+In this case, the connection handshake will notice the incompatibility and tell you
+to update the one that still has the older version.
+
+Once you have updated the software, you can reopen the app and tap **Retry** on the
+watch to restart the connection handshake.
+
 The watch says "No active game"
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -144,7 +144,7 @@ class WearOSRequestService : WearableListenerService() {
         }
         val startup = WearProtocolCodec.decode(WearStartupRequest.serializer(), request)
         val app = application as UltiObserverApplication
-        val response = app.wearCoordinator.startup(startup.requestId, System.currentTimeMillis())
+        val response = app.wearCoordinator.startup(startup, System.currentTimeMillis())
         return Tasks.forResult(WearProtocolCodec.encode(WearStartupResponse.serializer(), response))
     }
 

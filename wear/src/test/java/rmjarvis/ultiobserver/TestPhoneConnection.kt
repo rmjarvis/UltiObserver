@@ -505,7 +505,7 @@ class TestPhoneConnection {
         val oldStartup = phone.startups.last()
         phone.controller.retry()
         phone.lookups.last().success(listOf(PhoneNode("phone", true)))
-        oldStartup.success(WearProtocolCodec.encode(WearStartupResponse.serializer(), WearStartupResponse(true, phone.now)))
+        oldStartup.success(WearProtocolCodec.encode(WearStartupResponse.serializer(), WearStartupResponse(true, phone.now, "1.4.0")))
         oldStartup.failure()
         assertEquals(ConnectionState.CONNECTING, phone.connections.last())
         phone.timers.last().action()
@@ -549,7 +549,7 @@ class TestPhoneConnection {
         val stoppedStartup = phone.startups.last()
         phone.controller.stop()
         stoppedStartup.failure()
-        stoppedStartup.success(WearProtocolCodec.encode(WearStartupResponse.serializer(), WearStartupResponse(false, phone.now)))
+        stoppedStartup.success(WearProtocolCodec.encode(WearStartupResponse.serializer(), WearStartupResponse(false, phone.now, "1.4.0")))
         sent.failure()
         assertEquals(ConnectionState.CONNECTING, phone.connections.last())
     }
@@ -580,13 +580,54 @@ class TestPhoneConnection {
         phone.controller.retry()
         phone.lookups.last().success(listOf(PhoneNode("phone", true)))
         phone.startups.last().success(WearProtocolCodec.encode(WearStartupResponse.serializer(),
-            WearStartupResponse(true, phone.now, WEAR_PROTOCOL_VERSION + 1)))
-        assertEquals(ConnectionState.DISCONNECTED, phone.connections.last())
+            WearStartupResponse(true, phone.now, "1.5.0", WEAR_PROTOCOL_VERSION + 1)))
+        assertEquals(ConnectionState.UpdateRequired(false, "1.5.0", "1.4.0"), phone.connections.last())
 
         // A subsequent publication can restart the incomplete handshake while the phone remains
         // reachable; it still needs a matching startup acknowledgement.
         phone.publish(null)
         assertEquals(ConnectionState.CONNECTING, phone.connections.last())
+        phone.reply(true)
+        phone.publish(WearStartupAcknowledgement(phone.startupId()))
+        assertEquals(ConnectionState.CONNECTED, phone.connections.last())
+    }
+
+    /** Guide updates by protocol, accepting different compatible release versions. */
+    @Test
+    fun versionCompatibility() {
+        val phone = PhoneSession()
+        phone.connect()
+
+        // Different release labels remain compatible when their protocols match.
+        phone.controller.retry()
+        phone.lookups.last().success(listOf(PhoneNode("phone", true)))
+        phone.startups.last().success(WearProtocolCodec.encode(WearStartupResponse.serializer(),
+            WearStartupResponse(true, phone.now, "1.4.1")))
+        phone.publish(WearStartupAcknowledgement(phone.startupId()))
+        assertEquals(ConnectionState.CONNECTED, phone.connections.last())
+
+        // Either side can be older. Mismatches cancel the timeout and prevent game commands.
+        for (protocol in listOf(WEAR_PROTOCOL_VERSION - 1, WEAR_PROTOCOL_VERSION + 1)) {
+            phone.controller.retry()
+            phone.lookups.last().success(listOf(PhoneNode("phone", true)))
+            val request = WearProtocolCodec.decode(WearStartupRequest.serializer(), phone.startups.last().bytes)
+            assertEquals(WEAR_PROTOCOL_VERSION, request.protocolVersion)
+            phone.startups.last().success(WearProtocolCodec.encode(WearStartupResponse.serializer(),
+                WearStartupResponse(true, phone.now, "other-release", protocol)))
+            assertEquals(ConnectionState.UpdateRequired(
+                updatePhone = protocol < WEAR_PROTOCOL_VERSION,
+                phoneVersion = "other-release", watchVersion = "1.4.0",
+            ), phone.connections.last())
+            assertTrue(phone.timers.last().cancelled)
+            var applied = true
+            phone.controller.recordGoal(TeamId.TEAM_ONE, "playing") { applied = it }
+            assertFalse(applied)
+            assertTrue(phone.sent.isEmpty())
+        }
+
+        // Retry after the update restores the normal connection.
+        phone.controller.retry()
+        phone.lookups.last().success(listOf(PhoneNode("phone", true)))
         phone.reply(true)
         phone.publish(WearStartupAcknowledgement(phone.startupId()))
         assertEquals(ConnectionState.CONNECTED, phone.connections.last())
@@ -679,15 +720,7 @@ class TestPhoneConnection {
         assertEquals(snapshot, receivedState.snapshot)
         assertEquals(offset, receivedState.phoneClockOffsetMillis)
         assertEquals(WEAR_PROTOCOL_VERSION, receivedState.snapshot.protocolVersion)
-        assertEquals(
-            listOf(
-                ConnectionState.CONNECTING,
-                ConnectionState.CONNECTED,
-                ConnectionState.DISCONNECTED,
-                ConnectionState.DISABLED,
-            ),
-            ConnectionState.entries,
-        )
+
     }
 }
 
@@ -724,7 +757,7 @@ private class PhoneSession : PhoneTransport {
         ),
         sessionId = "phone", sequenceNumber = 1,
     )
-    val controller = PhoneConnectionController(this, { now }, { states.add(it) }, { connections.add(it) })
+    val controller = PhoneConnectionController(this, "1.4.0", { now }, { states.add(it) }, { connections.add(it) })
 
     fun connect() {
         controller.start()
@@ -735,7 +768,7 @@ private class PhoneSession : PhoneTransport {
     fun startupId(): String = WearProtocolCodec.decode(WearStartupRequest.serializer(), startups.last().bytes).requestId
     fun command(): WearCommandRequest = WearProtocolCodec.decode(WearCommandRequest.serializer(), sent.last().bytes)
     fun reply(enabled: Boolean) {
-        startups.last().success(WearProtocolCodec.encode(WearStartupResponse.serializer(), WearStartupResponse(enabled, now)))
+        startups.last().success(WearProtocolCodec.encode(WearStartupResponse.serializer(), WearStartupResponse(enabled, now, "1.4.0")))
     }
     fun publish(ack: WearAcknowledgement?) {
         controller.receiveStateBytes(WearProtocolCodec.encode(WearStateUpdate.serializer(), WearStateUpdate(snapshot, ack)))

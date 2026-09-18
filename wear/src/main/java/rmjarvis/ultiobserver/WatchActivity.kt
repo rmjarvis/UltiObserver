@@ -15,7 +15,7 @@ import androidx.lifecycle.Lifecycle
 /** Launcher activity for the Wear companion app. */
 class WatchActivity : ComponentActivity() {
     private var receivedState by mutableStateOf<ReceivedState?>(null)
-    private var connectionState by mutableStateOf(ConnectionState.CONNECTING)
+    private var connectionState by mutableStateOf<ConnectionState>(ConnectionState.CONNECTING)
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {

@@ -65,6 +65,15 @@ internal fun UltiObserverWearApp(
 
     val screen = navigation.screen(snapshot, connectionState)
     when (screen) {
+        WatchScreen.UPDATE_REQUIRED -> {
+            val update = connectionState as ConnectionState.UpdateRequired
+            val device = if (update.updatePhone) "phone" else "watch"
+            MessageScreen(
+                message = "Update UltiObserver on your $device in Google Play.\n\n" +
+                "Phone: ${update.phoneVersion}\nWatch: ${update.watchVersion}",
+                onRetry = onRetry,
+            )
+        }
         WatchScreen.DISABLED -> DisabledScreen()
         WatchScreen.CONNECTING ->
             MessageScreen("Connecting…")

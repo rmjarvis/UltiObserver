@@ -66,11 +66,18 @@ internal data class ReceivedState(
 )
 
 /** Current result of the watch app's live handshake with the phone app. */
-internal enum class ConnectionState {
-    CONNECTING,
-    CONNECTED,
-    DISCONNECTED,
-    DISABLED,
+internal sealed interface ConnectionState {
+    data object CONNECTING : ConnectionState
+    data object CONNECTED : ConnectionState
+    data object DISCONNECTED : ConnectionState
+    data object DISABLED : ConnectionState
+
+    /** The lower protocol version identifies the app that needs updating. */
+    data class UpdateRequired(
+        val updatePhone: Boolean,
+        val phoneVersion: String,
+        val watchVersion: String,
+    ) : ConnectionState
 }
 
 /**
@@ -95,6 +102,7 @@ internal fun calibratePhoneClockOffset(
 /** Own the watch's phone session, request lifecycle, and authoritative state without Android APIs. */
 internal class PhoneConnectionController(
     private val transport: PhoneTransport,
+    private val releaseVersion: String,
     private val clock: () -> Long,
     private val onStateReceived: (ReceivedState) -> Unit,
     private val onConnectionStateChanged: (ConnectionState) -> Unit,
@@ -204,7 +212,14 @@ internal class PhoneConnectionController(
                     currentStartupRequestAttempt == startupRequestAttempt) {
                     val response = WearProtocolCodec.decode(WearStartupResponse.serializer(), bytes)
                     if (response.protocolVersion != WEAR_PROTOCOL_VERSION) {
-                        finishStartupFailure(nodeId, startupRequestAttempt)
+                        finishStartupRequest()
+                        onCommandFinished?.invoke(null)
+                        clearPendingCommand()
+                        onConnectionStateChanged(ConnectionState.UpdateRequired(
+                            updatePhone = response.protocolVersion < WEAR_PROTOCOL_VERSION,
+                            phoneVersion = response.releaseVersion,
+                            watchVersion = releaseVersion,
+                        ))
                     } else if (!response.enabled) {
                         finishStartupRequest()
                         onCommandFinished?.invoke(null)
@@ -419,7 +434,7 @@ internal class PhoneConnectionController(
         // Ignore repeated submissions without replacing or completing the outstanding command.
         if (pendingCommand.requestId != null) return
         val nodeId = reachablePhoneNodeId
-        if (nodeId == null) {
+        if (nodeId == null || !startupComplete) {
             onFinished(null)
             return
         }
