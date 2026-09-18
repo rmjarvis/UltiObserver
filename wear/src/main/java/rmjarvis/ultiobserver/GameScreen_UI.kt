@@ -49,7 +49,6 @@ import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.LocalTextStyle
 import androidx.wear.compose.material3.Text
-import androidx.wear.compose.material3.TimeSource
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
 import rmjarvis.ultiobserver.wearprotocol.WearTimingControlsSnapshot
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
@@ -736,11 +735,6 @@ private fun HistoryButton(
             )
         }
     }
-}
-
-private class DisplayTimeSource(private val time: String) : TimeSource {
-    @Composable
-    override fun currentTime(): String = time
 }
 
 private val StatusTextColor = Color(0xFFC8CDD2)

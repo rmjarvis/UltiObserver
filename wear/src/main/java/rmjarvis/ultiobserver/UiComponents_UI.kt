@@ -19,6 +19,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -61,7 +62,7 @@ internal fun Modifier.gameClickable(
 
 /** Show the standard clock used at the top of UltiObserver watch screens. */
 @Composable
-internal fun AppTimeText(timeSource: TimeSource? = null) {
+internal fun AppTimeText(timeSource: TimeSource? = LocalGameTimeSource.current) {
     val timeStyle = TimeTextDefaults.timeTextStyle(
         background = Color.Black,
         color = Color.White,
@@ -79,6 +80,15 @@ internal fun AppTimeText(timeSource: TimeSource? = null) {
             timeTextCurvedText(time, timeStyle)
         }
     }
+}
+
+/** All in-game surfaces share the phone's official clock. */
+internal val LocalGameTimeSource = compositionLocalOf<TimeSource?> { null }
+
+/** Supply an already formatted official time to the curved watch clock. */
+internal class DisplayTimeSource(private val time: String) : TimeSource {
+    @Composable
+    override fun currentTime(): String = time
 }
 
 /** Render the action replacing a countdown, retaining its full label on up to two lines. */
