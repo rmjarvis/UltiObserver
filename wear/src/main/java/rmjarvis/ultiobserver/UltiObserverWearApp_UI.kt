@@ -106,7 +106,7 @@ internal fun UltiObserverWearApp(
                 } else if (screen == WatchScreen.PHONE_ENTRY) {
                     ContinueOnPhoneScreen(
                         onCancel = { onFinished ->
-                            navigation = navigation.beginPhoneCancellation(phoneCardEntry!!.team)
+                            navigation = navigation.beginPhoneCancellation(phoneCardEntry!!)
                             onCancelCardEntry(
                                 phoneCardEntry.team,
                                 activeGame.stateToken,

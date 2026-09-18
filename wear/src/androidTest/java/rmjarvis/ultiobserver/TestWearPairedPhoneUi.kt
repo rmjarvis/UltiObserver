@@ -566,10 +566,13 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("Enter details on phone").performClick()
         waitForText("Continue on phone")
         dismissNotice("Cancel")
+        waitForText("Yellow card")
+        composeRule.onNodeWithText("Change number (8)").assertIsDisplayed()
+        dismissNotice("Cancel")
         waitForText("Assess a card")
 
         // Return to the game and try a handoff for the other team. Cancelling it restores that
-        // team's card picker, not Animal's.
+        // team's numbered-card screen, not Animal's.
         dismissNotice("Cancel")
         waitForText("Goal")
         dismissNotice("Cancel")
@@ -577,10 +580,15 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText(VISCOUS_COUPLING).performClick()
         waitForText("Card")
         composeRule.onNodeWithText("Card").performClick()
-        composeRule.onNodeWithText("Yellow").performClick()
+        composeRule.onNodeWithText("Red").performClick()
+        enterPlayerNumber("17")
         waitForText("Enter details on phone")
         composeRule.onNodeWithText("Enter details on phone").performClick()
         waitForText("Continue on phone")
+        dismissNotice("Cancel")
+        waitForText("Red card")
+        composeRule.onNodeWithText("Change number (17)").assertIsDisplayed()
+        composeRule.onNodeWithText(VISCOUS_COUPLING).assertIsDisplayed()
         dismissNotice("Cancel")
         waitForText("Assess a card")
         composeRule.onNodeWithText(VISCOUS_COUPLING).assertIsDisplayed()

@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
+import rmjarvis.ultiobserver.wearprotocol.WearPhoneCardEntrySnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
@@ -15,7 +16,7 @@ internal data class NavigationState(
     val cardChoiceStateToken: String? = null,
     val playerCard: WearTeamAction.PlayerCard? = null,
     private val phoneCardEntryWasActive: Boolean = false,
-    private val returnToCardChoicesForTeam: TeamId? = null,
+    private val returnToCardEntry: WearPhoneCardEntrySnapshot? = null,
 ) {
     /** Discard obsolete local workflows and finish phone handoff navigation. */
     fun receive(snapshot: WearStateSnapshot?, connection: ConnectionState): NavigationState {
@@ -29,21 +30,24 @@ internal data class NavigationState(
         var cardChoiceStateToken = this.cardChoiceStateToken
         var playerCard = this.playerCard
         var phoneCardEntryWasActive = this.phoneCardEntryWasActive
-        var returnToCardChoicesForTeam = this.returnToCardChoicesForTeam
+        var returnToCardEntry = this.returnToCardEntry
         if (phoneCardEntry != null) {
             phoneCardEntryWasActive = true
         } else if (phoneCardEntryWasActive) {
-            val returnTeam = returnToCardChoicesForTeam
-            if (returnTeam == null) {
+            val returnEntry = returnToCardEntry
+            if (returnEntry == null) {
                 selectedTeam = null
                 cardChoiceStateToken = null
                 playerCard = null
             } else {
-                selectedTeam = returnTeam
+                selectedTeam = returnEntry.team
                 cardChoiceStateToken = game.stateToken
+                playerCard = returnEntry.cardType?.let {
+                    WearTeamAction.PlayerCard(it, returnEntry.jerseyNumber)
+                }
             }
             phoneCardEntryWasActive = false
-            returnToCardChoicesForTeam = null
+            returnToCardEntry = null
         }
         if (!game.actionsAvailable && phoneCardEntry == null) {
             selectedTeam = null
@@ -69,7 +73,7 @@ internal data class NavigationState(
             cardChoiceStateToken = cardChoiceStateToken,
             playerCard = playerCard,
             phoneCardEntryWasActive = phoneCardEntryWasActive,
-            returnToCardChoicesForTeam = returnToCardChoicesForTeam,
+            returnToCardEntry = returnToCardEntry,
         )
     }
 
@@ -84,11 +88,11 @@ internal data class NavigationState(
         copy(selectedTeam = null, timingControlsOpen = false)
     }
 
-    fun beginPhoneCancellation(team: TeamId): NavigationState =
-        copy(returnToCardChoicesForTeam = team)
+    fun beginPhoneCancellation(entry: WearPhoneCardEntrySnapshot): NavigationState =
+        copy(returnToCardEntry = entry)
 
     fun finishPhoneCancellation(cancelled: Boolean): NavigationState =
-        if (cancelled) this else copy(returnToCardChoicesForTeam = null)
+        if (cancelled) this else copy(returnToCardEntry = null)
 
     fun finishConfirmation(applied: Boolean): NavigationState =
         if (applied) copy(

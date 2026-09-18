@@ -170,7 +170,7 @@ class TestNavigation {
             phoneCardEntry = WearPhoneCardEntrySnapshot(TeamId.TEAM_ONE, CardType.YELLOW, "17"))
         navigation = navigation.receive(playing.copy(activeGame = phoneGame), ConnectionState.CONNECTED)
         assertEquals(WatchScreen.PHONE_ENTRY, navigation.screen(playing.copy(activeGame = phoneGame), ConnectionState.CONNECTED))
-        navigation = navigation.beginPhoneCancellation(TeamId.TEAM_ONE).finishPhoneCancellation(false)
+        navigation = navigation.beginPhoneCancellation(phoneGame.phoneCardEntry!!).finishPhoneCancellation(false)
         phoneGame = phoneGame.copy(stateToken = "card-recorded", actionsAvailable = true, phoneCardEntry = null)
         navigation = navigation.receive(playing.copy(activeGame = phoneGame), ConnectionState.CONNECTED)
         assertEquals(GameSurface.SCORE, navigation.gameScreen(phoneGame.stateToken))
@@ -178,31 +178,38 @@ class TestNavigation {
         assertNull(navigation.playerCard)
     }
 
-    /** Return to the correct card picker only when cancellation was requested on the watch. */
+    /** Restore the card type and number when cancellation was requested on the watch. */
     @Test
     fun phoneHandoff() {
         val playing = navigationSnapshot()
-        for (team in TeamId.entries) {
-            // Both teams can hand off and then cancel on the watch. The matching picker is
-            // restored when the phone confirms that its card workflow has ended.
+        for (team in TeamId.entries) for (cardType in listOf(CardType.YELLOW, CardType.RED, null)) {
+            // Watch cancellation restores the card's number and color, or the picker if no
+            // color had been chosen on the phone.
+            val entry = WearPhoneCardEntrySnapshot(team, cardType, "17")
             val handoff = playing.copy(activeGame = playing.activeGame!!.copy(
                 actionsAvailable = false,
-                phoneCardEntry = WearPhoneCardEntrySnapshot(team, CardType.YELLOW, "17"),
+                phoneCardEntry = entry,
             ))
             var navigation = NavigationState(
                 selectedTeam = team,
                 cardChoiceStateToken = "playing",
             ).receive(handoff, ConnectionState.CONNECTED)
             assertEquals(WatchScreen.PHONE_ENTRY, navigation.screen(handoff, ConnectionState.CONNECTED))
-            navigation = navigation.beginPhoneCancellation(team).finishPhoneCancellation(true)
+            navigation = navigation.beginPhoneCancellation(entry).finishPhoneCancellation(true)
                 .receive(playing, ConnectionState.CONNECTED)
             assertEquals(team, navigation.selectedTeam)
-            assertEquals(GameSurface.CARD_CHOICES, navigation.gameScreen("playing"))
+            if (cardType == null) {
+                assertEquals(GameSurface.CARD_CHOICES, navigation.gameScreen("playing"))
+                assertNull(navigation.playerCard)
+            } else {
+                assertEquals(GameSurface.PLAYER_CARD, navigation.gameScreen("playing"))
+                assertEquals(WearTeamAction.PlayerCard(cardType, "17"), navigation.playerCard)
+            }
 
             // Phone-side completion, including a cancellation rejected because the phone already
             // finished, returns to the score instead of restoring the old picker.
             navigation = navigation.receive(handoff, ConnectionState.CONNECTED)
-                .beginPhoneCancellation(team).finishPhoneCancellation(false)
+                .beginPhoneCancellation(entry).finishPhoneCancellation(false)
                 .receive(playing, ConnectionState.CONNECTED)
             assertEquals(GameSurface.SCORE, navigation.gameScreen("playing"))
         }
