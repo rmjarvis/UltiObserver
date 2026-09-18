@@ -1,6 +1,32 @@
 Release History
 ===============
 
+Version 1.4
+-----------
+
+This version primarily adds a Wear OS companion application, which can control the app
+and displays the current score, relevant countdowns, and cap times on the watch.
+It has controls to record a goal, timeout, etc. directly from the watch. More complicated
+actions (e.g. everything in the More actions menu) need to be done on the phone, but for
+a relatively straightforward game, you can control pretty much everything from the watch.
+
+In addition to the new Wear OS app, this version includes the following changes:
+
+- Fixed a bug for Timed guidance when it auto-accepts a pull violation that has been switched to
+  a majority pull violation.
+- Fixed an error in the half cap handling when soft cap happens before halftime.
+- Fixed the messaging when two cap times pass during the same point.
+- Improved the handling of multiple players with the same number getting cards. Now it notices when
+  a later card with only a number entered is ambiguous based on earlier card entries, and it shows
+  a dialog to resolve which player you mean.
+- Let yellow cards that don't trigger a misconduct penalty be cancelable like other actions.
+- Removed the offense/defense question for live-point misconduct penalty rule guidance. Now the
+  Full guidance shows both cases directly without the extra dialog question.
+- Added an option to require long presses on the active game screen to help prevent accidental
+  inputs (instead of automatically locking the screen).
+- Changed the "chooses gender ratio" indicator to a small MW badge, rather than text.
+- Increased the contrast of the team action text when locked.
+
 Version 1.3
 -----------
 
@@ -48,6 +74,7 @@ and timeouts from the watch, but you can at least get timing cue alerts on the w
 
 - Added recommendation for Android 16 and later to disable Notification cooldown, which can make
   repeated timing alerts difficult to notice on a paired smart watch.
+- Added a "Check for updates" link on the About page to more easily check for a new version.
 
 Version 1.2
 -----------
