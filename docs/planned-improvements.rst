@@ -46,16 +46,6 @@ much less so than starting from scratch. If this would be of value to you, feel 
 say so `here <https://github.com/rmjarvis/UltiObserver/issues/6>`__. The more people who
 request this, the more likely I am to do it sooner than later.
 
-Smart watch interface
----------------------
-
-UltiObserver can already mirror compact timing and score notifications through the phone's
-standard Android notifications. I'd also like to add a full smart watch interface using Wear OS,
-so the most common actions could be controlled from a watch. Then the phone interface would
-only be needed for setup and actions that require a keyboard like entering a name and number for
-a yellow card. If you have thoughts about this, feel free to suggest things
-`here <https://github.com/rmjarvis/UltiObserver/issues/7>`__.
-
 More Ideas
 ----------
 
