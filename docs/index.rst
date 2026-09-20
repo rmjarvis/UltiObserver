@@ -34,6 +34,12 @@ watch as notifications, which can then vibrate, alerting you to announce the nex
 Without a paired smart watch, it's often difficult to feel the vibrations on the phone,
 so vibration mode in that case is generally less effective.
 
+If you have a Wear OS smart watch, you can do even more from the watch by installing the
+UltiObserver companion app.
+With that, the watch will display the current score and any active countdown.
+And you can control almost all aspects of an active game directly from the watch,
+so you can leave your phone in your pocket during the game.
+
 After the game, the app will show a game summary page with the final score along with other
 details, including all cards that were issued. This page includes a button to share the summary,
 so you can quickly send it to the head observer and/or tournament director for the tournament.

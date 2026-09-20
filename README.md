@@ -8,7 +8,8 @@ pull violations, misconduct, and caps.
 After the game, it lets you share a summary with the tournament director or head observer.
 It is intended to replace both the paper score sheet and the stopwatch observers typically use.
 
-The app is Android-first and designed for phone use in portrait mode.
+The app is Android-first and designed for phone use in portrait mode. If you have a
+Wear OS smart watch, there is a companion app that lets you control the game from your watch.
 
 Documentation
 -------------
@@ -24,9 +25,9 @@ improvements.
 Installation
 ------------
 
-UltiObserver is currently in Google Play beta testing. To install it, request to
-be added to the testing group. Ping @Mike Jarvis on the observer Discord, or
-send an email to mikejarvis17 [at] gmail [dot] com.
+UltiObserver is currently in Google Play beta testing. To install it, you'll need to
+join the testing email list on Google Groups.
+See the instructions [here](https://rmjarvis.github.io/UltiObserver/install.html).
 
 Privacy
 -------
