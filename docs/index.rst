@@ -3,6 +3,8 @@ Overview
 
 UltiObserver is a game management app for Ultimate observers, which is intended to replace
 both the paper score sheet and the stopwatch observers typically use.
+It is currently only available on Android devices. (Sorry Apple lovers -- I do plan to
+port it to iOS eventually, but I haven't yet.)
 
 Before the game, you can enter all the relevant information about the teams, the tournament,
 rules, field orientation, etc. These can be set up in advance and saved as drafts, so as
