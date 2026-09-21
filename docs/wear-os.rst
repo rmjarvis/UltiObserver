@@ -132,7 +132,7 @@ Countdown Controls
 From the main watch screen, if you tap the countdown area, it will open up the countdown
 controls on the bottom of the screen. 
 
-You can pause or resume the timer, subtract or add 5 seconds, or start a water break when
+You can pause or resume the timer, add or subtract 5 seconds, or start a water break when
 the game's rules allow it.
 When appropriate, this panel also offers **Start point**, **Continue point**, or
 **Offense is set**, just as on the phone. Tap the countdown again or **Back** to return
@@ -207,8 +207,9 @@ The watch says "No active game"
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This means the watch has reached UltiObserver on the phone, but there is no current game
-to display. Start a game on the phone, or resume a saved game from the archive.
-Creating a setup alone does not start the game; press **Start game** when ready.
+to display. You need to start a game on the phone before the watch will have anything
+useful to display. After clicking **Start game** from the setup screen, the watch should
+show the game.
 
 The score is visible, but the controls do not work
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -219,11 +220,15 @@ then tap **Retry** on the watch. If it still fails, work through the connection 
 The last score may remain visible while disconnected, so check the phone before repeating
 an action whose result you are unsure about.
 
-If the watch asks you to resume the game on the phone, return to the phone's active game
-screen. You can then lock the phone and put it back in your pocket.
+If the watch instead says **Resume current game on phone to enable actions**, this means
+the phone is not showing the active game screen. You need to return to that screen on the
+phone for the watch actions to work. Once you have done so, it's ok to lock the phone
+screen and put the phone away, but it has to be on that screen, not the home screen,
+the settings, or anywhere else.
 
-If everything looks connected but a tap does nothing, check **Require long presses** in
-`Wear OS Settings`. When enabled, you have to hold the press for about a second for it
+If everything looks connected but a tap does nothing, check if you have
+**Require long presses** set in the `Wear OS Settings`.
+When that setting is enabled, you have to hold the press for about a second for it
 to register.  **Undo** and **Redo** always require a long press.
 
 The watch does not vibrate
@@ -237,14 +242,14 @@ Sounds still play through the phone or its connected earbud.
 If the phone vibrates instead, the watch may have been unreachable when the cue was sent.
 Check the connection and use the **Test** button below **Vibration length** in the
 phone's `Sounds and Vibration` settings.
-Declining the watch's notification permission does not disable timing vibrations.
 
 The return-to-game shortcut is missing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Check that notifications are allowed for UltiObserver in the watch's system settings,
 then reopen UltiObserver on the watch. The shortcut is only present while there is a
-current game. You can always reopen the app from the watch's app list instead.
+current game. If the shortcut isn't present, you can always reopen the app from the
+watch's app list instead.
 
 Still having trouble?
 ~~~~~~~~~~~~~~~~~~~~~

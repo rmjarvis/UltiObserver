@@ -45,6 +45,7 @@ on this to go to the **About** page.
 
 This page shows the currently installed version of UltiObserver and provides links to:
 
+* the Google Play page for UltiObserver to check for updates;
 * this documentation;
 * the privacy policy;
 * the UltiObserver source code on GitHub, where you can also report bugs or request features.
@@ -61,7 +62,7 @@ with the official horns.
 
 To synchronize the clock, tap **Sync to nearest minute mark** when the tournament clock reaches
 an exact minute. UltiObserver rounds its displayed time to the nearest minute. If the displayed
-minute differs from the tournament clock, use **−1 min** or **+1 min** to correct it without
+minute differs from the tournament clock, use **+1 min** or **-1 min** to correct it without
 changing the seconds.
 
 When UltiObserver is using an adjusted clock, the clock icon on the home screen turns red
