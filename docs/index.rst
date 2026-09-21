@@ -88,7 +88,7 @@ Contents
    more-actions
    summary
    archive
-   privacy
    troubleshooting
    planned-improvements
+   privacy
    release-notes
