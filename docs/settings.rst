@@ -20,7 +20,7 @@ How much rule guidance should appear during games?
     it describes the possible restarts for penalties against the offense and defense. This
     behavior is called **Full** here.
 
-    For experienced observers, this information is probably not necessary, so we provide
+    For experienced observers, this information is probably not necessary, so the app provides
     three less verbose guidance modes:
 
     * **Brief** just gives a very short reminder of the relevant rule (e.g. '[Team] starts at
@@ -50,14 +50,14 @@ Use sounds and vibration for timing cues?
       them better and to not broadcast the sound to nearby players.
 
 Also vibrate on cues that use sound?
-    If you want your phone to vibrate in addition to using sound whenever a cue has a sound
-    setting, set this to **Yes**.
+    If you want your phone or watch to vibrate in addition to using sound whenever a cue has
+    a sound setting, set this to **Yes**.
 
 Sound/vibration settings for individual cues
     This opens a sub-page where you can set a sound or vibration to use for each specific
     kind of cue that we have in the game. The defaults are my personal preferences for the
     various cue sounds when I'm observing. But you can adjust each cue's sound or vibration
-    setting to your preference. The **x2** and **x3** buttons set a repetition for the
+    setting to something else. The **x2** and **x3** buttons set a repetition for the
     sound or vibration. So you can have a cue use 1, 2 or 3 beeps for instance. Click a
     selected **x2** or **x3** button to deselect it (indicating that only 1 of that sound
     or vibration should be used).
@@ -71,11 +71,11 @@ Sound volume
 
 Vibration length
     This changes how long the vibration action lasts. There is a **Test** button so you can
-    see what the currently set length will feel like.
+    experience how the currently set length will feel when triggered.
 
 Watch connection
-    The app can either send notifications for the timing cues, which can be picked up by a smart
-    watch connected to your phone, or if you have a Wear OS watch, you can use the UltiObserver
+    The app can send notifications for the timing cues, which can be picked up by a smart
+    watch connected to your phone. Or if you have a Wear OS watch, you can use the UltiObserver
     companion app, which lets you perform some actions directly on the watch.
     There are four options:
 
@@ -121,12 +121,12 @@ Team display on watch
     The watch always shows the two team areas on the left and right side of the watch.
     You can decide how you want this to behave as the teams change sides during the game.
 
-    * **Teams fixed** This keeps the teams in the same place on the watch throughout the
+    * **Teams fixed** keeps the teams in the same place on the watch throughout the
       game. Whichever team is listed first in the game setup screen is on the left.
       The second one is on the right. The names of the field ends where the teams start each
       point will swap each point.
 
-    * **Ends fixed** This keeps the field orientation fixed throughout the game as the
+    * **Ends fixed** keeps the field orientation fixed throughout the game as the
       teams switch sides. The names of the field ends will not change, but the teams
       will switch after every goal. When the phone is set to landscape mode, these will
       match the phone orientation. Otherwise, you can decide which way you want them to
@@ -152,10 +152,9 @@ Active Game Screen Behavior
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 How should the active game screen be oriented?
-    This controls how the active game screen displays on your phone. As described in
-    :ref:`Active Game Screen`, it can display either in portrait mode, with the two teams
-    on the top and bottom, or in landscape mode, with the two teams on the left and right.
-    There are three options for how this is decided.
+    As described in :ref:`Active Game Screen`, the active game screen can display either
+    in portrait mode, with the two teams on the top and bottom, or in landscape mode,
+    with the two teams on the left and right. There are three options for how this is decided.
 
     * **Portrait** Use the portrait display pattern, regardless of the phone's physical
       orientation.
@@ -174,29 +173,37 @@ How should the active game screen be oriented?
     Other screens besides the active game screen (e.g. setup, game summaries, archives, etc.)
     are always in portrait mode.
 
+Accidental touch protection
+    There are two available protection modes to keep you from accidentally pressing buttons
+    when the phone is in your pocket during live points as you run around the field.
+
+    * **None** has no extra protection beyond what your phone does itself.
+    * **Auto-lock** automatically locks the screen whenever the game switches to live action,
+      either after a pull or at the end of an in-point timeout. Unlocking is a simple
+      drag action in the middle of the screen, which is pretty quick, but not something that
+      would happen automatically when the phone is in your pocket.
+    * **Long press** requires any button presses from the main game screen to be held down
+      for about a second for the press to activate. Subsequent interactions with dialogs
+      use normal taps.
+
+    Note that there is a lock icon on the active game screen, which lets you lock the
+    screen manually whenever you need.
+
 Automatically start live play?
     The default behavior when a pull or timeout countdown expires is to automatically advance
     to live play. If you prefer to do this manually (using either the **Start point** or
     **Continue point** button) then switch this to **No**.
 
-Automatically lock screen?
-    The default behavior is to automatically lock the screen when switching to live action,
-    either after a pull or at the end of an in-point timeout. That way, while you are moving
-    with play, you won’t accidentally press buttons in the app. Unlocking is a simple drag
-    action, which is pretty quick, but if you prefer not to have it lock automatically, then
-    switch this to **No**. Note that there is always a lock icon on the active game screen so you
-    can lock the screen manually whenever you need.
-
 Show defense countdowns?
-    We expect that most observers will not need an explicit countdown for the defensive check
+    I expect that most observers will not need an explicit countdown for the defensive check
     after the offense is ready on timeouts or misconduct penalties. This is commonly handled
     using visible arm chops, rather than a stopwatch. However, if you would prefer to have the
     defense countdown handled by the app, set this option to **Yes**.
 
 Automatically advance countdowns by a few seconds?
     During a live point, you would normally keep your phone in a pocket, so when it's time to
-    press Goal or Timeout, it takes a few seconds to get the phone out, unlock it, and then
-    press the button.
+    press Goal or Timeout (if you aren't using the Wear OS companion app), it may take a few
+    seconds to get the phone out, unlock it, and then press the button.
     If you want to account for this time, you can estimate how long it normally takes you to
     do this, and provide that value here to be already elapsed on the countdown when you start it.
     The default is to not advance the countdown at all -- the time starts at the moment you
@@ -212,7 +219,7 @@ Show ABBA gender ratio as M1/M2/W1/W2?
     these sequence shorthand names, which indicate whether this is the first or second point in
     the sequence with either the 4M/3W ratio (``M1`` and ``M2``, respectively) or the
     4W/3M ratio (``W1`` and ``W2``).  Set this to **No** if you prefer the
-    badge to show the full point ratio as either ``4W/3M`` or ``4M/3W``.
+    badge to show the ratio as either ``4W/3M`` or ``4M/3W``.
 
 Set 4M/3W and 4W/3M indicator colors
     When there is a specific gender ratio for a point, the app will show a small badge indicating

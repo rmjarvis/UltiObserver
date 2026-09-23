@@ -57,13 +57,12 @@ In the upper-right corner of the home screen, there is a clock icon. Click on th
 go to the **Official clock** page.
 
 This page lets you synchronize UltiObserver with a tournament's official clock being used
-for start times and caps, so the cap signals in the app should correspond (as well as possible)
-with the official horns.
+for start times and caps, so the time of the cap signals in the app can match
+(as well as possible) the official horns.
 
 To synchronize the clock, tap **Sync to nearest minute mark** when the tournament clock reaches
 an exact minute. UltiObserver rounds its displayed time to the nearest minute. If the displayed
-minute differs from the tournament clock, use **+1 min** or **-1 min** to correct it without
-changing the seconds.
+minute differs from the tournament clock, use **+1 min** or **-1 min** to correct it.
 
 When UltiObserver is using an adjusted clock, the clock icon on the home screen turns red
 to remind you that the app is not in sync with your phone's clock.

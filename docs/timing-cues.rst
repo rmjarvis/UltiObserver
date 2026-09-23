@@ -66,8 +66,10 @@ For defense countdowns, the cues that are displayed are:
 If the team hasn't pulled by 0:00, you may choose to issue a time violation.
 See :ref:`time-violations`.
 
-During a between points countdown, you may always choose to start the point early if that
+During a countdown between points, you may choose to start the point early if that
 is appropriate by clicking **Start point** in the center of the game screen.
+But the normal thing to do is to let the countdown expire, at which point the app
+will (by default) auotmatically transition to the live point state.
 
 Timeout Timing
 --------------
@@ -97,8 +99,9 @@ meant to be set. The timing cues for this countdown are:
    * - 0:00
      - Offense freeze
 
-If you have defense countdowns enabled (see :ref:`settings`), then this will transition
-into a countdown for the defense to check the disc in.  The cues for this are:
+If you have defense countdowns enabled (see :ref:`settings`), then there will be a button
+to indicate when the offense is actually set. Pressing this will start
+a countdown for the defense to check the disc in.  The cues for this are:
 
 .. list-table::
    :class: cue-table
@@ -139,7 +142,7 @@ the first pull of the second half.
 
 .. note::
 
-    The 5 minute cue is still in the official observer handbook, so we include it here.
+    The 5 minute cue is still in the official observer handbook, so the app includes it.
     However, it is almost certainly obsolete now that halftime is only 7 minutes rather than
     10 minutes. This cue defaults to Off in the `Settings`, so it is typically skipped.
 

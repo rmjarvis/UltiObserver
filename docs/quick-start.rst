@@ -16,8 +16,9 @@ Before The Game
 6. You can also choose to enter observer names, field number, tournament, division, level
    and context if you want. For mixed games, choosing mixed division is important, since it
    enables options related to the gender ratio.
-7. Review **Game rules** if the game has unusual timeout or cap settings. For mixed division
-   games, the default gender ratio rule is ABBA, but you can change it here.
+7. Review **Game rules** and update tournament-specific rules such as cap times or the number
+   of timeouts per half.
+   For mixed division games, the default gender ratio rule is ABBA, but you can change it here.
 8. When you bring the teams together for the pre-game flip, record the results in the
    **Field/starting pull** section. This includes which team is pulling, from which end
    (you can name the ends whatever you want), and which end is your responsibility for pull
@@ -33,11 +34,14 @@ Use the active game screen for common actions during the game.
   should say at various times. (Sounds and vibrations associated with each cue are settable.)
 * When the countdown expires, the live point will automatically start and lock the screen.
   (These are also settable options if you don't want that.)
-* You can also manually start a point before the countdown expires by pressing **Start point**.
 * Tap a team's **Goal** button to record a goal for that team.
-* Use **TO**, **Offsides**, **False start**, **Time viol.**, **Card**, and **Tech** when those
-  events happen.
-* Use **Undo** and **Redo** for mistakes.
+* Tap **TO** to record a time out. During a point, this will start a countdown for the time
+  until the offense is set. Between points, it extends the time for the pull. The buttons
+  always show the number of timeouts each team has available in that half.
+* Use **Offsides**, **False start**, **Time viol.**, **Card**, and **Tech** when those
+  events happen. Numbers indicate how many such violations, cards, or technical fouls have
+  been recorded yet for that team, since that impacts the restart for each.
+* Use **Undo** when you make a mistake and want to undo some action.
 * The next relevant cap (half/soft/hard) is always shown at the upper right. If sounds are
   enabled, it will use the alarm feature on your phone to alert you (default is 2 or 3 dings,
   depending on the cap).
@@ -50,7 +54,7 @@ When the game is over, UltiObserver shows a summary of the completed game. From 
 * review the final score and misconduct details;
 * open the event log;
 * share the summary with the head observer or tournament director through Android's normal
-  share sheet;
+  share function;
 * undo game over if the game was not actually finished for whatever reason;
 * archive the completed game for later viewing.
 

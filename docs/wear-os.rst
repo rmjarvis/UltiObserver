@@ -18,9 +18,10 @@ watch.
 Getting Connected
 -----------------
 
-Install UltiObserver on both your phone and your paired Wear OS watch. In UltiObserver's
-`Settings` on the phone, set **Watch connection** to **Wear OS**, then open UltiObserver on
-the watch.
+Install UltiObserver on both your phone and your paired Wear OS watch.
+(See `Installing on a Wear OS Watch`.)
+In UltiObserver's `Settings` on the phone, set **Watch connection** to **Wear OS**,
+then open UltiObserver on the watch.
 
 Before starting a game, the watch will show the message "No active game".
 You should use the phone to do all the setup for the game. Once you click **Start game**,
@@ -85,7 +86,7 @@ If you tap either team area from the main screen, it will take you to a screen w
 actions related to that team.
 
 The main section of this screen includes the six team action buttons, which work mostly
-the same as the corresponding buttons on phone:
+the same as the corresponding buttons on the phone:
 
 * **Goal** records a goal
 * **Time viol.** records a time violation
@@ -142,9 +143,9 @@ Watch Timing Alerts
 -------------------
 
 The watch will (by default) be the device for all timing cues that use vibration.
-They work even with the watch screen off or another app open.
+They work even when the watch screen is off or another app is open.
 If the watch cannot receive a vibration, the phone vibrates instead.
-Sounds continue to play on the phone or its connected earbud regardless.
+Sounds cues play on the phone or its connected earbud regardless.
 If you prefer to keep vibrations on your phone, you can change the setting
 **Vibrate on watch?** to No.
 
@@ -158,7 +159,7 @@ Notification Permission
 If the watch asks for notification permission, allowing it provides a **Return to game**
 shortcut from your watch's home screen when there is a current game.
 It looks like a small version of the UltiObserver icon at the bottom of the screen.
-This makes it easier to reopen UltiObserver on the watch when a game is in progress if you
+This makes it easier to reopen UltiObserver when a game is in progress if you
 had to leave the game screen to do something else on your watch.
 
 Declining this permission does not prevent game controls or timing vibrations.
@@ -177,8 +178,7 @@ get past **Connecting…**, try these steps:
    app) and check that it shows the watch as connected. Installing UltiObserver on
    both devices does not pair them; complete the watch's normal setup first.
 2. Keep the phone and watch near each other, with Bluetooth enabled and airplane mode
-   off on both devices. If the companion app cannot connect either, resolve that
-   connection first.
+   off on both devices. Make sure the normal watch companion app is able to connect.
 3. Check the companion app's permissions in the phone's Android settings. In particular,
    the Google Pixel Watch app needs **Nearby devices** permission. This is a permission
    for the companion app, not for UltiObserver. Google's
@@ -187,7 +187,7 @@ get past **Connecting…**, try these steps:
 4. Open UltiObserver on the phone and check that **Watch connection** is set to **Wear OS**
    in `Settings`. Then open UltiObserver on the watch and tap **Retry** if it is shown.
 5. Check for UltiObserver updates in the Play Store on both devices. The phone and watch
-   apps are installed and updated separately, so check both even if one was just updated.
+   apps are installed and updated separately, so check both whenever you update either one.
 6. If it still will not connect, restart the phone and watch, open UltiObserver on the
    phone first, then open it on the watch and try again.
 
@@ -254,7 +254,7 @@ watch's app list instead.
 Still having trouble?
 ~~~~~~~~~~~~~~~~~~~~~
 
-You can continue recording the game on the phone while troubleshooting the watch.
+You can continue recording game actions on the phone while troubleshooting the watch.
 For an UltiObserver problem, see `Reporting Bugs`. Include both device models, their
 Android/Wear OS versions, the UltiObserver version on each device, the exact message
 shown on the watch, and whether the manufacturer's companion app shows a connection.

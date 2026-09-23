@@ -6,17 +6,15 @@ This page provides details about how UltiObserver handles various aspects of mis
 Yellow and red cards
 --------------------
 
-.. figure:: screen-shots/YellowCardPlayer.png
-   :class: phone-screenshot
-   :target: _images/YellowCardPlayer.png
-   :alt: Yellow card player entry dialog with number and name fields
-
-
 .. figure:: screen-shots/YellowCardReason.png
    :class: phone-screenshot desktop-only
    :target: _images/YellowCardReason.png
    :alt: Yellow card reason dialog with standard reason buttons and details field
 
+.. figure:: screen-shots/YellowCardPlayer.png
+   :class: phone-screenshot
+   :target: _images/YellowCardPlayer.png
+   :alt: Yellow card player entry dialog with number and name fields
 
 To record a card (either yellow or red) assessed against a player, click the **Card** button
 for that player's team. This will open a popup dialog letting you choose the color of the

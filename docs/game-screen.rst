@@ -4,6 +4,8 @@ Active Game Screen
 This screen is the primary interface during a game from before the first pull
 until the game is over. The screen has all the information you may need to access
 during the game as well as buttons to record events that happen during the game.
+If you are using the `Wear OS Companion App`, then most of the information
+and actions on this screen are available on the watch.
 
 Time and Countdowns
 -------------------
@@ -17,19 +19,13 @@ Time and Countdowns
 The top section of the screen shows the current time, the time until the next
 relevant cap, if any, and a countdown for the next game transition, if appropriate.
 
-To the right of the cap, there is a small rules icon, which opens up a quick reference
-to the game rules as applied to this game. It shows the target winning and halftime score
-(adjusted by caps if appropriate), the times that any enabled caps will happen
-(based on the start time and the offsets in the rules), the timeout rules, and
-the gender ratio rules for mixed games.
-
 The countdown has a button to pause and restart the countdown if you need to do that.
 There are also **+5** and **-5** buttons, which adjust the remaining time by 5 seconds
 in either direction, if you want to do so.
 
 If water breaks are enabled in the game rules, a water-drop button appears just to the
-left of the pause button. Tapping it adds the specified water-break time to the current
-countdown.
+left of the pause button when between points. Tapping it adds the specified water-break time
+to the current countdown.
 
 Below the countdown, the next timing cue you are responsible for as an observer is given.
 E.g. Next cue at 0:20 - 20 seconds for a hand.  This means when the timer reaches 0:20,
@@ -125,7 +121,7 @@ pulling to the other.
 There is also a lock icon either on the right side (in portrait mode) or the bottom
 (in landscape) of the central section.
 Pressing the lock button will lock the screen so you can
-put it in your pocket without worrying about misclicks during the point.
+put your phone in your pocket without worrying about misclicks during the point.
 It keeps the layout in place but disables normal buttons.
 Drag the unlock slider to the right to unlock the screen.
 The screen also automatically locks during live points by default.
@@ -140,8 +136,10 @@ If one team is choosing the gender ratio, then that will be indicated in their t
 using an "MW" badge in the corner.
 
 The center of the field sometimes shows a button to transition the game to the next phase.
-**Start point** indicates that the pull happened, presumably before the countdown finished.
-**Continue point** will end a timeout and go back to live play before its countdown finishes.
+**Start point** indicates that the pull happened.
+**Continue point** will end a timeout and go back to live play.
+These normally happen automatically when the countdown finishes, but you can turn off that
+feature in the `Settings` if you want.
 When defensive countdowns are enabled, **Offense is set** indicates that the offense is set,
 which starts the defensive countdown.
 
@@ -184,5 +182,4 @@ See :ref:`more-actions-menu` for details.
 
 Most game actions are undoable. The Undo button at the bottom of the screen names the
 action it will undo, such as **Undo Goal by Team 1** or **Undo Yellow on #7 of Team 2**.
-**Redo** is available as well after an undo action unless a new action is recorded to
-replace that history.
+**Redo** is available as well after clicking **Undo** until a new action is recorded.

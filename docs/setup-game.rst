@@ -14,9 +14,9 @@ Many of these details can be set well in advance of the game, leaving only the d
 decided at the pre-game flip to be entered at that time.
 
 You can even enter the details for multiple games in advance, saving them each as drafts
-to be reopened when you get to the field. We expect that the usual use pattern will be
+to be reopened when you get to the field. The anticipated use pattern is
 to create draft setups for all the games of the day when you get your assignments from the
-head observer in the morning each day. Enter the information you know, such as the start
+head observer in the morning. Enter the information you know, such as the start
 time, field number, who your co-observer(s) will be, the team names, tournament name,
 division, level, and any rules that are specific to this tournament. Then click
 **Save as a draft**.
@@ -246,10 +246,10 @@ Timeout duration
     How long a timeout lasts in seconds. When called during a point, this is how long the
     offense has to be set after the timeout is called. The defense has up to 20 seconds
     after this time to check the disc in. When called between points, this is how much
-    time is added to the between-points countdown.
+    time is added to the between-points countdown. The USAU default is 70 seconds.
 
 Halftime
-    How long is halftime?
+    How long to take for the halftime break. The USAU default is 7 minutes.
 
 At the bottom, there is a button to **Reset to USAU defaults**, which sets all rules back to
 the normal USAU standard rules.
