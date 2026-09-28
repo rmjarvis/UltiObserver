@@ -12,6 +12,11 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.android.gms.tasks.Tasks
 import java.util.concurrent.TimeUnit
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsEnabled
@@ -138,6 +143,68 @@ class TestWatchStateUi {
         val text = composeRule.onNodeWithTag("countdown-value", useUnmergedTree = true)
             .fetchSemanticsNode().config[SemanticsProperties.Text].single().text
         return text.substringAfter(":").toInt()
+    }
+
+    /** Stop the display timer when hidden, even without an ambient-mode transition. */
+    @Test
+    fun hiddenCountdown() {
+        val owner = object : LifecycleOwner {
+            override val lifecycle = LifecycleRegistry(this)
+        }
+        composeRule.runOnIdle { owner.lifecycle.currentState = Lifecycle.State.RESUMED }
+        val initial = activeSnapshot()
+        val state = initial.copy(snapshot = initial.snapshot.copy(
+            activeGame = initial.snapshot.activeGame!!.copy(
+                countdown = WearCountdownSnapshot(
+                    label = "Between points",
+                    targetEpochMillis = System.currentTimeMillis() + 45_000L,
+                    pausedAtEpochMillis = null,
+                    cues = emptyList(),
+                ),
+            ),
+        ))
+        composeRule.setContent {
+            CompositionLocalProvider(LocalLifecycleOwner provides owner) {
+                UltiObserverWearApp(
+                    isAmbient = false,
+                    receivedState = state,
+                    connectionState = ConnectionState.CONNECTED,
+                    onRetry = {},
+                    onGoal = { _, _, _ -> },
+                    onUndo = { _, _ -> },
+                    onRedo = { _, _ -> },
+                    onCountdownAction = { _, _, _ -> },
+                    onDecision = { _, _, _ -> },
+                    onTeamAction = { _, _, _, _ -> },
+                    onStartCardEntry = { _, _, _, _, _ -> },
+                    onCancelCardEntry = { _, _, _, _, _ -> },
+                    onConfirmAction = { _, _ -> },
+                )
+            }
+        }
+
+        // The visible countdown advances using the watch's clock without another phone update.
+        val initialSeconds = countdownSeconds()
+        composeRule.waitUntil(timeoutMillis = 10_000L) {
+            countdownSeconds() < initialSeconds
+        }
+
+        // Keep composition alive while reporting the app stopped, without entering ambient mode.
+        // Let real time pass, then advance the test scheduler enough for another timer update.
+        // The displayed value must stay unchanged because the app is stopped.
+        composeRule.runOnIdle { owner.lifecycle.currentState = Lifecycle.State.CREATED }
+        composeRule.mainClock.autoAdvance = false
+        val stoppedSeconds = countdownSeconds()
+        android.os.SystemClock.sleep(1_100L)
+        composeRule.mainClock.advanceTimeBy(2_000L)
+        assertEquals(stoppedSeconds, countdownSeconds())
+
+        // Returning to the app immediately catches up rather than resuming a stale countdown.
+        composeRule.runOnIdle { owner.lifecycle.currentState = Lifecycle.State.RESUMED }
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.mainClock.advanceTimeByFrame()
+        assertTrue(countdownSeconds() < stoppedSeconds)
+        composeRule.onNodeWithText("Home").assertIsEnabled()
     }
 
     /** Keep automatic confirmations running while their controls are hidden in ambient mode. */

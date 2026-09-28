@@ -29,6 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.delay
@@ -99,14 +102,27 @@ internal fun UltiObserverWearApp(
             MessageScreen("No active game")
         else -> {
             val activeGame = snapshot!!.activeGame!!
+            val lifecycle = LocalLifecycleOwner.current.lifecycle
             val currentWatchEpochMillis by produceState(
                 initialValue = System.currentTimeMillis(),
                 receivedState,
                 isAmbient,
+                lifecycle,
             ) {
-                while (!isAmbient) {
-                    value = System.currentTimeMillis()
-                    delay(1_000L)
+                // The lifecycle is (at least) STARTED whenever the watch is awake and running
+                // our app. If the watch goes to sleep or the user navigates to another app,
+                // we stop updating the clock every second.
+                // Even when our app is active, we may be in a screen saver mode, which is
+                // controlled by isAmbient. In this mode, we just draw a blank screen and also
+                // don't update the clock every second.
+                // This is the main thing that normally drives Compose refreshes, so pausing
+                // this when the app is inactive makes it largely dormant until it wakes back
+                // up or there is another event trigger (like an update from the phone).
+                lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    while (!isAmbient) {
+                        value = System.currentTimeMillis()
+                        delay(1_000L)
+                    }
                 }
             }
             val currentPhoneEpochMillis = currentWatchEpochMillis + receivedState.phoneClockOffsetMillis
