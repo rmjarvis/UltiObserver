@@ -19,9 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,11 +48,13 @@ import rmjarvis.ultiobserver.wearprotocol.WearPromptSnapshot
 /** Show one phone-formatted pending decision and return the observer's response to the phone. */
 @Composable
 internal fun DecisionScreen(
+    isAmbient: Boolean,
+    commandPendingState: MutableState<Boolean>,
     decision: WearPromptSnapshot,
     stateToken: String,
     onDecision: (String, Boolean, (Boolean) -> Unit) -> Unit,
 ) {
-    var commandPending by remember(decision, stateToken) { mutableStateOf(false) }
+    var commandPending by commandPendingState
     val onRespond: (Boolean) -> Unit
     onRespond = { accept ->
         commandPending = true
@@ -63,6 +64,7 @@ internal fun DecisionScreen(
     }
 
     BackHandler(
+        enabled = !isAmbient,
         onBack = {
             onRespond(true)
         },
@@ -74,6 +76,10 @@ internal fun DecisionScreen(
         }
     }
 
+    if (isAmbient) {
+        BlankScreen()
+        return
+    }
     PromptScreen(
         prompt = decision,
         enabled = !commandPending,
@@ -97,13 +103,15 @@ internal fun DecisionScreen(
 /** Show an action confirmation whose Cancel action remains local to the watch. */
 @Composable
 internal fun ActionConfirmationScreen(
+    isAmbient: Boolean,
+    commandPendingState: MutableState<Boolean>,
     confirmation: WearActionConfirmation,
     onConfirmationChange: (WearActionConfirmation) -> Unit,
     onConfirm: (WearActionConfirmation, (Boolean) -> Unit) -> Unit,
     onCancel: () -> Unit,
 ) {
     val prompt = confirmation.prompt
-    var commandPending by remember(prompt) { mutableStateOf(false) }
+    var commandPending by commandPendingState
     val onSubmitConfirmation = {
         commandPending = true
         onConfirm(confirmation) {
@@ -113,7 +121,7 @@ internal fun ActionConfirmationScreen(
     val currentOnSubmitConfirmation by rememberUpdatedState(onSubmitConfirmation)
 
     BackHandler(
-        enabled = !commandPending,
+        enabled = !commandPending && !isAmbient,
         onBack = {
             onCancel()
         },
@@ -125,6 +133,10 @@ internal fun ActionConfirmationScreen(
         }
     }
 
+    if (isAmbient) {
+        BlankScreen()
+        return
+    }
     val alternativeAction = confirmation.alternativeConfirmation()?.let { alternative ->
         PromptActionSpec(
             label = alternative.selectedViolation.alternativeActionLabel(),
@@ -166,9 +178,10 @@ internal fun ActionNoticeScreen(
 /** Hold watch interaction while the phone owns an active card workflow. */
 @Composable
 internal fun ContinueOnPhoneScreen(
+    commandPendingState: MutableState<Boolean>,
     onCancel: ((Boolean) -> Unit) -> Unit,
 ) {
-    var commandPending by remember { mutableStateOf(false) }
+    var commandPending by commandPendingState
     val cancel = {
         commandPending = true
         onCancel {

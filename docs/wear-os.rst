@@ -153,6 +153,23 @@ Note that the choice of sound or vibration is still set individually for each ti
 Enabling watch vibration or not doesn't change anything about those choices.
 See `Timing Cues` and `Sounds and Vibration`.
 
+Screen Sleep and Wake
+---------------------
+
+The app tries to be economical with its screen use. When you are not actively using the
+watch app, UltiObserver will blank the screen. This helps both to save the battery life of your
+watch and also to reduce the chance of accidentally pressing buttons (especially when it's
+raining, since the rain water can be misinterpreted as a screen press).
+Any timing cue vibrations will continue to work normally when the screen is blank.
+
+Waking the watch brings back the regular screen and controls. This would normally be by
+tilting your wrist or tapping the screen, but the specific control for that is in your
+watch's gesture or accessibility settings, not something UltiObserver controls.
+
+You may also want to consider turning off "Always-on screen" (or similar) in your watch's
+display settings to further improve the battery life. This will fully power off the screen
+when you are not using it, rather than just letting UltiObserver draw a blank screen.
+
 Notification Permission
 -----------------------
 

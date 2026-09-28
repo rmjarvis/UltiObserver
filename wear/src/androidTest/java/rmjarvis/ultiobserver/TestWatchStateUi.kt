@@ -24,6 +24,12 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toPixelMap
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotNull
@@ -56,6 +62,8 @@ import rmjarvis.ultiobserver.wearprotocol.WATCH_VIBRATION_PATH
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
 import rmjarvis.ultiobserver.wearprotocol.WearVibrationRequest
 import rmjarvis.ultiobserver.wearprotocol.WearVibrationResponse
+import rmjarvis.ultiobserver.wearprotocol.WearPromptSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
 
 /**
  * Tests of the connection status between a watch and the phone.
@@ -66,6 +74,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearVibrationResponse
 class TestWatchStateUi {
     @get:Rule
     val composeRule = createComposeRule()
+    private var isAmbient by mutableStateOf(false)
+    private var submittedCommands = 0
 
     /** Advance the displayed countdown locally without receiving another phone snapshot. */
     @Test
@@ -99,14 +109,110 @@ class TestWatchStateUi {
         composeRule.onNodeWithContentDescription("Game rules").performClick()
         composeRule.onNodeWithText("Game to 15").assertIsDisplayed()
         composeRule.onNodeWithText("Timeout 90 seconds").assertIsDisplayed()
+
+        // Inactive mode is entirely black and has no controls.
+        composeRule.runOnIdle { isAmbient = true }
+        composeRule.onNodeWithText("Back").assertDoesNotExist()
+        composeRule.onNodeWithText("Game to 15").assertDoesNotExist()
+        val pixels = composeRule.onRoot().captureToImage().toPixelMap()
+        for (y in 0 until pixels.height) {
+            for (x in 0 until pixels.width) {
+                assertEquals(Color.Black, pixels[x, y])
+            }
+        }
+
+        // Long pressing the blank screen cannot activate any command.
+        composeRule.onRoot().performTouchInput { longClick() }
+        composeRule.runOnIdle { assertEquals(0, submittedCommands) }
+
+        // Waking restores the selected screen; the countdown catches up to the current time.
+        composeRule.runOnIdle { isAmbient = false }
+        composeRule.onNodeWithText("Game to 15").assertIsDisplayed()
+        composeRule.onNodeWithText("Timeout 90 seconds").assertIsDisplayed()
         composeRule.onNodeWithText("Back").performClick()
         composeRule.onNodeWithText("Home").assertIsDisplayed()
+        assertTrue(countdownSeconds() < firstValue)
     }
 
     private fun countdownSeconds(): Int {
         val text = composeRule.onNodeWithTag("countdown-value", useUnmergedTree = true)
             .fetchSemanticsNode().config[SemanticsProperties.Text].single().text
         return text.substringAfter(":").toInt()
+    }
+
+    /** Keep automatic confirmations running while their controls are hidden in ambient mode. */
+    @Test
+    fun ambientGuidance() {
+        val initial = activeSnapshot()
+        var state by mutableStateOf(initial.copy(snapshot = initial.snapshot.copy(
+            activeGame = initial.snapshot.activeGame!!.copy(
+                pendingDecision = WearPromptSnapshot(
+                    title = "Half cap",
+                    messageLines = emptyList(),
+                    confirmLabel = "OK",
+                    dismissLabel = "Not yet",
+                    presentation = WearGuidancePresentation.VISIBLE_TIMED,
+                    autoAcceptDelayMillis = 1_000L,
+                ),
+            ),
+        )))
+        var confirmations = 0
+        var finishDecision: ((Boolean) -> Unit)? = null
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            UltiObserverWearApp(
+                isAmbient = isAmbient,
+                receivedState = state,
+                connectionState = ConnectionState.CONNECTED,
+                onRetry = {},
+                onGoal = { _, _, _ -> },
+                onUndo = { _, _ -> },
+                onRedo = { _, _ -> },
+                onCountdownAction = { _, _, _ -> },
+                onDecision = { _, accept, finished ->
+                    assertTrue(accept)
+                    confirmations++
+                    // Hold the phone's reply: sending acceptance alone does not close the dialog.
+                    finishDecision = finished
+                },
+                onTeamAction = { _, _, _, _ -> },
+                onStartCardEntry = { _, _, _, _, _ -> },
+                onCancelCardEntry = { _, _, _, _, _ -> },
+                onConfirmAction = { _, _ -> },
+            )
+        }
+
+        // The timer starts while visible and completes on schedule after the screen goes blank.
+        composeRule.mainClock.advanceTimeBy(500L)
+        composeRule.onNodeWithText("OK").assertIsDisplayed()
+        composeRule.runOnIdle { isAmbient = true }
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.onNodeWithText("OK").assertDoesNotExist()
+        composeRule.mainClock.advanceTimeBy(600L)
+        composeRule.runOnIdle { assertEquals(1, confirmations) }
+
+        // Waking while the phone is still answering does not submit a second confirmation.
+        // Without completion or a new phone snapshot, the dialog stays visible with OK disabled.
+        composeRule.runOnIdle { isAmbient = false }
+        composeRule.mainClock.advanceTimeBy(1_100L)
+        composeRule.onNodeWithText("OK").assertIsNotEnabled()
+        composeRule.runOnIdle { assertEquals(1, confirmations) }
+
+        // The phone acknowledges acceptance and publishes state with no pending confirmation.
+        composeRule.runOnIdle {
+            finishDecision!!(true)
+            state = state.copy(snapshot = state.snapshot.copy(
+                activeGame = state.snapshot.activeGame!!.copy(
+                    stateToken = "half-cap-accepted",
+                    pendingDecision = null,
+                ),
+            ))
+        }
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.onNodeWithText("OK").assertDoesNotExist()
+        composeRule.onNodeWithText("Half cap").assertDoesNotExist()
+        composeRule.onNodeWithText("Home").assertIsDisplayed().assertIsEnabled()
+        composeRule.runOnIdle { assertEquals(1, confirmations) }
     }
 
     /** Display the ratio-choice badge beside whichever team the phone identifies. */
@@ -337,9 +443,11 @@ class TestWatchStateUi {
     @Test
     fun phoneChangesDuringRequests() {
         var state by mutableStateOf(activeSnapshot())
+        var isAmbient by mutableStateOf(false)
         var finishGoal: ((Boolean) -> Unit)? = null
         composeRule.setContent {
             UltiObserverWearApp(
+                isAmbient = isAmbient,
                 receivedState = state,
                 connectionState = ConnectionState.CONNECTED,
                 onRetry = {},
@@ -362,6 +470,12 @@ class TestWatchStateUi {
         composeRule.onNodeWithText("Goal").performClick()
         composeRule.onNodeWithText("Goal").assertIsNotEnabled()
         assertNotNull(finishGoal)
+
+        // Sleeping removes every control, but waking preserves the pending request and screen.
+        composeRule.runOnIdle { isAmbient = true }
+        composeRule.onNodeWithText("Goal").assertDoesNotExist()
+        composeRule.runOnIdle { isAmbient = false }
+        composeRule.onNodeWithText("Goal").assertIsNotEnabled()
         composeRule.runOnIdle {
             finishGoal!!(false)
             state = state.copy(snapshot = state.snapshot.copy(
@@ -517,18 +631,19 @@ class TestWatchStateUi {
     ) {
         composeRule.setContent {
             UltiObserverWearApp(
+                isAmbient = isAmbient,
                 receivedState = state(),
                 connectionState = connection(),
                 onRetry = onRetry,
-                onGoal = { _, _, _ -> },
-                onUndo = { _, _ -> },
-                onRedo = { _, _ -> },
-                onCountdownAction = { _, _, _ -> },
-                onDecision = { _, _, _ -> },
-                onTeamAction = { _, _, _, _ -> },
-                onStartCardEntry = { _, _, _, _, _ -> },
-                onCancelCardEntry = { _, _, _, _, _ -> },
-                onConfirmAction = { _, _ -> },
+                onGoal = { _, _, _ -> submittedCommands++ },
+                onUndo = { _, _ -> submittedCommands++ },
+                onRedo = { _, _ -> submittedCommands++ },
+                onCountdownAction = { _, _, _ -> submittedCommands++ },
+                onDecision = { _, _, _ -> submittedCommands++ },
+                onTeamAction = { _, _, _, _ -> submittedCommands++ },
+                onStartCardEntry = { _, _, _, _, _ -> submittedCommands++ },
+                onCancelCardEntry = { _, _, _, _, _ -> submittedCommands++ },
+                onConfirmAction = { _, _ -> submittedCommands++ },
             )
         }
     }

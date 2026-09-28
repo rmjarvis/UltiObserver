@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -42,6 +43,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 /** Route synchronized phone state to the watch's idle, game, or team-action surface. */
 @Composable
 internal fun UltiObserverWearApp(
+    isAmbient: Boolean,
     receivedState: ReceivedState?,
     connectionState: ConnectionState,
     onRetry: () -> Unit,
@@ -64,6 +66,16 @@ internal fun UltiObserverWearApp(
     }
 
     val screen = navigation.screen(snapshot, connectionState)
+    val commandPendingState = remember(
+        screen, snapshot?.activeGame?.stateToken, navigation.pendingActionPrompt,
+    ) { mutableStateOf(false) }
+    val automaticConfirmation = screen == WatchScreen.CONFIRMATION ||
+        (screen == WatchScreen.ACTION_PROMPT &&
+            navigation.pendingActionPrompt is WearActionConfirmation)
+    if (isAmbient && !automaticConfirmation) {
+        BlankScreen()
+        return
+    }
     when (screen) {
         WatchScreen.UPDATE_REQUIRED -> {
             val update = connectionState as ConnectionState.UpdateRequired
@@ -90,8 +102,9 @@ internal fun UltiObserverWearApp(
             val currentWatchEpochMillis by produceState(
                 initialValue = System.currentTimeMillis(),
                 receivedState,
+                isAmbient,
             ) {
-                while (true) {
+                while (!isAmbient) {
                     value = System.currentTimeMillis()
                     delay(1_000L)
                 }
@@ -108,12 +121,15 @@ internal fun UltiObserverWearApp(
                 val pendingDecision = activeGame.pendingDecision
                 if (screen == WatchScreen.CONFIRMATION) {
                     DecisionScreen(
+                        isAmbient = isAmbient,
+                        commandPendingState = commandPendingState,
                         decision = pendingDecision!!,
                         stateToken = activeGame.stateToken,
                         onDecision = onDecision,
                     )
                 } else if (screen == WatchScreen.PHONE_ENTRY) {
                     ContinueOnPhoneScreen(
+                        commandPendingState = commandPendingState,
                         onCancel = { onFinished ->
                             navigation = navigation.beginPhoneCancellation(phoneCardEntry!!)
                             onCancelCardEntry(
@@ -132,6 +148,8 @@ internal fun UltiObserverWearApp(
                     when (val actionPrompt = navigation.pendingActionPrompt!!) {
                         is WearActionConfirmation -> {
                             ActionConfirmationScreen(
+                                isAmbient = isAmbient,
+                                commandPendingState = commandPendingState,
                                 confirmation = actionPrompt,
                                 onConfirmationChange = {
                                     navigation = navigation.copy(pendingActionPrompt = it)
@@ -158,6 +176,7 @@ internal fun UltiObserverWearApp(
                     }
                 } else {
                     ActiveGameScreen(
+                        commandPendingState = commandPendingState,
                         receivedState = receivedState,
                         activeGame = activeGame,
                         display = display,
@@ -179,9 +198,16 @@ internal fun UltiObserverWearApp(
     }
 }
 
+/** Leave no visible content or input targets while the watch is inactive. */
+@Composable
+internal fun BlankScreen() {
+    Box(Modifier.fillMaxSize().background(Color.Black))
+}
+
 /** Render live time-derived values from one received phone snapshot. */
 @Composable
 private fun ActiveGameScreen(
+    commandPendingState: MutableState<Boolean>,
     receivedState: ReceivedState,
     activeGame: WearActiveGameSnapshot,
     display: GameDisplay,
@@ -195,7 +221,7 @@ private fun ActiveGameScreen(
     onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
     onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
 ) {
-    var commandPending by remember { mutableStateOf(false) }
+    var commandPending by commandPendingState
     val selectedTeam = navigation.selectedTeam
     val playerCard = navigation.playerCard
     val surface = navigation.gameScreen(activeGame.stateToken)
