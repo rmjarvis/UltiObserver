@@ -118,6 +118,7 @@ internal fun UltiObserverWearApp(
                 // This is the main thing that normally drives Compose refreshes, so pausing
                 // this when the app is inactive makes it largely dormant until it wakes back
                 // up or there is another event trigger (like an update from the phone).
+                // Coverage: completion not expected; composition disposal cancels this coroutine.
                 lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                     while (!isAmbient) {
                         value = System.currentTimeMillis()

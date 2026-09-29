@@ -250,12 +250,7 @@ def line_allowed_reason(
         line_number,
         coverage_by_line,
         counters,
-    ) or launched_effect_closing_epilogue_reason(
-        source_lines,
-        line_number,
-        coverage_by_line,
-        counters,
-    ) or long_lived_activity_state_collect_scaffold_reason(
+    ) or documented_completion_epilogue_reason(
         source_lines,
         line_number,
         coverage_by_line,
@@ -1308,129 +1303,38 @@ def launched_effect_scaffold_reason(
     return "Compose LaunchedEffect coroutine scaffold"
 
 
-def launched_effect_closing_epilogue_reason(
+def documented_completion_epilogue_reason(
     source_lines: list[str],
     line_number: int,
     coverage_by_line: dict[int, LineCounters],
     counters: LineCounters,
 ) -> str | None:
+    """Recognize generated completion code after an explicitly marked endless operation.
+
+    The comment immediately before the operation is the source guard; no particular
+    coroutine API is required. Optional context can follow the marker on that line.
+    The inspected profiles are a three-instruction normal return on the enclosing
+    closing brace, or five instructions throwing KotlinNothingValueException on
+    the operation's opener. Require a covered body so real execution gaps remain visible.
     """
-    Return a reason for Kotlin coroutine completion code mapped to a `LaunchedEffect` close.
-
-    A `LaunchedEffect` that collects a long-lived flow can have a small generated
-    completion epilogue mapped to the closing brace even when the effect body itself
-    was covered:
-
-        LaunchedEffect(fieldState) {
-            snapshotFlow { fieldState.text.toString() }.collect { text ->
-                ...
-            }
-        }
-
-    The `collect` call is effectively a long-running early return for coverage purposes:
-    normal execution suspends there until Compose cancels the effect, so the coroutine
-    does not fall through to the lambda's closing brace.  That close-brace code is the
-    coroutine state machine's normal completion bookkeeping, not a user path.
-
-    This rule accepts only a bare closing brace whose matching opener is a
-    `LaunchedEffect` body containing a `collect` call, whose body lines are covered,
-    and whose counters match the no-branch, no-covered-instruction profile observed
-    for this generated epilogue.
-    """
-
-    if counters.missed_instructions != 3 or counters.covered_instructions != 0:
-        return None
-    if counters.missed_branches != 0 or counters.covered_branches != 0:
-        return None
-
-    line_index = line_number - 1
-    if source_lines[line_index].strip() != "}":
-        return None
-
-    opening_index = matching_opening_brace_index(source_lines, line_index)
-    if opening_index is None:
-        return None
-    if not line_opens_launched_effect_body(source_lines, opening_index):
-        return None
-    if not launched_effect_body_contains_collect(source_lines, opening_index):
-        return None
-    if not lambda_body_is_covered(source_lines, opening_index, coverage_by_line):
-        return None
-
-    return "Compose LaunchedEffect coroutine closing epilogue"
-
-
-def launched_effect_body_contains_collect(source_lines: list[str], opening_index: int) -> bool:
-    """Return whether a `LaunchedEffect` body contains a Flow-style collect call."""
-
-    end_index = block_end_index(source_lines, opening_index)
-    for index in range(opening_index + 1, end_index):
-        source = source_lines[index].strip()
-        if ".collect" in source or source.startswith("collect"):
-            return True
-    return False
-
-
-def long_lived_activity_state_collect_scaffold_reason(
-    source_lines: list[str],
-    line_number: int,
-    coverage_by_line: dict[int, LineCounters],
-    counters: LineCounters,
-) -> str | None:
-    """
-    Return a reason for the impossible normal-completion path after Activity state collection.
-
-    `StateFlow.collect` runs until its surrounding lifecycle coroutine is cancelled. Kotlin still
-    emits a resume path that handles a theoretical normal return. A direct collection throws
-    `KotlinNothingValueException`, which JaCoCo maps to the `collect` opener. A transformed flow
-    has a `Unit`-return epilogue instead, which JaCoCo maps to the `repeatOnLifecycle` closing
-    brace.
-
-    This recognizer is intentionally limited to MainActivity's `appState.state` collections
-    directly inside `repeatOnLifecycle`, the observed instruction counters, and a fully covered
-    collection body.
-    """
-
     index = line_number - 1
-    if index < 2 or index >= len(source_lines):
+    if counters == LineCounters(3, 0, 0, 0):
+        if source_lines[index].strip() != "}" or source_lines[index - 1].strip() != "}":
+            return None
+        # The final operation's block ends immediately before its owner's completion.
+        opening = matching_opening_brace_index(source_lines, index - 1)
+    elif counters == LineCounters(5, 12, 0, 0):
+        opening = index
+    else:
         return None
-    source = source_lines[index].strip()
-    if source == ".collect { state ->":
-        if source_lines[index - 1].strip() != "appState.state":
-            return None
-        if source_lines[index - 2].strip() != "repeatOnLifecycle(Lifecycle.State.STARTED) {":
-            return None
-        if counters != LineCounters(
-            missed_instructions=5,
-            covered_instructions=12,
-            missed_branches=0,
-            covered_branches=0,
-        ):
-            return None
-        if not lambda_body_is_covered(source_lines, index, coverage_by_line):
-            return None
-        return "long-lived Activity StateFlow.collect completion scaffold"
 
-    if source != "}" or counters != LineCounters(
-        missed_instructions=3,
-        covered_instructions=0,
-        missed_branches=0,
-        covered_branches=0,
+    if opening is None or opening == 0 or not source_lines[opening - 1].strip().startswith(
+        "// Coverage: completion not expected"
     ):
         return None
-    opening_index = matching_opening_brace_index(source_lines, index)
-    if opening_index is None:
+    if not lambda_body_is_covered(source_lines, opening, coverage_by_line):
         return None
-    if source_lines[opening_index].strip() != "repeatOnLifecycle(Lifecycle.State.STARTED) {":
-        return None
-    body = [line.strip() for line in source_lines[opening_index + 1:index]]
-    if len(body) < 3 or body[0] != "appState.state" or body[1] != ".map { state ->":
-        return None
-    if ".distinctUntilChanged()" not in body or ".collect { publication ->" not in body:
-        return None
-    if not lambda_body_is_covered(source_lines, opening_index, coverage_by_line):
-        return None
-    return "long-lived Activity transformed StateFlow.collect completion scaffold"
+    return "documented endless operation completion epilogue"
 
 
 def line_opens_launched_effect_body(source_lines: list[str], line_index: int) -> bool:

@@ -1160,6 +1160,7 @@ internal fun TextEntry(
         }
     }
     LaunchedEffect(fieldState) {
+        // Coverage: completion not expected; composition disposal cancels this collection.
         snapshotFlow { fieldState.text.toString() }.collect { text ->
             if (text != latestValue) {
                 latestOnValueChange(text)

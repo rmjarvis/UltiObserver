@@ -61,6 +61,7 @@ class WatchActivity : ComponentActivity() {
         ))
         lifecycleScope.launch {
             // snapshotFlow emits only when game availability changes, not on every score update.
+            // Coverage: completion not expected; collection ends when the Activity is destroyed.
             snapshotFlow { receivedState?.snapshot?.activeGame != null }.collect {
                 requestShortcutPermission()
             }

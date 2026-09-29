@@ -98,6 +98,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 appState.state
+                    // Coverage: completion not expected; leaving STARTED cancels this collection.
                     .collect { state ->
                         val newAutoRotateScreenActive = state.viewingActiveGameScreen &&
                             state.settings.orientationPreference ==
