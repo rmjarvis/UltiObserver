@@ -3,6 +3,7 @@ package rmjarvis.ultiobserver
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
+import androidx.test.platform.app.InstrumentationRegistry
 import com.google.android.gms.tasks.TaskCompletionSource
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.CapabilityInfo
@@ -122,6 +123,25 @@ class TestWearOSCommunication {
         pending.setResult(WearProtocolCodec.encode(
             WearVibrationResponse.serializer(), WearVibrationResponse(true),
         ))
+
+        // Discovery can time out before finding a watch, allowing phone fallback.
+        val pendingDiscovery = TaskCompletionSource<CapabilityInfo>()
+        var lateRequests = 0
+        val slowDiscovery = WearVibrationSender(
+            findWatch = { pendingDiscovery.task },
+            sendRequest = { _, _ ->
+                lateRequests++
+                Tasks.forResult(WearProtocolCodec.encode(
+                    WearVibrationResponse.serializer(), WearVibrationResponse(true),
+                ))
+            },
+        )
+        assertFalse(slowDiscovery.vibrate(VibrationPattern(420L, 3, 120L)))
+
+        // A watch found after that timeout must not receive a duplicate vibration request.
+        pendingDiscovery.setResult(capability)
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        assertEquals(0, lateRequests)
     }
 
 }

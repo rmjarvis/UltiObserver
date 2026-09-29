@@ -76,6 +76,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearVibrationResponse
 import rmjarvis.ultiobserver.wearprotocol.WearPromptSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
 import rmjarvis.ultiobserver.wearprotocol.WearOngoingGameStatus
+import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
+import rmjarvis.ultiobserver.wearprotocol.WearPhoneCardEntrySnapshot
 
 /**
  * Tests of the connection status between a watch and the phone.
@@ -287,6 +289,78 @@ class TestWatchStateUi {
         composeRule.onNodeWithText("Half cap").assertDoesNotExist()
         composeRule.onNodeWithText("Home").assertIsDisplayed().assertIsEnabled()
         composeRule.runOnIdle { assertEquals(1, confirmations) }
+    }
+
+    /** Preserve a timed action confirmation while asleep and awaiting the phone's response. */
+    @Test
+    fun ambientActionConfirmation() {
+        val state = activeSnapshot()
+        val confirmation = WearActionConfirmation.Timeout(
+            stateToken = state.snapshot.activeGame!!.stateToken,
+            team = TeamId.TEAM_ONE,
+            requestedAtPhoneEpochMillis = 1_000L,
+            prompt = WearPromptSnapshot(
+                title = "Timeout",
+                messageLines = emptyList(),
+                confirmLabel = "OK",
+                dismissLabel = "Cancel",
+                presentation = WearGuidancePresentation.VISIBLE_TIMED,
+                autoAcceptDelayMillis = 1_000L,
+            ),
+        )
+        var confirmations = 0
+        var finishConfirmation: ((Boolean) -> Unit)? = null
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            UltiObserverWearApp(
+                isAmbient = isAmbient,
+                receivedState = state,
+                connectionState = ConnectionState.CONNECTED,
+                onRetry = {},
+                onGoal = { _, _, _ -> },
+                onUndo = { _, _ -> },
+                onRedo = { _, _ -> },
+                onCountdownAction = { _, _, _ -> },
+                onDecision = { _, _, _ -> },
+                onTeamAction = { _, _, _, finished -> finished(confirmation) },
+                onStartCardEntry = { _, _, _, _, _ -> },
+                onCancelCardEntry = { _, _, _, _, _ -> },
+                onConfirmAction = { submitted, finished ->
+                    assertEquals(confirmation, submitted)
+                    confirmations++
+                    finishConfirmation = finished
+                },
+            )
+        }
+
+        // Requesting a timeout displays the phone's confirmation before its timer expires.
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.onNodeWithText("Home").performClick()
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.onNodeWithText("Timeout (2)").performClick()
+        composeRule.mainClock.advanceTimeBy(100L)
+        composeRule.onNodeWithText("OK").assertIsEnabled()
+
+        // Sleeping removes the controls, but the timer still submits the complete confirmation.
+        composeRule.runOnIdle { isAmbient = true }
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.onNodeWithText("OK").assertDoesNotExist()
+        composeRule.onNodeWithText("Cancel").assertDoesNotExist()
+        composeRule.mainClock.advanceTimeBy(1_100L)
+        composeRule.runOnIdle { assertEquals(1, confirmations) }
+
+        // Waking before the phone replies preserves the pending request and disabled controls.
+        composeRule.runOnIdle { isAmbient = false }
+        composeRule.mainClock.advanceTimeBy(1_100L)
+        composeRule.onNodeWithText("OK").assertIsNotEnabled()
+        composeRule.onNodeWithText("Cancel").assertIsNotEnabled()
+        composeRule.runOnIdle { assertEquals(1, confirmations) }
+
+        // The successful phone response closes the confirmation and restores game controls.
+        composeRule.runOnIdle { finishConfirmation!!(true) }
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.onNodeWithText("OK").assertDoesNotExist()
+        composeRule.onNodeWithText("Home").assertIsEnabled()
     }
 
     /** Display the ratio-choice badge beside whichever team the phone identifies. */
@@ -561,6 +635,68 @@ class TestWatchStateUi {
         }
         composeRule.onNodeWithText("Goal").assertIsEnabled()
         composeRule.onNodeWithText("Timeout (2)").assertIsEnabled()
+    }
+
+    /** Prevent repeated cancellation while the phone is still closing its card-entry workflow. */
+    @Test
+    fun pendingPhoneCancellation() {
+        val initial = activeSnapshot()
+        var state by mutableStateOf(initial.copy(snapshot = initial.snapshot.copy(
+            activeGame = initial.snapshot.activeGame!!.copy(
+                phoneCardEntry = WearPhoneCardEntrySnapshot(TeamId.TEAM_ONE, CardType.YELLOW, "12"),
+            ),
+        )))
+        var cancellations = 0
+        var finishCancellation: ((Boolean) -> Unit)? = null
+        composeRule.setContent {
+            UltiObserverWearApp(
+                isAmbient = isAmbient,
+                receivedState = state,
+                connectionState = ConnectionState.CONNECTED,
+                onRetry = {},
+                onGoal = { _, _, _ -> },
+                onUndo = { _, _ -> },
+                onRedo = { _, _ -> },
+                onCountdownAction = { _, _, _ -> },
+                onDecision = { _, _, _ -> },
+                onTeamAction = { _, _, _, _ -> },
+                onStartCardEntry = { _, _, _, _, _ -> },
+                onCancelCardEntry = { _, _, _, _, finished ->
+                    cancellations++
+                    finishCancellation = finished
+                },
+                onConfirmAction = { _, _ -> },
+            )
+        }
+
+        // Cancel submits one request and disables the control while the phone is answering.
+        composeRule.onNodeWithText("Continue on phone").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithText("Cancel").assertIsNotEnabled().performClick()
+        composeRule.runOnIdle { assertEquals(1, cancellations) }
+
+        // Sleeping and waking preserve the pending cancellation and its disabled control.
+        composeRule.runOnIdle { isAmbient = true }
+        composeRule.onNodeWithText("Cancel").assertDoesNotExist()
+        composeRule.runOnIdle { isAmbient = false }
+        composeRule.onNodeWithText("Cancel").assertIsNotEnabled()
+        composeRule.runOnIdle { assertEquals(1, cancellations) }
+
+        // A rejected cancellation allows a new attempt instead of leaving the screen disabled.
+        composeRule.runOnIdle { finishCancellation!!(false) }
+        composeRule.onNodeWithText("Cancel").assertIsEnabled()
+
+        // A successful retry closes the phone workflow and restores the watch's card entry.
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.runOnIdle {
+            finishCancellation!!(true)
+            state = state.copy(snapshot = state.snapshot.copy(
+                activeGame = state.snapshot.activeGame!!.copy(phoneCardEntry = null),
+            ))
+        }
+        composeRule.onNodeWithText("Continue on phone").assertDoesNotExist()
+        composeRule.onNodeWithText("12").assertIsDisplayed()
+        composeRule.runOnIdle { assertEquals(2, cancellations) }
     }
 
     /** Exercise notification updates when a current game is available or absent. */

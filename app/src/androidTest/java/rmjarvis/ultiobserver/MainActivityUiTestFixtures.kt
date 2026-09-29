@@ -709,6 +709,7 @@ abstract class MainActivityUiTestFixtures {
             activity.appState.updateCurrentGame(current.endGameNow(System.currentTimeMillis()))
         }
         waitForText("Game summary")
+        waitForConfigurationOrientation(Configuration.ORIENTATION_PORTRAIT)
     }
 
     /**

@@ -606,19 +606,32 @@ class TestPhoneConnection {
         phone.publish(WearStartupAcknowledgement(phone.startupId()))
         assertEquals(ConnectionState.CONNECTED, phone.connections.last())
 
-        // Either side can be older. Mismatches cancel the timeout and prevent game commands.
+        // Either side can be older.
         for (protocol in listOf(WEAR_PROTOCOL_VERSION - 1, WEAR_PROTOCOL_VERSION + 1)) {
+            // Retrying advertises the watch's protocol version in the startup request.
             phone.controller.retry()
             phone.lookups.last().success(listOf(PhoneNode("phone", true)))
             val request = WearProtocolCodec.decode(WearStartupRequest.serializer(), phone.startups.last().bytes)
             assertEquals(WEAR_PROTOCOL_VERSION, request.protocolVersion)
+
+            // An incompatible phone response puts the connection in the update-required state.
             phone.startups.last().success(WearProtocolCodec.encode(WearStartupResponse.serializer(),
                 WearStartupResponse(true, phone.now, "other-release", protocol)))
             assertEquals(ConnectionState.UpdateRequired(
                 updatePhone = protocol < WEAR_PROTOCOL_VERSION,
                 phoneVersion = "other-release", watchVersion = "1.4.0",
             ), phone.connections.last())
+
+            // The UI can read which device needs updating and both release versions.
+            val update = phone.connections.last() as ConnectionState.UpdateRequired
+            assertEquals(protocol < WEAR_PROTOCOL_VERSION, update.updatePhone)
+            assertEquals("other-release", update.phoneVersion)
+            assertEquals("1.4.0", update.watchVersion)
+
+            // The mismatch cancels the connection timeout.
             assertTrue(phone.timers.last().cancelled)
+
+            // Game commands are rejected without sending anything to the incompatible phone.
             var applied = true
             phone.controller.recordGoal(TeamId.TEAM_ONE, "playing") { applied = it }
             assertFalse(applied)
@@ -631,6 +644,41 @@ class TestPhoneConnection {
         phone.reply(true)
         phone.publish(WearStartupAcknowledgement(phone.startupId()))
         assertEquals(ConnectionState.CONNECTED, phone.connections.last())
+    }
+
+    /** A pending command is released when reconnecting finds an incompatible phone version. */
+    @Test
+    fun pendingCommandDuringVersionChange() {
+        // The phone disappears while a goal is awaiting acknowledgement.
+        val phone = PhoneSession()
+        phone.connect()
+        var applied: Boolean? = null
+        var completions = 0
+        phone.controller.recordGoal(TeamId.TEAM_ONE, "playing") {
+            applied = it
+            completions++
+        }
+        val commandTimeout = phone.timers.last()
+        phone.controller.phoneReachabilityChanged(emptyList())
+        assertNull(applied)
+
+        // Its new version cannot finish startup; release the pending goal without replaying it.
+        phone.controller.phoneReachabilityChanged(listOf(PhoneNode("phone", true)))
+        phone.startups.last().success(WearProtocolCodec.encode(
+            WearStartupResponse.serializer(),
+            WearStartupResponse(true, phone.now, "new-release", WEAR_PROTOCOL_VERSION + 1),
+        ))
+        assertEquals(ConnectionState.UpdateRequired(false, "new-release", "1.4.0"),
+            phone.connections.last())
+        assertEquals(false, applied)
+        assertEquals(1, completions)
+        assertTrue(commandTimeout.cancelled)
+        assertEquals(1, phone.sent.size)
+
+        // A late acknowledgement cannot complete the rejected command a second time.
+        phone.complete(applied = true)
+        assertEquals(false, applied)
+        assertEquals(1, completions)
     }
 
     /** Test receiving the two startup reply components (timing and snapshot) in either order. */

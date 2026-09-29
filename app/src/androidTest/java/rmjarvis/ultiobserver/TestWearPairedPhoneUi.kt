@@ -6,6 +6,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import java.io.File
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -167,6 +168,19 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
 
         // Keep the game running while the watch waits for the cue, then resumes play.
         waitForGame { game -> game.countdown == null }
+
+        // The phone's Settings Test button still sends an immediate vibration to the watch.
+        returnHomeFromGame()
+        composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-test-vibration").performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        // The real paired transport also accepts a complete three-pulse request.
+        val sender = WearVibrationSender(composeRule.activity)
+        val accepted = runBlocking {
+            sender.vibrate(VibrationPattern(420L, 3, 120L))
+        }
+        assertTrue(accepted)
     }
 
     /** Host the test of halftime, letting the halftime confirmation be done on the watch. */

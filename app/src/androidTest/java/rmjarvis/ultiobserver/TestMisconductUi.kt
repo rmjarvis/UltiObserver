@@ -407,6 +407,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Yellow card")
         enterCardPlayerNumber("6")
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Bob Cutter")
+        composeRule.onNodeWithTag("card-player-name").performImeAction()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
         waitForText(
@@ -777,6 +778,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Add red card")
         enterCardPlayerNumber("21")
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Different Handler")
+        composeRule.onNodeWithTag("card-player-name").performImeAction()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
         dismissDialog(tag = "same-number-warning-cancel", waitForText = "Add red card")
