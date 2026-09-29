@@ -16,6 +16,7 @@ firebaseBom = "34.17.0"
 firebaseCrashlyticsPlugin = "3.0.7"
 googleServices = "4.5.0"
 wearCompose = "1.6.2"
+wear = "1.4.0"
 wearToolingPreview = "1.0.0"
 wearOngoing = "1.1.0"
 uiautomator = "2.4.0"
@@ -50,6 +51,7 @@ kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
 androidx-wear-compose-foundation = { group = "androidx.wear.compose", name = "compose-foundation", version.ref = "wearCompose" }
+androidx-wear = { group = "androidx.wear", name = "wear", version.ref = "wear" }
 androidx-wear-compose-material3 = { group = "androidx.wear.compose", name = "compose-material3", version.ref = "wearCompose" }
 androidx-wear-compose-ui-tooling = { group = "androidx.wear.compose", name = "compose-ui-tooling", version.ref = "wearCompose" }
 androidx-wear-tooling-preview = { group = "androidx.wear", name = "wear-tooling-preview", version.ref = "wearToolingPreview" }

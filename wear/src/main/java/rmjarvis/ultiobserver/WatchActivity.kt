@@ -16,11 +16,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
-import androidx.wear.compose.foundation.AmbientMode
-import androidx.wear.compose.foundation.rememberAmbientModeManager
+import androidx.wear.ambient.AmbientLifecycleObserver
 
 /** Launcher activity for the Wear companion app. */
 class WatchActivity : ComponentActivity() {
+    private var isAmbient by mutableStateOf(false)
     internal var boundManager by mutableStateOf<GameStateManager?>(null)
         private set
     private val receivedState get() = boundManager?.receivedState
@@ -43,6 +43,21 @@ class WatchActivity : ComponentActivity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Use the compatibility observer so ambient tracking also works on older Wear OS versions.
+        lifecycle.addObserver(AmbientLifecycleObserver(
+            this,
+            object : AmbientLifecycleObserver.AmbientLifecycleCallback {
+                override fun onEnterAmbient(
+                    ambientDetails: AmbientLifecycleObserver.AmbientDetails,
+                ) {
+                    isAmbient = true
+                }
+
+                override fun onExitAmbient() {
+                    isAmbient = false
+                }
+            },
+        ))
         bindService(Intent(this, GameStateManager::class.java), serviceConnection, Context.BIND_AUTO_CREATE)
         setContent {
             val manager = boundManager ?: run {
@@ -50,9 +65,8 @@ class WatchActivity : ComponentActivity() {
                 BlankScreen()
                 return@setContent
             }
-            val ambientModeManager = rememberAmbientModeManager()
             UltiObserverWearApp(
-                isAmbient = ambientModeManager.currentAmbientMode is AmbientMode.Ambient,
+                isAmbient = isAmbient,
                 receivedState = manager.receivedState,
                 connectionState = manager.connectionState,
                 onRetry = {
