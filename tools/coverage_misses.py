@@ -139,13 +139,14 @@ def is_ui_source_file(path: Path) -> bool:
             "MainActivity.kt",
             "MainActivityPreview.kt",
             "OngoingGame.kt",
+            "GameStateManager.kt",
             "TimingAlertAudio.kt",
             "TimingAlertForegroundService.kt",
             "UiComponents.kt",
             "UltiObserverApplication.kt",
             "VibrationService.kt",
             "WearOSCommunication.kt",
-            "StateClient.kt",
+            "PhoneTransport.kt",
             "WatchActivity.kt",
         }
         or "/ui/theme/" in path.as_posix()

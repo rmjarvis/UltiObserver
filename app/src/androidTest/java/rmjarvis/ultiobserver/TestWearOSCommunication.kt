@@ -59,43 +59,51 @@ class TestWearOSCommunication {
         val capability = mock(CapabilityInfo::class.java)
         doReturn(setOf(watch)).`when`(capability).nodes
 
-        // Forward the exact pulse duration and honor the watch's reply.
+        // Discover and contact the watch once for the entire three-pulse sequence.
         var accepted = true
+        var discoveries = 0
+        var requests = 0
         val sender = WearVibrationSender(
-            findWatch = { Tasks.forResult(capability) },
+            findWatch = {
+                discoveries++
+                Tasks.forResult(capability)
+            },
             sendRequest = { nodeId, bytes ->
+                requests++
                 assertEquals("watch", nodeId)
-                assertEquals(420L,
-                    WearProtocolCodec.decode(WearVibrationRequest.serializer(), bytes).durationMillis)
+                assertEquals(VibrationPattern(420L, 3, 120L),
+                    WearProtocolCodec.decode(WearVibrationRequest.serializer(), bytes).pattern)
                 Tasks.forResult(WearProtocolCodec.encode(
                     WearVibrationResponse.serializer(), WearVibrationResponse(accepted),
                 ))
             },
         )
-        assertTrue(sender.vibrate(420L))
+        assertTrue(sender.vibrate(VibrationPattern(420L, 3, 120L)))
+        assertEquals(1, discoveries)
+        assertEquals(1, requests)
 
         // A watch without usable vibration hardware declines the pulse.
         accepted = false
-        assertFalse(sender.vibrate(420L))
+        assertFalse(sender.vibrate(VibrationPattern(420L, 3, 120L)))
 
         // Discovery and transport failures return control for phone fallback.
         val discoveryFailure = WearVibrationSender(
             findWatch = { Tasks.forException(IllegalStateException("Unavailable")) },
             sendRequest = { _, _ -> error("No watch was found") },
         )
-        assertFalse(discoveryFailure.vibrate(420L))
+        assertFalse(discoveryFailure.vibrate(VibrationPattern(420L, 3, 120L)))
         val sendFailure = WearVibrationSender(
             findWatch = { Tasks.forResult(capability) },
             sendRequest = { _, _ -> Tasks.forException(IllegalStateException("Disconnected")) },
         )
-        assertFalse(sendFailure.vibrate(420L))
+        assertFalse(sendFailure.vibrate(VibrationPattern(420L, 3, 120L)))
 
         // A cancelled transport task also returns control for phone fallback.
         val cancelled = WearVibrationSender(
             findWatch = { Tasks.forResult(capability) },
             sendRequest = { _, _ -> Tasks.forCanceled() },
         )
-        assertFalse(cancelled.vibrate(420L))
+        assertFalse(cancelled.vibrate(VibrationPattern(420L, 3, 120L)))
 
         // An empty discovery result never submits a vibration request.
         val empty = mock(CapabilityInfo::class.java)
@@ -103,14 +111,14 @@ class TestWearOSCommunication {
         assertFalse(WearVibrationSender(
             findWatch = { Tasks.forResult(empty) },
             sendRequest = { _, _ -> error("No watch was found") },
-        ).vibrate(420L))
+        ).vibrate(VibrationPattern(420L, 3, 120L)))
 
         // An unresponsive watch cannot hold up the phone indefinitely; a late reply is harmless.
         val pending = TaskCompletionSource<ByteArray>()
         assertFalse(WearVibrationSender(
             findWatch = { Tasks.forResult(capability) },
             sendRequest = { _, _ -> pending.task },
-        ).vibrate(420L))
+        ).vibrate(VibrationPattern(420L, 3, 120L)))
         pending.setResult(WearProtocolCodec.encode(
             WearVibrationResponse.serializer(), WearVibrationResponse(true),
         ))

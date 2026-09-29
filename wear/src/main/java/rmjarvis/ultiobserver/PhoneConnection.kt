@@ -101,7 +101,7 @@ internal fun calibratePhoneClockOffset(
 
 /** Own the watch's phone session, request lifecycle, and authoritative state without Android APIs. */
 internal class PhoneConnectionController(
-    private val transport: PhoneTransport,
+    private val transport: PhoneTransportInterface,
     private val releaseVersion: String,
     private val clock: () -> Long,
     private val onStateReceived: (ReceivedState) -> Unit,
@@ -533,7 +533,7 @@ private const val COMMAND_TIMEOUT_MILLIS = 5_000L
 internal data class PhoneNode(val id: String, val isNearby: Boolean)
 
 /** Android transport and scheduling operations used by the phone connection controller. */
-internal interface PhoneTransport {
+internal interface PhoneTransportInterface {
     fun findPhone(onSuccess: (List<PhoneNode>) -> Unit, onFailure: () -> Unit)
     fun requestStartup(nodeId: String, bytes: ByteArray, onSuccess: (ByteArray) -> Unit, onFailure: () -> Unit)
     fun sendCommand(nodeId: String, path: String, bytes: ByteArray, onFailure: () -> Unit)

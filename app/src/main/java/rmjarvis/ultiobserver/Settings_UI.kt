@@ -172,7 +172,9 @@ internal fun SettingsScreen(
                 onTestVibration = { durationMillis ->
                     vibrationScope.launch {
                         (context.applicationContext as UltiObserverApplication)
-                            .vibrateTimingCue(durationMillis)
+                            .vibrateTimingCue(VibrationPattern(
+                                durationMillis, 1, gapMillis = 0L,
+                            ))
                     }
                 },
             )

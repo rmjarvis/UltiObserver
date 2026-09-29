@@ -308,7 +308,7 @@ class TestTimingCues : GameDomainTestFixtures() {
         // A sound cue records its alert key before playback, uses the selected repeated sound
         // clip, and can still perform a haptic pulse when "vibrate with sounds" is enabled.
         val alertKeys = mutableListOf<String>()
-        val performedHaptics = mutableListOf<Long>()
+        val performedHaptics = mutableListOf<VibrationPattern>()
         runBlocking {
             playTimingAlertOnce(
                 cue = soundCue,
@@ -321,7 +321,7 @@ class TestTimingCues : GameDomainTestFixtures() {
                     cueRepeatCounts = mapOf(TimingCueId.HALF_CAP to 3),
                 ),
                 timingAlertPlayer = timingAlertPlayer,
-                performHaptic = { durationMillis -> performedHaptics += durationMillis },
+                performHaptic = { pattern -> performedHaptics += pattern },
                 playedTimingAlertKeys = emptySet(),
                 onAlertKeyPlayed = { alertKey -> alertKeys += alertKey },
             )
@@ -346,7 +346,7 @@ class TestTimingCues : GameDomainTestFixtures() {
                     cueRepeatCounts = mapOf(TimingCueId.HALF_CAP to 1),
                 ),
                 timingAlertPlayer = timingAlertPlayer,
-                performHaptic = { durationMillis -> performedHaptics += durationMillis },
+                performHaptic = { pattern -> performedHaptics += pattern },
                 playedTimingAlertKeys = emptySet(),
                 onAlertKeyPlayed = {},
             )
@@ -367,7 +367,7 @@ class TestTimingCues : GameDomainTestFixtures() {
                     cueModes = mapOf(TimingCueId.HALF_CAP to TimingAlertMode.NONE),
                 ),
                 timingAlertPlayer = timingAlertPlayer,
-                performHaptic = { durationMillis -> performedHaptics += durationMillis },
+                performHaptic = { pattern -> performedHaptics += pattern },
                 playedTimingAlertKeys = emptySet(),
                 onAlertKeyPlayed = { alertKey -> mutedAlertKeys += alertKey },
             )
@@ -378,7 +378,7 @@ class TestTimingCues : GameDomainTestFixtures() {
             soundPlayer.playedSounds.last(),
         )
 
-        // Pure vibration alerts request one haptic pulse plus the configured repeats.  A zero
+        // Pure vibration alerts submit all configured pulses as one pattern.  A zero
         // duration still goes through the callback so user-selected "silent" vibration is visible
         // to this helper.
         runBlocking {
@@ -390,12 +390,12 @@ class TestTimingCues : GameDomainTestFixtures() {
                     vibrationDurationMillis = 0L,
                 ),
                 timingAlertPlayer = timingAlertPlayer,
-                performHaptic = { durationMillis -> performedHaptics += durationMillis },
+                performHaptic = { pattern -> performedHaptics += pattern },
                 playedTimingAlertKeys = emptySet(),
                 onAlertKeyPlayed = {},
             )
         }
-        assertEquals(listOf(80L, 0L, 0L), performedHaptics)
+        assertEquals(listOf(VibrationPattern(80L, 1, 0L), VibrationPattern(0L, 2, 120L)), performedHaptics)
     }
 
     /**
@@ -408,48 +408,81 @@ class TestTimingCues : GameDomainTestFixtures() {
      */
     @Test
     fun vibrationDestination() = runBlocking {
-        // Wear OS defaults to the watch, preserving the requested pulse length.
+        // Wear OS defaults to the watch, preserving the complete requested pattern.
         val preferences = TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
-        val watchPulses = mutableListOf<Long>()
-        val phonePulses = mutableListOf<Long>()
-        val watch: suspend (Long) -> Boolean = {
-            watchPulses.add(it)
+        val watchPatterns = mutableListOf<VibrationPattern>()
+        val phonePatterns = mutableListOf<VibrationPattern>()
+        val watch: suspend (VibrationPattern) -> Boolean = {
+            watchPatterns.add(it)
             true
         }
-        val phone: (Long) -> Unit = { phonePulses.add(it) }
+        val phone: (VibrationPattern) -> Unit = { phonePatterns.add(it) }
         assertTrue(preferences.vibrateOnWatch)
-        deliverTimingVibration(preferences, 420L, watch, phone)
-        assertEquals(listOf(420L), watchPulses)
-        assertTrue(phonePulses.isEmpty())
+        deliverTimingVibration(preferences, VibrationPattern(420L, 3, 120L), watch, phone)
+        assertEquals(listOf(VibrationPattern(420L, 3, 120L)), watchPatterns)
+        assertTrue(phonePatterns.isEmpty())
+
+        // Countdown plans preserve repeated vibration, while sounds retain one accompanying pulse.
+        val countdownPreferences = preferences.copy(
+            globalMode = TimingAlertGlobalMode.SOUNDS_ON,
+            vibrationDurationMillis = 420L,
+            cueModes = mapOf(TimingCueId.OFFENSE_TWENTY to TimingAlertMode.VIBRATE),
+            cueRepeatCounts = mapOf(TimingCueId.OFFENSE_TWENTY to 3),
+        )
+        assertEquals(VibrationPattern(420L, 3, 120L),
+            countdownPreferences.watchCountdownVibration(TimingCueId.OFFENSE_TWENTY))
+        val soundPreferences = countdownPreferences.copy(
+            cueModes = mapOf(TimingCueId.OFFENSE_TWENTY to TimingAlertMode.DING),
+            vibrateWithSounds = true,
+        )
+        assertEquals(VibrationPattern(420L, 1, 0L),
+            soundPreferences.watchCountdownVibration(TimingCueId.OFFENSE_TWENTY))
+        assertNull(soundPreferences.copy(vibrateWithSounds = false)
+            .watchCountdownVibration(TimingCueId.OFFENSE_TWENTY))
+        assertNull(countdownPreferences.copy(globalMode = TimingAlertGlobalMode.OFF)
+            .watchCountdownVibration(TimingCueId.OFFENSE_TWENTY))
+        assertNull(countdownPreferences.copy(vibrateOnWatch = false)
+            .watchCountdownVibration(TimingCueId.OFFENSE_TWENTY))
+
+        // Only countdowns are scheduled in advance; caps retain immediate vibration delivery.
+        val countdownCues = listOf(TimingCueDisplay(
+            TimingCueId.OFFENSE_TWENTY, "20 seconds, offense", Duration.ofSeconds(5),
+            Duration.ofSeconds(20), 15_000L,
+        )).timingAlertServiceCues(countdownPreferences, countdownCues = true)
+        assertTrue(countdownCues.single().scheduledWatchVibration)
+        val capCues = listOf(TimingCueDisplay(
+            TimingCueId.HARD_CAP, "Hard cap", Duration.ofSeconds(5), Duration.ZERO, 15_000L,
+        )).timingAlertServiceCues(countdownPreferences)
+        assertFalse(capCues.single().scheduledWatchVibration)
 
         // Opting out leaves the watch alone and delivers exactly one phone pulse.
-        deliverTimingVibration(preferences.copy(vibrateOnWatch = false), 300L, watch, phone)
-        assertEquals(listOf(420L), watchPulses)
-        assertEquals(listOf(300L), phonePulses)
+        deliverTimingVibration(preferences.copy(vibrateOnWatch = false), VibrationPattern(300L, 1, 120L), watch, phone)
+        assertEquals(listOf(VibrationPattern(420L, 3, 120L)), watchPatterns)
+        assertEquals(listOf(VibrationPattern(300L, 1, 120L)), phonePatterns)
 
         // A failed watch attempt falls back to the phone without retrying the request.
         var attempts = 0
-        deliverTimingVibration(preferences, 500L, {
+        deliverTimingVibration(preferences, VibrationPattern(500L, 3, 120L), {
             attempts++
             false
         }, phone)
         assertEquals(1, attempts)
-        assertEquals(listOf(300L, 500L), phonePulses)
+        assertEquals(listOf(VibrationPattern(300L, 1, 120L), VibrationPattern(500L, 3, 120L)), phonePatterns)
 
         // Ordinary and bridged-notification modes continue to vibrate on the phone.
         for (mode in listOf(WatchConnectionMode.OFF, WatchConnectionMode.SILENT,
             WatchConnectionMode.ALERTING)) {
-            deliverTimingVibration(preferences.copy(watchConnectionMode = mode), 200L, watch, phone)
+            deliverTimingVibration(preferences.copy(watchConnectionMode = mode), VibrationPattern(200L, 1, 120L), watch, phone)
         }
-        assertEquals(listOf(420L), watchPulses)
-        assertEquals(listOf(300L, 500L, 200L, 200L, 200L), phonePulses)
+        assertEquals(listOf(VibrationPattern(420L, 3, 120L)), watchPatterns)
+        assertEquals(listOf(VibrationPattern(300L, 1, 120L), VibrationPattern(500L, 3, 120L), VibrationPattern(200L, 1, 120L), VibrationPattern(200L, 1, 120L), VibrationPattern(200L, 1, 120L)), phonePatterns)
 
         // Cancelling an obsolete cue must not create a fallback vibration.
         try {
-            deliverTimingVibration(preferences, 600L, { throw CancellationException() }, phone)
+            deliverTimingVibration(preferences, VibrationPattern(600L, 1, 120L), { throw CancellationException() }, phone)
             fail("Cancellation should propagate")
         } catch (_: CancellationException) {
-            assertEquals(listOf(300L, 500L, 200L, 200L, 200L), phonePulses)
+            assertEquals(listOf(VibrationPattern(300L, 1, 120L), VibrationPattern(500L, 3, 120L), VibrationPattern(200L, 1, 120L), VibrationPattern(200L, 1, 120L), VibrationPattern(200L, 1, 120L)), phonePatterns)
         }
     }
 

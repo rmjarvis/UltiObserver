@@ -164,8 +164,8 @@ class TimingAlertForegroundService : Service() {
                 return hasExactTimingAlertAlarmAccess()
             }
 
-            override suspend fun performHaptic(durationMillis: Long) {
-                (application as UltiObserverApplication).vibrateTimingCue(durationMillis)
+            override suspend fun performHaptic(pattern: VibrationPattern) {
+                (application as UltiObserverApplication).vibrateTimingCue(pattern)
             }
 
             override fun postWatchStatusNotification(
@@ -404,11 +404,11 @@ internal interface TimingAlertServicePlatform {
     fun hasExactAlarmAccess(): Boolean
 
     /**
-     * Perform one haptic pulse.
+     * Submit one complete vibration pattern.
      *
-     * @param durationMillis Requested vibration duration.
+     * @param pattern Requested pulses and spacing.
      */
-    suspend fun performHaptic(durationMillis: Long)
+    suspend fun performHaptic(pattern: VibrationPattern)
 
     /** Post or update the main game-status notification mirrored to a watch. */
     fun postWatchStatusNotification(content: WatchNotificationContent, alert: Boolean)
@@ -592,11 +592,11 @@ internal class TimingAlertForegroundServiceController(
             removeTimingAlertServiceCue(cue)
             deliverWatchCue(cue)
             if (cue.alertMode == TimingAlertMode.VIBRATE) {
-                repeat(cue.repeatCount) { pulseIndex ->
-                    platform.performHaptic(snapshot.vibrationDurationMillis)
-                    if (pulseIndex < cue.repeatCount - 1) {
-                        delay(snapshot.vibrationDurationMillis + TIMING_ALERT_REPEAT_HAPTIC_GAP_MS)
-                    }
+                // Don't vibrate on phone if the watch is doing the vibration.
+                if (!cue.scheduledWatchVibration) {
+                    platform.performHaptic(VibrationPattern(
+                        snapshot.vibrationDurationMillis, cue.repeatCount, TIMING_ALERT_REPEAT_HAPTIC_GAP_MS,
+                    ))
                 }
             } else if (cue.alertMode != TimingAlertMode.NONE) {
                 player.play(
@@ -605,8 +605,10 @@ internal class TimingAlertForegroundServiceController(
                     volume = snapshot.soundVolume,
                     priority = TIMING_ALERT_CUE_PRIORITY,
                 )
-                if (snapshot.vibrateWithSounds) {
-                    platform.performHaptic(snapshot.vibrationDurationMillis)
+                if (snapshot.vibrateWithSounds && !cue.scheduledWatchVibration) {
+                    platform.performHaptic(VibrationPattern(
+                        snapshot.vibrationDurationMillis, 1, gapMillis = 0L,
+                    ))
                 }
             }
         }
@@ -766,6 +768,7 @@ internal data class TimingAlertServiceCue(
     val countdownSeconds: Int? = null,
     val watchText: String = id.label,
     val watchAlertEnabled: Boolean = true,
+    val scheduledWatchVibration: Boolean = false,
 ) {
     /// Build the same stable deduplication key as TimingCueDisplay.
     fun alertKey(): String {
@@ -800,9 +803,7 @@ internal fun CountdownState.timingAlertServiceCues(
     now: Long,
     timingAlertPreferences: TimingAlertPreferences,
 ): List<TimingAlertServiceCue> {
-    val dueCue = dueTimingCue(now)
-    return ((if (dueCue == null) emptyList() else listOf(dueCue)) + upcomingTimingCues(now))
-        .distinctBy { cue -> cue.alertKey() }
+    return pendingTimingCues(now)
         .timingAlertServiceCues(timingAlertPreferences, countdownCues = true)
 }
 
@@ -834,6 +835,7 @@ internal fun List<TimingCueDisplay>.timingAlertServiceCues(
                 watchText = cue.message,
                 watchAlertEnabled = timingAlertPreferences.settingsModeFor(cue.id) !=
                     TimingAlertMode.NONE,
+                scheduledWatchVibration = countdownCues && timingAlertPreferences.usesWatchVibration(),
             )
         }
     }

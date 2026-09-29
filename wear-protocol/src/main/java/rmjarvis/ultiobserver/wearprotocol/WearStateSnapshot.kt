@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 import rmjarvis.ultiobserver.CardType
 import rmjarvis.ultiobserver.TeamId
+import rmjarvis.ultiobserver.VibrationPattern
 
 /** Path of the single current-state item published by the phone. */
 const val WEAR_STATE_PATH = "/ultiobserver/current-state"
@@ -13,7 +14,7 @@ const val WEAR_STATE_PATH = "/ultiobserver/current-state"
 const val PHONE_STATE_CAPABILITY = "ultiobserver_phone_state"
 
 /** Current wire-format version for phone-to-watch state snapshots. */
-const val WEAR_PROTOCOL_VERSION = 1
+const val WEAR_PROTOCOL_VERSION = 2
 
 /** Whether companion support is disabled, idle, or presenting an active game. */
 @Serializable
@@ -35,6 +36,7 @@ enum class WearSnapshotPullDirection {
 data class WearCueSnapshot(
     val message: String,
     val targetEpochMillis: Long,
+    val vibration: VibrationPattern? = null,
 )
 
 /** Active countdown values needed for independent once-per-second watch rendering. */

@@ -40,7 +40,7 @@ internal class WearVibrationSender(
         },
     )
 
-    suspend fun vibrate(durationMillis: Long): Boolean {
+    suspend fun vibrate(pattern: VibrationPattern): Boolean {
         val reply = withTimeoutOrNull(WATCH_VIBRATION_TIMEOUT_MILLIS) {
             suspendCancellableCoroutine<ByteArray?> { continuation ->
                 findWatch().continueWithTask { result ->
@@ -50,7 +50,7 @@ internal class WearVibrationSender(
                         Tasks.forResult<ByteArray?>(null)
                     } else {
                         sendRequest(node.id, WearProtocolCodec.encode(
-                            WearVibrationRequest.serializer(), WearVibrationRequest(durationMillis),
+                            WearVibrationRequest.serializer(), WearVibrationRequest(pattern),
                         ))
                     }
                 }.addOnSuccessListener { bytes ->

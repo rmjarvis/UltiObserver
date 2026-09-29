@@ -277,6 +277,12 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
 internal const val TIMING_ALERT_DUE_WINDOW_MS =
     1_100L + TIMING_CUE_DELIVERY_LEAD_MS
 
+/** Include a just-due cue when publishing a countdown, so delivery latency cannot omit it. */
+internal fun CountdownState.pendingTimingCues(now: Long): List<TimingCueDisplay> {
+    val due = dueTimingCue(now)
+    return (listOfNotNull(due) + upcomingTimingCues(now)).distinctBy { it.alertKey() }
+}
+
 /**
  * List timing alerts due at the current moment for the active countdown and relevant caps.
  *

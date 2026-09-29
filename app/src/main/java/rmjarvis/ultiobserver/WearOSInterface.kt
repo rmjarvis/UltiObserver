@@ -583,10 +583,11 @@ internal fun buildWearStateSnapshot(
                     label = countdown.label,
                     targetEpochMillis = countdown.targetEpoch,
                     pausedAtEpochMillis = countdown.pausedAtEpoch,
-                    cues = countdown.upcomingTimingCues(now).map { cue ->
+                    cues = countdown.pendingTimingCues(now).map { cue ->
                         WearCueSnapshot(
                             message = cue.message,
                             targetEpochMillis = cue.targetEpoch,
+                            vibration = settings.timingAlerts.watchCountdownVibration(cue.id),
                         )
                     },
                 )

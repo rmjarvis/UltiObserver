@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 
 /** Tests of the Android transport adapter's asynchronous result delivery. */
-class TestStateClient {
+class TestPhoneTransport {
     /** Forward API task failures for discovery, startup, and command delivery. */
     @Test
     fun transportFailures() {
@@ -28,7 +28,7 @@ class TestStateClient {
         val startupFailed = CountDownLatch(1)
         val commandFailed = CountDownLatch(1)
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val client = StateClient(
+        val client = PhoneTransport(
             instrumentation.targetContext,
             onStateReceived = { error("Transport-only test must not start a session") },
             onConnectionStateChanged = { error("Transport-only test must not start a session") },

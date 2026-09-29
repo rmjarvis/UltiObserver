@@ -392,8 +392,22 @@ class TestWearPairedPhoneUi {
         waitForText("Offense set in")
         composeRule.onNodeWithText("Start misconduct\ncountdown").assertDoesNotExist()
 
-        // Let the configured vibration cue pass while watching the countdown.
+        // Verify the connection and countdown wake lock survive stopping display rendering,
+        // then resume the display and let the configured vibration cue pass.
         waitForText("Next: 20 seconds, offense")
+        val manager = composeRule.activity.boundManager!!
+        composeRule.runOnIdle {
+            assertTrue(manager.countdownWakeLock.isHeld)
+        }
+        composeRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        try {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                assertEquals(ConnectionState.CONNECTED, manager.connectionState)
+                assertTrue(manager.countdownWakeLock.isHeld)
+            }
+        } finally {
+            composeRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        }
         waitForNoText("Next: 20 seconds, offense")
 
         // Continue the point after the cue, so the phone test can finish up.
@@ -403,6 +417,9 @@ class TestWearPairedPhoneUi {
         waitForText("Continue point")
         composeRule.onNodeWithText("Continue point").performClick()
         waitForText(ANIMAL)
+        composeRule.runOnIdle {
+            assertFalse(manager.countdownWakeLock.isHeld)
+        }
     }
 
     /** Defer and accept both the half-cap and halftime confirmations on the watch. */
@@ -918,7 +935,7 @@ class TestWearPairedPhoneUi {
         assertTrue(phone.nodes.isNotEmpty())
         val connection = AtomicReference<ConnectionState>(ConnectionState.CONNECTING)
         val received = AtomicReference<ReceivedState>()
-        val client = StateClient(
+        val client = PhoneTransport(
             composeRule.activity,
             onStateReceived = { received.set(it) },
             onConnectionStateChanged = { connection.set(it) },

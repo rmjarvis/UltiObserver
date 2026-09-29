@@ -3,6 +3,7 @@
 
     <uses-feature android:name="android.hardware.type.watch" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -15,13 +16,15 @@
             android:name="com.google.android.wearable.standalone"
             android:value="false" />
 
+        <service android:name=".GameStateManager" android:exported="false" />
+
         <service
             android:name=".VibrationService"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.android.gms.wearable.REQUEST_RECEIVED" />
                 <data android:scheme="wear" android:host="*"
-                    android:path="/ultiobserver/vibration" />
+                    android:path="/ultiobserver/vibration-v2" />
             </intent-filter>
         </service>
 

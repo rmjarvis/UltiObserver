@@ -725,7 +725,7 @@ class TestPhoneConnection {
 }
 
 /** In-memory transport that lets each narrative deliver the actual encoded replies in order. */
-private class PhoneSession : PhoneTransport {
+private class PhoneSession : PhoneTransportInterface {
     class Lookup(val success: (List<PhoneNode>) -> Unit, val failure: () -> Unit)
     class Startup(val node: String, val bytes: ByteArray, val success: (ByteArray) -> Unit, val failure: () -> Unit)
     class Command(val path: String, val bytes: ByteArray, val failure: () -> Unit)

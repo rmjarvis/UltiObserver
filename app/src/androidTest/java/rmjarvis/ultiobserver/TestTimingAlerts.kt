@@ -634,8 +634,8 @@ class TestTimingAlerts {
                     ),
                 )
             )
-            waitFor { platform.performedHaptics.size >= 2 }
-            assertEquals(listOf(0L, 0L), platform.performedHaptics.takeLast(2))
+            waitFor { platform.performedHaptics.isNotEmpty() }
+            assertEquals(listOf(VibrationPattern(0L, 2, 120L)), platform.performedHaptics)
 
             // Sound cues can still ask for one paired haptic pulse when the user enables
             // "vibrate with sounds" in timing-alert settings.
@@ -654,7 +654,24 @@ class TestTimingAlerts {
                     ),
                 )
             )
-            waitFor { platform.performedHaptics.lastOrNull() == 15L }
+            waitFor { platform.performedHaptics.lastOrNull() == VibrationPattern(15L, 1, 0L) }
+
+            // Countdown vibrations already scheduled on the watch must not be sent a second time.
+            val previousHaptics = platform.performedHaptics.toList()
+            val previousSounds = platform.soundPlayer.playedSounds.size
+            val watchCue = timingAlertServiceCue(
+                TimingCueId.OFFENSE_TWENTY, 2_000L, alertMode = TimingAlertMode.VIBRATE,
+            ).copy(scheduledWatchVibration = true)
+            controller.playTimingAlerts(
+                listOf(watchCue), serviceSnapshot(vibrateWithSounds = true),
+                platform.timingAlertPlayer(),
+            )
+            controller.playTimingAlerts(
+                listOf(watchCue.copy(alertMode = TimingAlertMode.BEEP)),
+                serviceSnapshot(vibrateWithSounds = true), platform.timingAlertPlayer(),
+            )
+            assertEquals(previousHaptics, platform.performedHaptics)
+            assertEquals(previousSounds + 1, platform.soundPlayer.playedSounds.size)
 
             // Defensive coverage for a cue delivered after the snapshot has disappeared.  This is
             // not expected in normal use, but a service teardown racing a delivery coroutine should
@@ -758,7 +775,7 @@ class TestTimingAlerts {
 
         // Haptic helpers should be safe whether this emulator reports vibration hardware or not.
         val hasHaptics = context.hasTimingCueHaptics()
-        context.performTimingCueHaptic(1L)
+        context.performTimingCueHaptic(VibrationPattern(1L, 3, 120L))
         assertEquals(hasHaptics, context.hasTimingCueHaptics())
 
         // Exact-alarm access is always available before Android 12; newer Android versions can
@@ -781,19 +798,19 @@ class TestTimingAlerts {
                 super.getSystemService(name)
             }
         }
-        val effect = VibrationEffect.createOneShot(420L, VibrationEffect.DEFAULT_AMPLITUDE)
+        val effect = VibrationEffect.createWaveform(longArrayOf(0L, 420L, 120L, 420L, 120L, 420L), -1)
 
         // Missing hardware suppresses the pulse independently of the real device's hardware.
         doReturn(false).`when`(legacyVibrator).hasVibrator()
         assertFalse(hapticContext.hasTimingCueHaptics(sdkInt = Build.VERSION_CODES.R))
-        hapticContext.performTimingCueHaptic(420L, sdkInt = Build.VERSION_CODES.R)
+        hapticContext.performTimingCueHaptic(VibrationPattern(420L, 3, 120L), sdkInt = Build.VERSION_CODES.R)
         verify(legacyVibrator, never()).vibrate(any(VibrationEffect::class.java),
             any(AudioAttributes::class.java))
 
         // Android 11 uses the legacy vibrator service and audio attributes.
         doReturn(true).`when`(legacyVibrator).hasVibrator()
         assertTrue(hapticContext.hasTimingCueHaptics(sdkInt = Build.VERSION_CODES.R))
-        hapticContext.performTimingCueHaptic(420L, sdkInt = Build.VERSION_CODES.R)
+        hapticContext.performTimingCueHaptic(VibrationPattern(420L, 3, 120L), sdkInt = Build.VERSION_CODES.R)
         val legacyAttributes = ArgumentCaptor.forClass(AudioAttributes::class.java)
         verify(legacyVibrator).vibrate(eq(effect), legacyAttributes.capture())
         assertEquals(AudioAttributes.USAGE_NOTIFICATION_EVENT, legacyAttributes.value.usage)
@@ -814,15 +831,15 @@ class TestTimingAlerts {
             }
             doReturn(true).`when`(managedVibrator).hasVibrator()
             assertTrue(managedContext.hasTimingCueHaptics(sdkInt = Build.VERSION_CODES.S))
-            managedContext.performTimingCueHaptic(420L, sdkInt = Build.VERSION_CODES.S)
-            val effect = VibrationEffect.createOneShot(420L, VibrationEffect.DEFAULT_AMPLITUDE)
+            managedContext.performTimingCueHaptic(VibrationPattern(420L, 3, 120L), sdkInt = Build.VERSION_CODES.S)
+            val effect = VibrationEffect.createWaveform(longArrayOf(0L, 420L, 120L, 420L, 120L, 420L), -1)
             val audioAttributes = ArgumentCaptor.forClass(AudioAttributes::class.java)
             verify(managedVibrator).vibrate(eq(effect), audioAttributes.capture())
             assertEquals(AudioAttributes.USAGE_NOTIFICATION_EVENT, audioAttributes.value.usage)
 
             // Android 13 and later use vibration attributes for the same notification cue.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                managedContext.performTimingCueHaptic(420L, sdkInt = Build.VERSION_CODES.TIRAMISU)
+                managedContext.performTimingCueHaptic(VibrationPattern(420L, 3, 120L), sdkInt = Build.VERSION_CODES.TIRAMISU)
                 val vibrationAttributes = ArgumentCaptor.forClass(VibrationAttributes::class.java)
                 verify(managedVibrator).vibrate(eq(effect), vibrationAttributes.capture())
                 assertEquals(VibrationAttributes.USAGE_NOTIFICATION, vibrationAttributes.value.usage)
@@ -1283,7 +1300,7 @@ private class FakeTimingAlertServicePlatform(
         loadSound = { _, clip -> timingAlertSoundIds().getValue(clip) },
     )
     val scheduledCapAlarms = mutableListOf<ScheduledCapAlarm>()
-    val performedHaptics = mutableListOf<Long>()
+    val performedHaptics = mutableListOf<VibrationPattern>()
     val watchStatusNotifications = mutableListOf<PostedWatchNotification>()
     val watchCueNotifications = mutableListOf<PostedWatchNotification>()
     var exactAlarmAccess = true
@@ -1331,8 +1348,8 @@ private class FakeTimingAlertServicePlatform(
         return exactAlarmAccess
     }
 
-    override suspend fun performHaptic(durationMillis: Long) {
-        performedHaptics += durationMillis
+    override suspend fun performHaptic(pattern: VibrationPattern) {
+        performedHaptics += pattern
     }
 
     override fun postWatchStatusNotification(

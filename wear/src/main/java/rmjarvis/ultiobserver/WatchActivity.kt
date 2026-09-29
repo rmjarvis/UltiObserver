@@ -2,6 +2,11 @@ package rmjarvis.ultiobserver
 
 import android.Manifest
 import android.app.NotificationManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
+import android.os.IBinder
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -16,8 +21,21 @@ import androidx.wear.compose.foundation.rememberAmbientModeManager
 
 /** Launcher activity for the Wear companion app. */
 class WatchActivity : ComponentActivity() {
-    private var receivedState by mutableStateOf<ReceivedState?>(null)
-    private var connectionState by mutableStateOf<ConnectionState>(ConnectionState.CONNECTING)
+    internal var boundManager by mutableStateOf<GameStateManager?>(null)
+        private set
+    private val receivedState get() = boundManager?.receivedState
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+            val manager = (binder as GameStateManager.ManagerBinder).manager
+            manager.onStateUpdated = { updateGameShortcut() }
+            boundManager = manager
+            updateGameShortcut()
+        }
+
+        override fun onServiceDisconnected(name: ComponentName) {
+            boundManager = null
+        }
+    }
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
@@ -25,50 +43,43 @@ class WatchActivity : ComponentActivity() {
             updateOngoingGame(state.snapshot)
         }
     }
-    private val stateClient by lazy {
-        StateClient(
-            context = applicationContext,
-            onStateReceived = { state ->
-                receivedState = state
-                updateGameShortcut()
-            },
-            onConnectionStateChanged = { state ->
-                connectionState = state
-            },
-        )
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        bindService(Intent(this, GameStateManager::class.java), serviceConnection, Context.BIND_AUTO_CREATE)
         setContent {
+            val manager = boundManager ?: run {
+                // Wait for Android to bind the service before creating the interactive UI.
+                BlankScreen()
+                return@setContent
+            }
             val ambientModeManager = rememberAmbientModeManager()
             UltiObserverWearApp(
                 isAmbient = ambientModeManager.currentAmbientMode is AmbientMode.Ambient,
-                receivedState = receivedState,
-                connectionState = connectionState,
+                receivedState = manager.receivedState,
+                connectionState = manager.connectionState,
                 onRetry = {
-                    stateClient.connection.retry()
+                    manager.connection.retry()
                 },
                 onGoal = { scoringTeam, stateToken, onFinished ->
-                    stateClient.connection.recordGoal(scoringTeam, stateToken, onFinished)
+                    manager.connection.recordGoal(scoringTeam, stateToken, onFinished)
                 },
                 onCountdownAction = { stateToken, action, onFinished ->
-                    stateClient.connection.countdownAction(stateToken, action, onFinished)
+                    manager.connection.countdownAction(stateToken, action, onFinished)
                 },
                 onUndo = { stateToken, onFinished ->
-                    stateClient.connection.undo(stateToken, onFinished)
+                    manager.connection.undo(stateToken, onFinished)
                 },
                 onRedo = { stateToken, onFinished ->
-                    stateClient.connection.redo(stateToken, onFinished)
+                    manager.connection.redo(stateToken, onFinished)
                 },
                 onDecision = { stateToken, accept, onFinished ->
-                    stateClient.connection.resolveDecision(stateToken, accept, onFinished)
+                    manager.connection.resolveDecision(stateToken, accept, onFinished)
                 },
                 onTeamAction = { team, stateToken, action, onFinished ->
-                    stateClient.connection.requestTeamAction(team, stateToken, action, onFinished)
+                    manager.connection.requestTeamAction(team, stateToken, action, onFinished)
                 },
                 onStartCardEntry = { team, stateToken, cardType, jerseyNumber, onFinished ->
-                    stateClient.connection.startCardEntry(
+                    manager.connection.startCardEntry(
                         team,
                         stateToken,
                         cardType,
@@ -77,7 +88,7 @@ class WatchActivity : ComponentActivity() {
                     )
                 },
                 onCancelCardEntry = { team, stateToken, cardType, jerseyNumber, onFinished ->
-                    stateClient.connection.cancelCardEntry(
+                    manager.connection.cancelCardEntry(
                         team,
                         stateToken,
                         cardType,
@@ -86,17 +97,10 @@ class WatchActivity : ComponentActivity() {
                     )
                 },
                 onConfirmAction = { confirmation, onFinished ->
-                    stateClient.connection.confirmAction(confirmation, onFinished)
+                    manager.connection.confirmAction(confirmation, onFinished)
                 },
             )
         }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        receivedState = null
-        connectionState = ConnectionState.CONNECTING
-        stateClient.start()
     }
 
     override fun onResume() {
@@ -121,8 +125,10 @@ class WatchActivity : ComponentActivity() {
         }
     }
 
-    override fun onStop() {
-        stateClient.stop()
-        super.onStop()
+    override fun onDestroy() {
+        boundManager?.onStateUpdated = null
+        unbindService(serviceConnection)
+        boundManager = null
+        super.onDestroy()
     }
 }

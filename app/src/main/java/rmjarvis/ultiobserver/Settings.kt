@@ -819,3 +819,17 @@ internal fun TimingAlertGlobalMode.settingsMessages(hasTimingCueHaptics: Boolean
         TimingAlertGlobalMode.SOUNDS_ON -> listOf("Ear buds are recommended when using sounds with UltiObserver.")
     }
 }
+
+/** Describe a countdown vibration for advance scheduling on the watch. */
+internal fun TimingAlertPreferences.watchCountdownVibration(id: TimingCueId): VibrationPattern? {
+    if (!usesWatchVibration()) return null
+    val mode = alertModeFor(id)
+    return when {
+        mode == TimingAlertMode.VIBRATE -> VibrationPattern(
+            vibrationDurationMillis, repeatCountFor(id), TIMING_ALERT_REPEAT_HAPTIC_GAP_MS,
+        )
+        mode != TimingAlertMode.NONE && vibrateWithSounds ->
+            VibrationPattern(vibrationDurationMillis, 1, gapMillis = 0L)
+        else -> null
+    }
+}

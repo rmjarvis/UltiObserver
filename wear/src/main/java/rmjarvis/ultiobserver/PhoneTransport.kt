@@ -16,7 +16,7 @@ import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 
 /** Connect Android Wear listeners and transport to the watch's phone-session controller. */
-internal class StateClient(
+internal class PhoneTransport(
     context: Context,
     onStateReceived: (ReceivedState) -> Unit,
     onConnectionStateChanged: (ConnectionState) -> Unit,
@@ -24,7 +24,7 @@ internal class StateClient(
     private val lookupPhone: () -> Task<CapabilityInfo>,
     private val sendStartup: (String, ByteArray) -> Task<ByteArray>,
     private val sendMessage: (String, String, ByteArray) -> Task<Int>,
-) : DataClient.OnDataChangedListener, CapabilityClient.OnCapabilityChangedListener, PhoneTransport {
+) : DataClient.OnDataChangedListener, CapabilityClient.OnCapabilityChangedListener, PhoneTransportInterface {
     constructor(
         context: Context,
         onStateReceived: (ReceivedState) -> Unit,

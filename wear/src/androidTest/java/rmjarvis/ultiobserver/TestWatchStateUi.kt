@@ -4,7 +4,10 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import android.content.ContextWrapper
+import android.media.AudioAttributes
 import android.os.Build
+import android.os.VibrationAttributes
+import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.service.notification.StatusBarNotification
@@ -612,7 +615,7 @@ class TestWatchStateUi {
         }
         try {
             // The service replies according to actual hardware availability on this watch.
-            val request = WearProtocolCodec.encode(WearVibrationRequest.serializer(), WearVibrationRequest(420L))
+            val request = WearProtocolCodec.encode(WearVibrationRequest.serializer(), WearVibrationRequest(VibrationPattern(420L, 3, 120L)))
             val bytes = Tasks.await(service.onRequest("phone", WATCH_VIBRATION_PATH, request), 5, TimeUnit.SECONDS)
             val response = WearProtocolCodec.decode(WearVibrationResponse.serializer(), bytes)
             assertEquals(vibrator.hasVibrator(), response.accepted)
@@ -628,7 +631,7 @@ class TestWatchStateUi {
         // A watch without vibration hardware rejects the cue so the phone can handle it instead.
         val missingVibrator = mock(Vibrator::class.java)
         doReturn(false).`when`(missingVibrator).hasVibrator()
-        val vibrationService = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val missingVibrationHardware = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             mock(VibratorManager::class.java).also {
                 doReturn(missingVibrator).`when`(it).defaultVibrator
             }
@@ -637,7 +640,7 @@ class TestWatchStateUi {
         }
         val noVibratorContext = object : ContextWrapper(context) {
             override fun getSystemService(name: String): Any? = when (name) {
-                Context.VIBRATOR_SERVICE, Context.VIBRATOR_MANAGER_SERVICE -> vibrationService
+                Context.VIBRATOR_SERVICE, Context.VIBRATOR_MANAGER_SERVICE -> missingVibrationHardware
                 else -> super.getSystemService(name)
             }
         }
@@ -645,12 +648,51 @@ class TestWatchStateUi {
         ContextWrapper::class.java.getDeclaredMethod("attachBaseContext", Context::class.java).apply {
             isAccessible = true
         }.invoke(noVibratorService, noVibratorContext)
-        val request = WearProtocolCodec.encode(WearVibrationRequest.serializer(), WearVibrationRequest(420L))
+        val request = WearProtocolCodec.encode(WearVibrationRequest.serializer(), WearVibrationRequest(VibrationPattern(420L, 3, 120L)))
         val bytes = Tasks.await(
             noVibratorService.onRequest("phone", WATCH_VIBRATION_PATH, request), 5, TimeUnit.SECONDS,
         )
         val response = WearProtocolCodec.decode(WearVibrationResponse.serializer(), bytes)
         assertFalse(response.accepted)
+
+        // With hardware available, submit the entire sequence in one native vibration call.
+        val availableVibrator = mock(Vibrator::class.java)
+        doReturn(true).`when`(availableVibrator).hasVibrator()
+        val availableVibrationHardware = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            mock(VibratorManager::class.java).also {
+                doReturn(availableVibrator).`when`(it).defaultVibrator
+            }
+        } else {
+            availableVibrator
+        }
+        val availableVibratorContext = object : ContextWrapper(context) {
+            override fun getSystemService(name: String): Any? = when (name) {
+                Context.VIBRATOR_SERVICE, Context.VIBRATOR_MANAGER_SERVICE -> availableVibrationHardware
+                else -> super.getSystemService(name)
+            }
+        }
+        val availableVibratorService = VibrationService()
+        ContextWrapper::class.java.getDeclaredMethod("attachBaseContext", Context::class.java).apply {
+            isAccessible = true
+        }.invoke(availableVibratorService, availableVibratorContext)
+        val acceptedBytes = Tasks.await(
+            availableVibratorService.onRequest("phone", WATCH_VIBRATION_PATH, request), 5, TimeUnit.SECONDS,
+        )
+        assertTrue(WearProtocolCodec.decode(WearVibrationResponse.serializer(), acceptedBytes).accepted)
+        val effect = VibrationEffect.createWaveform(longArrayOf(0L, 420L, 120L, 420L, 120L, 420L), -1)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            verify(availableVibrator).vibrate(
+                effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM),
+            )
+        } else {
+            verify(availableVibrator).vibrate(
+                effect,
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+        }
     }
 
     private fun snapshot(status: WearSnapshotStatus) = ReceivedState(

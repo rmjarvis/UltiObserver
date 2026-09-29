@@ -8,7 +8,6 @@ import android.os.VibrationEffect
 import android.os.VibrationAttributes
 import android.os.Vibrator
 import android.os.VibratorManager
-import kotlinx.coroutines.delay
 
 /**
  * Timing alert sound preloader and player for the platform sound backend.
@@ -278,7 +277,7 @@ internal fun TimingAlertSoundClip.rawResourceId(): Int {
  * @param cue The cue to play.
  * @param timingAlertPreferences The current alert settings.
  * @param timingAlertPlayer Sound player used for audible cues.
- * @param performHaptic Callback that performs one haptic pulse.
+ * @param performHaptic Callback that submits a complete vibration pattern.
  * @param playedTimingAlertKeys Cue keys already played by the caller.
  * @param onAlertKeyPlayed Callback recording this cue key before playback.
  */
@@ -286,7 +285,7 @@ internal suspend fun playTimingAlertOnce(
     cue: TimingCueDisplay,
     timingAlertPreferences: TimingAlertPreferences,
     timingAlertPlayer: TimingAlertPlayer,
-    performHaptic: suspend (Long) -> Unit,
+    performHaptic: suspend (VibrationPattern) -> Unit,
     playedTimingAlertKeys: Set<String>,
     onAlertKeyPlayed: (String) -> Unit,
 ) {
@@ -303,14 +302,11 @@ internal suspend fun playTimingAlertOnce(
 
     val repeatCount = timingAlertPreferences.repeatCountFor(cue.id)
     if (alertMode == TimingAlertMode.VIBRATE) {
-        repeat(repeatCount) { pulseIndex ->
-            performHaptic(
-                timingAlertPreferences.vibrationDurationMillis,
-            )
-            if (pulseIndex < repeatCount - 1) {
-                delay(timingAlertPreferences.vibrationRepeatSpacingMillis())
-            }
-        }
+        performHaptic(VibrationPattern(
+            timingAlertPreferences.vibrationDurationMillis,
+            repeatCount,
+            TIMING_ALERT_REPEAT_HAPTIC_GAP_MS,
+        ))
     } else {
         playTimingSound(
             alertMode.toTimingAlertSound(),
@@ -329,14 +325,14 @@ internal suspend fun playTimingAlertOnce(
  * @param repeatCount The configured repeat count.
  * @param timingAlertPreferences Current alert preferences for volume and haptic pairing.
  * @param timingAlertPlayer Sound player used for audible cues.
- * @param performHaptic Callback that performs one haptic pulse.
+ * @param performHaptic Callback that submits a complete vibration pattern.
  */
 private suspend fun playTimingSound(
     sound: TimingAlertSound,
     repeatCount: Int,
     timingAlertPreferences: TimingAlertPreferences,
     timingAlertPlayer: TimingAlertPlayer,
-    performHaptic: suspend (Long) -> Unit,
+    performHaptic: suspend (VibrationPattern) -> Unit,
 ) {
     timingAlertPlayer.play(
         sound = sound,
@@ -345,13 +341,10 @@ private suspend fun playTimingSound(
         priority = TIMING_ALERT_CUE_PRIORITY,
     )
     if (timingAlertPreferences.vibrateWithSounds) {
-        performHaptic(timingAlertPreferences.vibrationDurationMillis)
+        performHaptic(VibrationPattern(
+            timingAlertPreferences.vibrationDurationMillis, 1, gapMillis = 0L,
+        ))
     }
-}
-
-/// Return spacing between repeated haptic pulses for this preference set.
-private fun TimingAlertPreferences.vibrationRepeatSpacingMillis(): Long {
-    return vibrationDurationMillis + TIMING_ALERT_REPEAT_HAPTIC_GAP_MS
 }
 
 /**
@@ -370,14 +363,14 @@ internal fun Context.hasTimingCueHaptics(sdkInt: Int = Build.VERSION.SDK_INT): B
 }
 
 /**
- * Perform a timing-cue haptic pulse when the device supports vibration.
+ * Submit a complete timing-cue vibration pattern when the device supports vibration.
  *
- * @param durationMillis The requested vibration duration in milliseconds.
+ * @param pattern The pulses and spacing to submit as one native vibration effect.
  * @param sdkInt Android API version. Production code always uses the default device version;
  * tests can override it to exercise behavior for different Android versions.
  */
 internal fun Context.performTimingCueHaptic(
-    durationMillis: Long,
+    pattern: VibrationPattern,
     sdkInt: Int = Build.VERSION.SDK_INT,
 ) {
     // Devices without usable vibration hardware should ignore haptic cues without crashing.
@@ -389,7 +382,8 @@ internal fun Context.performTimingCueHaptic(
     } else {
         getSystemService(Vibrator::class.java)
     }
-    val effect = VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE)
+    // -1 here means don't repeat the pattern.
+    val effect = VibrationEffect.createWaveform(pattern.timings(), -1)
     if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
         vibrator.vibrate(
             effect,
@@ -406,16 +400,16 @@ internal fun Context.performTimingCueHaptic(
     }
 }
 
-/** Route an existing timing pulse to the watch when selected, falling back to the phone. */
+/** Route a complete vibration pattern to the watch when selected, falling back to the phone. */
 internal suspend fun deliverTimingVibration(
     preferences: TimingAlertPreferences,
-    durationMillis: Long,
-    vibrateOnWatch: suspend (Long) -> Boolean,
-    vibrateOnPhone: (Long) -> Unit,
+    pattern: VibrationPattern,
+    vibrateOnWatch: suspend (VibrationPattern) -> Boolean,
+    vibrateOnPhone: (VibrationPattern) -> Unit,
 ) {
-    val accepted = preferences.usesWatchVibration() && vibrateOnWatch(durationMillis)
+    val accepted = preferences.usesWatchVibration() && vibrateOnWatch(pattern)
     if (!accepted) {
-        vibrateOnPhone(durationMillis)
+        vibrateOnPhone(pattern)
     }
 }
 

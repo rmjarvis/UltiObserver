@@ -1,10 +1,12 @@
 package rmjarvis.ultiobserver.wearprotocol
 
 import kotlinx.serialization.KSerializer
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import rmjarvis.ultiobserver.VibrationPattern
 import org.junit.Test
 import rmjarvis.ultiobserver.CardType
 import rmjarvis.ultiobserver.PlayerIdentity
@@ -53,6 +55,7 @@ class TestWearProtocol {
         val cue = WearCueSnapshot(
             message = "Give hand. 20 seconds to pull",
             targetEpochMillis = 1_100L,
+            vibration = VibrationPattern(420L, 3, 120L),
         )
         val countdown = WearCountdownSnapshot(
             label = "Pull in",
@@ -208,9 +211,11 @@ class TestWearProtocol {
     @Test
     fun gameCommandRoundTrips() {
         // Timing vibrations preserve their duration and the watch's acceptance result.
-        val pulse = roundTrip(WearVibrationRequest.serializer(), WearVibrationRequest(420L))
-        assertEquals(420L, pulse.durationMillis)
-        assertEquals(WearVibrationRequest(420L), pulse)
+        val pulse = roundTrip(WearVibrationRequest.serializer(), WearVibrationRequest(VibrationPattern(420L, 3, 120L)))
+        assertEquals(VibrationPattern(420L, 3, 120L), pulse.pattern)
+        assertArrayEquals(longArrayOf(0L, 420L, 120L, 420L, 120L, 420L), pulse.pattern.timings())
+        assertArrayEquals(longArrayOf(0L, 420L), VibrationPattern(420L, 1, 120L).timings())
+        assertEquals(WearVibrationRequest(VibrationPattern(420L, 3, 120L)), pulse)
         for (accepted in listOf(true, false)) {
             val response = roundTrip(WearVibrationResponse.serializer(), WearVibrationResponse(accepted))
             assertEquals(accepted, response.accepted)

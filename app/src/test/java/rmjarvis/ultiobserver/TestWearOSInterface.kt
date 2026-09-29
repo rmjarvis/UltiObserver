@@ -491,6 +491,26 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertEquals(now, pausedSnapshot.pausedAtEpochMillis)
         assertTrue(pausedSnapshot.cues.isEmpty())
 
+        // Watch countdowns carry the configured pattern alongside the same cue text and deadline.
+        val watchSettings = mixedSettings.copy(timingAlerts = TimingAlertPreferences(
+            watchConnectionMode = WatchConnectionMode.WEAR_OS,
+            vibrationDurationMillis = 420L,
+        ))
+        val watchCountdown = buildWearStateSnapshot(activeGame, watchSettings, now)
+            .activeGame!!.countdown!!
+        expectedCountdown.pendingTimingCues(now).zip(watchCountdown.cues).forEach { (cue, sent) ->
+            assertEquals(cue.message, sent.message)
+            assertEquals(cue.targetEpoch, sent.targetEpochMillis)
+            assertEquals(watchSettings.timingAlerts.watchCountdownVibration(cue.id), sent.vibration)
+        }
+        assertTrue(watchCountdown.cues.any { it.vibration != null })
+
+        // Disabling watch vibration removes the schedule while leaving the countdown available.
+        val phoneVibrations = buildWearStateSnapshot(activeGame, watchSettings.copy(
+            timingAlerts = watchSettings.timingAlerts.copy(vibrateOnWatch = false),
+        ), now).activeGame!!.countdown!!
+        assertTrue(phoneVibrations.cues.all { it.vibration == null })
+
         // Setup has no active watch game.
         assertEquals(
             WearSnapshotStatus.NO_ACTIVE_GAME,
