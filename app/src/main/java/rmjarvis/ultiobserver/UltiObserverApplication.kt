@@ -19,6 +19,7 @@ class UltiObserverApplication : Application() {
         WearPhoneCoordinator(
             appState = appState,
             publish = { update -> publisher.publish(update) },
+            publishOngoingGame = { status -> publisher.publishOngoingGame(status) },
             clock = { System.currentTimeMillis() },
         )
     }

@@ -39,17 +39,20 @@ import rmjarvis.ultiobserver.wearprotocol.WearCommandAcknowledgement
 import rmjarvis.ultiobserver.wearprotocol.WearStateUpdate
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotReceiver
 import rmjarvis.ultiobserver.wearprotocol.WearPendingCommand
+import rmjarvis.ultiobserver.wearprotocol.WearOngoingGameStatus
 
 /// Tests for the phone-side Wear OS interface.
 class TestWearOSInterface : GameDomainTestFixtures() {
     private val coordinators = mutableMapOf<AppState, WearPhoneCoordinator>()
     private val publications = mutableMapOf<AppState, MutableList<WearStateUpdate>>()
+    private val shortcutPublications = mutableMapOf<AppState, MutableList<WearOngoingGameStatus>>()
 
     private fun coordinatorFor(appState: AppState): WearPhoneCoordinator {
         return coordinators.getOrPut(appState) {
             WearPhoneCoordinator(
                 appState,
                 publish = { publications.getOrPut(appState) { mutableListOf() }.add(it) },
+                publishOngoingGame = { shortcutPublications.getOrPut(appState) { mutableListOf() }.add(it) },
                 clock = { 0L },
             )
         }
@@ -2519,6 +2522,65 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertEquals(1L, publications.getValue(disabledState).single().snapshot.sequenceNumber)
     }
 
+    /** Publish shortcut changes independently of scores, countdowns, and request acknowledgements. */
+    @Test
+    fun ongoingGameStatus() {
+        // An enabled phone with no current game publishes an absent shortcut, including setup.
+        val settings = Settings(timingAlerts = TimingAlertPreferences(
+            watchConnectionMode = WatchConnectionMode.WEAR_OS,
+        ))
+        val appState = AppState(NoOpAppStateStorage)
+        appState.updateSettings(settings)
+        val coordinator = coordinatorFor(appState)
+        coordinator.publishCurrentState()
+        val statuses = shortcutPublications.getValue(appState)
+        assertEquals(listOf(WearOngoingGameStatus(false)), statuses)
+        appState.startNewGame(now = 0L)
+        assertEquals(1, statuses.size)
+
+        // Starting a game adds the shortcut once. Live changes and startup retries retain it.
+        val game = standardLiveGameState().continueLivePoint()
+        appState.updateCurrentGame(game)
+        assertEquals(listOf(WearOngoingGameStatus(false), WearOngoingGameStatus(true)), statuses)
+        appState.resumeCurrentGame()
+        val now = timestampAt(game, LocalTime.of(11, 0))
+        coordinator.startup(WearStartupRequest("shortcut-startup"), now)
+        val updateCount = publications.getValue(appState).size
+        val scored = game.recordGoal(TeamId.TEAM_ONE, now)
+        appState.updateCurrentGame(scored)
+        coordinator.startup(WearStartupRequest("shortcut-retry"), now)
+        assertTrue(publications.getValue(appState).size > updateCount)
+        assertEquals(2, statuses.size)
+
+        // A final score still has a current game; archiving it removes the shortcut.
+        appState.updateCurrentGame(scored.endGameNow(now))
+        assertEquals(2, statuses.size)
+        appState.archiveCompletedGame()
+        assertEquals(WearOngoingGameStatus(false), statuses.last())
+        assertEquals(3, statuses.size)
+
+        // Disabling Wear removes a live game's shortcut; enabling it brings the shortcut back.
+        appState.updateCurrentGame(game)
+        appState.updateSettings(Settings())
+        assertEquals(WearOngoingGameStatus(false), statuses.last())
+        appState.updateSettings(settings)
+        assertEquals(WearOngoingGameStatus(true), statuses.last())
+        assertEquals(6, statuses.size)
+
+        // A new phone process republishes its current status even without a game transition.
+        coordinators.remove(appState)
+        coordinatorFor(appState).publishCurrentState()
+        assertEquals(WearOngoingGameStatus(true), statuses.last())
+        assertEquals(7, statuses.size)
+
+        // A disabled phone also publishes absence on startup, clearing any retained shortcut.
+        val disabled = AppState(NoOpAppStateStorage)
+        coordinatorFor(disabled).publishCurrentState()
+        assertEquals(listOf(WearOngoingGameStatus(false)), shortcutPublications.getValue(disabled))
+        coordinatorFor(disabled).startup(WearStartupRequest("disabled-shortcut"), now)
+        assertEquals(1, shortcutPublications.getValue(disabled).size)
+    }
+
     /**
      * Verify that one published update carries both ordered state and the retained watch-command
      * result, so receiving a later phone-initiated update can also complete a pending command.
@@ -2535,7 +2597,9 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         val game = appState.currentGame!!
         val now = timestampAt(game, LocalTime.of(11, 0))
         coordinators[appState] = WearPhoneCoordinator(
-            appState, publish = { updates.add(it) }, clock = { now },
+            appState, publish = { updates.add(it) },
+            publishOngoingGame = { shortcutPublications.getOrPut(appState) { mutableListOf() }.add(it) },
+            clock = { now },
         )
         coordinators.getValue(appState).startup(WearStartupRequest("startup"), now)
         assertEquals(WearStartupAcknowledgement("startup"), updates.single().acknowledgement)

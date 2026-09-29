@@ -807,7 +807,7 @@ class TestWearPairedPhoneUi {
             waitForPairedText(ANIMAL)
 
             // An already-granted request delivers its result without restarting the Activity,
-            // so the callback can recreate the shortcut from the snapshot it still holds.
+            // so the callback can recreate the shortcut from its separate synchronized status.
             notifications.cancel(ONGOING_GAME_NOTIFICATION_ID)
             composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
                 notifications.activeNotifications.none { it.id == ONGOING_GAME_NOTIFICATION_ID }

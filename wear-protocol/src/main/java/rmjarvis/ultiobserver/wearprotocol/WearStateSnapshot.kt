@@ -10,6 +10,13 @@ import rmjarvis.ultiobserver.VibrationPattern
 /** Path of the single current-state item published by the phone. */
 const val WEAR_STATE_PATH = "/ultiobserver/current-state"
 
+/** Independently synchronized status for the watch's return-to-game shortcut. */
+const val WEAR_ONGOING_GAME_PATH = "/ultiobserver/ongoing-game"
+
+/** Whether the phone has a current non-setup game available to the watch. */
+@Serializable
+data class WearOngoingGameStatus(val hasCurrentGame: Boolean)
+
 /** Capability advertised by an Android phone that can provide UltiObserver game state. */
 const val PHONE_STATE_CAPABILITY = "ultiobserver_phone_state"
 

@@ -5,14 +5,17 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.wear.ongoing.OngoingActivity
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.DataClient
+import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
-import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
-import rmjarvis.ultiobserver.wearprotocol.WearStateUpdate
+import rmjarvis.ultiobserver.wearprotocol.WEAR_ONGOING_GAME_PATH
+import rmjarvis.ultiobserver.wearprotocol.WearOngoingGameStatus
 
 /** Keep the return-to-game shortcut current when the watch Activity is not listening. */
 class OngoingGameService : WearableListenerService() {
@@ -21,19 +24,37 @@ class OngoingGameService : WearableListenerService() {
             if (event.type == DataEvent.TYPE_DELETED) {
                 getSystemService(NotificationManager::class.java).cancel(ONGOING_GAME_NOTIFICATION_ID)
             } else {
-                val update = WearProtocolCodec.decode(
-                    WearStateUpdate.serializer(), event.dataItem.data!!,
+                val status = WearProtocolCodec.decode(
+                    WearOngoingGameStatus.serializer(), event.dataItem.data!!,
                 )
-                updateOngoingGame(update.snapshot)
+                updateOngoingGame(status.hasCurrentGame)
             }
         }
     }
 }
 
+/** Reconcile the shortcut after returning to the app or changing notification permission. */
+internal fun Context.refreshOngoingGame() {
+    Wearable.getDataClient(this)
+        .getDataItems(Uri.parse("wear://*$WEAR_ONGOING_GAME_PATH"), DataClient.FILTER_LITERAL)
+        .addOnSuccessListener { items ->
+            try {
+                val hasCurrentGame = items.any {
+                    WearProtocolCodec.decode(
+                        WearOngoingGameStatus.serializer(), it.data!!,
+                    ).hasCurrentGame
+                }
+                updateOngoingGame(hasCurrentGame)
+            } finally {
+                items.release()
+            }
+        }
+}
+
 /** Retain one quiet shortcut while a current game, including its final score, is on the watch. */
-internal fun Context.updateOngoingGame(snapshot: WearStateSnapshot) {
+internal fun Context.updateOngoingGame(hasCurrentGame: Boolean) {
     val notifications = getSystemService(NotificationManager::class.java)
-    if (snapshot.activeGame == null) {
+    if (!hasCurrentGame) {
         notifications.cancel(ONGOING_GAME_NOTIFICATION_ID)
         return
     }

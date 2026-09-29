@@ -9,6 +9,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearStartupAcknowledgement
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearStartupRequest
 import rmjarvis.ultiobserver.wearprotocol.WEAR_PROTOCOL_VERSION
+import rmjarvis.ultiobserver.wearprotocol.WearOngoingGameStatus
 
 /**
  * Own the phone's Wear session and publish state with the most recent request acknowledgement.
@@ -18,11 +19,13 @@ import rmjarvis.ultiobserver.wearprotocol.WEAR_PROTOCOL_VERSION
 internal class WearPhoneCoordinator(
     val appState: AppState,
     private val publish: (WearStateUpdate) -> Unit,
+    private val publishOngoingGame: (WearOngoingGameStatus) -> Unit,
     private val clock: () -> Long,
 ) {
     private val snapshotTagger = WearSnapshotTagger()
     private var handlingWatchRequest = false
     private var latestAcknowledgement: WearAcknowledgement? = null
+    private var ongoingGameStatus: WearOngoingGameStatus? = null
 
     /**
      * When we first initialize this object, set up the appState to be able to use it for
@@ -38,7 +41,7 @@ internal class WearPhoneCoordinator(
                 WatchConnectionMode.WEAR_OS ||
                 updated.settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS
             if (watchChanged && wearEnabled && !handlingWatchRequest) {
-                publish(WearStateUpdate(
+                publishUpdate(WearStateUpdate(
                     updated.toWearSnapshot(snapshotTagger, clock()), latestAcknowledgement,
                 ))
             }
@@ -49,9 +52,11 @@ internal class WearPhoneCoordinator(
     fun publishCurrentState() = synchronized(appState) {
         val state = appState.state.value
         if (state.settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS) {
-            publish(WearStateUpdate(
+            publishUpdate(WearStateUpdate(
                 state.toWearSnapshot(snapshotTagger, clock()), latestAcknowledgement,
             ))
+        } else {
+            updateOngoingGameStatus(hasCurrentGame = false)
         }
     }
 
@@ -63,11 +68,15 @@ internal class WearPhoneCoordinator(
             phoneEpochMillis = now,
             releaseVersion = BuildConfig.VERSION_NAME,
         )
-        if (!response.enabled || request.protocolVersion != WEAR_PROTOCOL_VERSION) {
+        if (!response.enabled) {
+            updateOngoingGameStatus(hasCurrentGame = false)
+            return@synchronized response
+        }
+        if (request.protocolVersion != WEAR_PROTOCOL_VERSION) {
             return@synchronized response
         }
         latestAcknowledgement = WearStartupAcknowledgement(request.requestId)
-        publish(WearStateUpdate(
+        publishUpdate(WearStateUpdate(
             state.toWearSnapshot(snapshotTagger, now), latestAcknowledgement,
         ))
         response
@@ -90,12 +99,25 @@ internal class WearPhoneCoordinator(
                     sequenceNumber = response.snapshot.sequenceNumber,
                     nextPrompt = response.nextPrompt,
                 )
-                publish(WearStateUpdate(
+                publishUpdate(WearStateUpdate(
                     response.snapshot, latestAcknowledgement,
                 ))
             } finally {
                 handlingWatchRequest = false
             }
+        }
+    }
+
+    private fun publishUpdate(update: WearStateUpdate) {
+        updateOngoingGameStatus(update.snapshot.activeGame != null)
+        publish(update)
+    }
+
+    private fun updateOngoingGameStatus(hasCurrentGame: Boolean) {
+        val status = WearOngoingGameStatus(hasCurrentGame)
+        if (status != ongoingGameStatus) {
+            publishOngoingGame(status)
+            ongoingGameStatus = status
         }
     }
 }

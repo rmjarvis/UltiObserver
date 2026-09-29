@@ -415,6 +415,17 @@ class TestWearProtocol {
         assertEquals(WEAR_PROTOCOL_VERSION, startupResponse.protocolVersion)
     }
 
+    /** The shortcut status is readable independently of the full game snapshot. */
+    @Test
+    fun ongoingGameStatusRoundTrip() {
+        assertRoundTrip(WearOngoingGameStatus.serializer(), WearOngoingGameStatus(true))
+        assertRoundTrip(WearOngoingGameStatus.serializer(), WearOngoingGameStatus(false))
+        assertTrue(roundTrip(WearOngoingGameStatus.serializer(),
+            WearOngoingGameStatus(true)).hasCurrentGame)
+        assertFalse(roundTrip(WearOngoingGameStatus.serializer(),
+            WearOngoingGameStatus(false)).hasCurrentGame)
+    }
+
     private fun prompt(title: String): WearPromptSnapshot {
         return WearPromptSnapshot(
             title = title,

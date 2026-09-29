@@ -13,6 +13,9 @@ import android.os.VibratorManager
 import android.service.notification.StatusBarNotification
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.wearable.DataEvent
+import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.DataItem
 import java.util.concurrent.TimeUnit
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
@@ -72,6 +75,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearVibrationRequest
 import rmjarvis.ultiobserver.wearprotocol.WearVibrationResponse
 import rmjarvis.ultiobserver.wearprotocol.WearPromptSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
+import rmjarvis.ultiobserver.wearprotocol.WearOngoingGameStatus
 
 /**
  * Tests of the connection status between a watch and the phone.
@@ -559,7 +563,7 @@ class TestWatchStateUi {
         composeRule.onNodeWithText("Timeout (2)").assertIsEnabled()
     }
 
-    /** Exercise notification updates for active, completed, and idle states. */
+    /** Exercise notification updates when a current game is available or absent. */
     @Test
     fun ongoingGameNotification() {
         val notifications = mock(NotificationManager::class.java)
@@ -571,32 +575,73 @@ class TestWatchStateUi {
                 super.getSystemService(name)
             }
         }
-        val game = activeSnapshot().snapshot
-
         // An unrelated notification must not suppress the game's shortcut.
         val otherId = 99
         val other = mock(StatusBarNotification::class.java)
         doReturn(otherId).`when`(other).id
         doReturn(arrayOf(other)).`when`(notifications).activeNotifications
-        context.updateOngoingGame(game)
+        context.updateOngoingGame(hasCurrentGame = true)
         val posted = ArgumentCaptor.forClass(Notification::class.java)
         verify(notifications).notify(eq(ONGOING_GAME_NOTIFICATION_ID), posted.capture())
         assertEquals("Return to game", posted.value.extras.getString(Notification.EXTRA_TEXT))
 
-        // Repeated snapshots and the final score retain the existing notification.
+        // Repeated checks retain the existing notification.
         val ongoing = mock(StatusBarNotification::class.java)
         doReturn(ONGOING_GAME_NOTIFICATION_ID).`when`(ongoing).id
         doReturn(arrayOf(other, ongoing)).`when`(notifications).activeNotifications
-        context.updateOngoingGame(game)
-        context.updateOngoingGame(game.copy(activeGame = game.activeGame!!.copy(gameOver = true)))
+        context.updateOngoingGame(hasCurrentGame = true)
+        context.updateOngoingGame(hasCurrentGame = true)
         verify(notifications, times(1)).notify(eq(ONGOING_GAME_NOTIFICATION_ID), any(Notification::class.java))
 
         // Clearing the current game removes only its shortcut and is safe to repeat.
-        val idle = WearStateSnapshot(status = WearSnapshotStatus.NO_ACTIVE_GAME, activeGame = null)
-        context.updateOngoingGame(idle)
-        context.updateOngoingGame(idle)
+        context.updateOngoingGame(hasCurrentGame = false)
+        context.updateOngoingGame(hasCurrentGame = false)
         verify(notifications, times(2)).cancel(ONGOING_GAME_NOTIFICATION_ID)
         verify(notifications, never()).cancel(otherId)
+    }
+
+    /** The background listener creates and removes the shortcut using only its small status item. */
+    @Test
+    fun ongoingGameUpdates() {
+        val notifications = mock(NotificationManager::class.java)
+        doReturn(true).`when`(notifications).areNotificationsEnabled()
+        doReturn(emptyArray<StatusBarNotification>()).`when`(notifications).activeNotifications
+        val context = object : ContextWrapper(InstrumentationRegistry.getInstrumentation().targetContext) {
+            override fun getSystemService(name: String): Any? = if (name == Context.NOTIFICATION_SERVICE) {
+                notifications
+            } else {
+                super.getSystemService(name)
+            }
+        }
+        val service = OngoingGameService()
+        ContextWrapper::class.java.getDeclaredMethod("attachBaseContext", Context::class.java).apply {
+            isAccessible = true
+        }.invoke(service, context)
+
+        // A current game followed by no current game posts and then cancels the shortcut.
+        val events = listOf(true, false).map { hasCurrentGame ->
+            val item = mock(DataItem::class.java)
+            doReturn(WearProtocolCodec.encode(
+                WearOngoingGameStatus.serializer(), WearOngoingGameStatus(hasCurrentGame),
+            )).`when`(item).data
+            val event = mock(DataEvent::class.java)
+            doReturn(DataEvent.TYPE_CHANGED).`when`(event).type
+            doReturn(item).`when`(event).dataItem
+            event
+        }
+        val changes = mock(DataEventBuffer::class.java)
+        doReturn(events.iterator()).`when`(changes).iterator()
+        service.onDataChanged(changes)
+        verify(notifications).notify(eq(ONGOING_GAME_NOTIFICATION_ID), any(Notification::class.java))
+        verify(notifications).cancel(ONGOING_GAME_NOTIFICATION_ID)
+
+        // Deleting the status item also clears the shortcut without decoding a payload.
+        val deleted = mock(DataEvent::class.java)
+        doReturn(DataEvent.TYPE_DELETED).`when`(deleted).type
+        val deletions = mock(DataEventBuffer::class.java)
+        doReturn(listOf(deleted).iterator()).`when`(deletions).iterator()
+        service.onDataChanged(deletions)
+        verify(notifications, times(2)).cancel(ONGOING_GAME_NOTIFICATION_ID)
     }
 
     /** Exercise the vibration service's acceptance response and request-path validation. */

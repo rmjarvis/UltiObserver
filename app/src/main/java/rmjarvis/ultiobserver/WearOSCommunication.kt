@@ -15,6 +15,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import rmjarvis.ultiobserver.wearprotocol.WATCH_VIBRATION_CAPABILITY
 import rmjarvis.ultiobserver.wearprotocol.WATCH_VIBRATION_PATH
 import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
+import rmjarvis.ultiobserver.wearprotocol.WEAR_ONGOING_GAME_PATH
+import rmjarvis.ultiobserver.wearprotocol.WearOngoingGameStatus
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
 import rmjarvis.ultiobserver.wearprotocol.WearStateUpdate
 import rmjarvis.ultiobserver.wearprotocol.WearCommandRequest
@@ -130,6 +132,14 @@ internal class WearStatePublisher(context: Context) {
     fun publish(update: WearStateUpdate) {
         val request = PutDataRequest.create(WEAR_STATE_PATH)
             .setData(WearProtocolCodec.encode(WearStateUpdate.serializer(), update))
+            .setUrgent()
+        dataClient.putDataItem(request)
+    }
+
+    /** Update the persistent shortcut status without waking its listener for ordinary game changes. */
+    fun publishOngoingGame(status: WearOngoingGameStatus) {
+        val request = PutDataRequest.create(WEAR_ONGOING_GAME_PATH)
+            .setData(WearProtocolCodec.encode(WearOngoingGameStatus.serializer(), status))
             .setUrgent()
         dataClient.putDataItem(request)
     }

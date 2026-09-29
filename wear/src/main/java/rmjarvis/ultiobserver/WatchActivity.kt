@@ -27,9 +27,9 @@ class WatchActivity : ComponentActivity() {
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
             val manager = (binder as GameStateManager.ManagerBinder).manager
-            manager.onStateUpdated = { updateGameShortcut() }
+            manager.onGameAvailabilityChanged = { requestShortcutPermission() }
             boundManager = manager
-            updateGameShortcut()
+            requestShortcutPermission()
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
@@ -39,9 +39,7 @@ class WatchActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
-        receivedState?.let { state ->
-            updateOngoingGame(state.snapshot)
-        }
+        refreshOngoingGame()
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,13 +103,13 @@ class WatchActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        updateGameShortcut()
+        refreshOngoingGame()
+        requestShortcutPermission()
     }
 
     /** Ask once for the notification permission needed by the ongoing-game shortcut. */
-    private fun updateGameShortcut() {
+    private fun requestShortcutPermission() {
         val snapshot = receivedState?.snapshot ?: return
-        updateOngoingGame(snapshot)
         if (snapshot.activeGame != null &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
@@ -126,7 +124,7 @@ class WatchActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        boundManager?.onStateUpdated = null
+        boundManager?.onGameAvailabilityChanged = null
         unbindService(serviceConnection)
         boundManager = null
         super.onDestroy()
