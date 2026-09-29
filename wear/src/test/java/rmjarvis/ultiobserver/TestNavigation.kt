@@ -261,6 +261,9 @@ class TestNavigation {
         assertEquals(WatchScreen.CONNECTING, navigation.screen(null, ConnectionState.CONNECTING))
         assertEquals(WatchScreen.UNREACHABLE, navigation.screen(null, ConnectionState.DISCONNECTED))
         assertEquals(WatchScreen.DISABLED, navigation.screen(null, ConnectionState.DISABLED))
+        assertEquals(WatchScreen.UPDATE_REQUIRED, navigation.screen(
+            null, ConnectionState.UpdateRequired(true, "1.4.0", "1.5.0"),
+        ))
         val idle = WearStateSnapshot(status = WearSnapshotStatus.NO_ACTIVE_GAME, activeGame = null)
         assertEquals(WatchScreen.IDLE, navigation.screen(idle, ConnectionState.CONNECTED))
         assertEquals(WatchScreen.DISCONNECTED, navigation.screen(idle, ConnectionState.DISCONNECTED))

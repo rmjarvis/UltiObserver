@@ -117,6 +117,14 @@ private val knownVersionMigrations = listOf(
         settings = V1_3ToV1_4::migrateSettings,
         archivedGame = null,
     ),
+    VersionMigration(
+        sourceVersion = "1.4",
+        targetVersion = "1.5",
+        currentGame = null,
+        profile = null,
+        settings = null,
+        archivedGame = null,
+    ),
 )
 
 /**
