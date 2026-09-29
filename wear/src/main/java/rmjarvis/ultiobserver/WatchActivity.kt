@@ -14,9 +14,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.wear.ambient.AmbientLifecycleObserver
+import kotlinx.coroutines.launch
 
 /** Launcher activity for the Wear companion app. */
 class WatchActivity : ComponentActivity() {
@@ -27,9 +30,7 @@ class WatchActivity : ComponentActivity() {
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
             val manager = (binder as GameStateManager.ManagerBinder).manager
-            manager.onGameAvailabilityChanged = { requestShortcutPermission() }
             boundManager = manager
-            requestShortcutPermission()
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
@@ -58,6 +59,12 @@ class WatchActivity : ComponentActivity() {
                 }
             },
         ))
+        lifecycleScope.launch {
+            // snapshotFlow emits only when game availability changes, not on every score update.
+            snapshotFlow { receivedState?.snapshot?.activeGame != null }.collect {
+                requestShortcutPermission()
+            }
+        }
         bindService(Intent(this, GameStateManager::class.java), serviceConnection, Context.BIND_AUTO_CREATE)
         setContent {
             val manager = boundManager ?: run {
@@ -138,7 +145,6 @@ class WatchActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        boundManager?.onGameAvailabilityChanged = null
         unbindService(serviceConnection)
         boundManager = null
         super.onDestroy()

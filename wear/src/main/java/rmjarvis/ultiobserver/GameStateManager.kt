@@ -18,7 +18,6 @@ class GameStateManager : Service() {
         private set
     internal var connectionState by mutableStateOf<ConnectionState>(ConnectionState.CONNECTING)
         private set
-    internal var onGameAvailabilityChanged: (() -> Unit)? = null
     private val handler = Handler(Looper.getMainLooper())
     internal val countdownWakeLock by lazy {
         getSystemService(PowerManager::class.java)
@@ -44,12 +43,8 @@ class GameStateManager : Service() {
         PhoneTransport(
             this,
             onStateReceived = {
-                val hadCurrentGame = receivedState?.snapshot?.activeGame != null
                 receivedState = it
                 updateVibrations()
-                if (hadCurrentGame != (it.snapshot.activeGame != null)) {
-                    onGameAvailabilityChanged?.invoke()
-                }
             },
             onConnectionStateChanged = {
                 connectionState = it
@@ -71,8 +66,9 @@ class GameStateManager : Service() {
     override fun onBind(intent: Intent): IBinder = ManagerBinder()
 
     private fun updateVibrations() {
-        val state = receivedState
-        if (connectionState == ConnectionState.CONNECTED && state != null) {
+        if (connectionState == ConnectionState.CONNECTED) {
+            // PhoneConnectionController delivers the initial snapshot before announcing CONNECTED.
+            val state = receivedState!!
             vibrations.update(
                 state.snapshot.activeGame?.countdown,
                 System.currentTimeMillis() + state.phoneClockOffsetMillis,
@@ -83,7 +79,6 @@ class GameStateManager : Service() {
     }
 
     override fun onDestroy() {
-        onGameAvailabilityChanged = null
         client.stop()
         vibrations.stop()
         super.onDestroy()
