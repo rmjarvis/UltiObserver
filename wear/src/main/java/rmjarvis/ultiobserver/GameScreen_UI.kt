@@ -138,13 +138,10 @@ internal fun GameScreen(
     onUndo: () -> Unit,
     onRedo: () -> Unit,
 ) {
-    val timeSource = remember(display.officialTime) {
-        DisplayTimeSource(display.officialTime)
-    }
     UltiObserverTheme {
         AppScaffold(
             timeText = {
-                AppTimeText(timeSource)
+                AppTimeText()
             },
             containerColor = Color.Black,
             contentColor = Color.White,

@@ -62,7 +62,8 @@ internal fun Modifier.gameClickable(
 
 /** Show the standard clock used at the top of UltiObserver watch screens. */
 @Composable
-internal fun AppTimeText(timeSource: TimeSource? = LocalGameTimeSource.current) {
+internal fun AppTimeText() {
+    val timeSource = LocalGameTimeSource.current
     val timeStyle = TimeTextDefaults.timeTextStyle(
         background = Color.Black,
         color = Color.White,
