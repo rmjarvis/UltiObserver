@@ -1326,7 +1326,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         var timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, receivingNoTimeoutEvent.team)
         assertEquals(TimeViolationOutcome.NO_TIMEOUT, receivingNoTimeoutEvent.outcome)
-        assertEquals(GamePhase.PRE_GAME, timeViolationState.phase)
+        assertEquals(GamePhase.LIVE_POINT, timeViolationState.phase)
         assertNull(timeViolationState.countdown)
         assertTrue(timeViolationState.pullSkippedForCurrentPoint)
         assertFalse(timeViolationState.canAssessTimeViolation())
@@ -1352,15 +1352,9 @@ class TestPullViolations : GameDomainTestFixtures() {
             receivingNoTimeoutEvent.formatBriefMessage().plainText,
         )
 
-        // Automatic advancement starts the no-pull point, with a reversible Start point action.
-        val automaticStart = timeViolationState.applyAutomaticGameTransitions(
-            state.countdown!!.targetEpoch,
-            showDefenseCountdowns = false,
-        )
-        assertEquals(GamePhase.LIVE_POINT, automaticStart.phase)
-        assertNull(automaticStart.countdown)
-        assertEquals("Undo Start point", automaticStart.undoEntry?.label)
-        val undoneStart = assertUndoRestores(timeViolationState, automaticStart)
+        // The penalty starts play immediately and one Undo restores the pre-violation state.
+        assertEquals("Undo Time violation on Animal", timeViolationState.undoEntry?.label)
+        val undoneStart = assertUndoRestores(state, timeViolationState)
         assertEquals(
             undoneStart,
             undoneStart.applyAutomaticGameTransitions(
@@ -1368,24 +1362,17 @@ class TestPullViolations : GameDomainTestFixtures() {
                 showDefenseCountdowns = false,
             ),
         )
-        assertEquals(automaticStart, undoneStart.redoLastAction())
+        assertEquals(timeViolationState, undoneStart.redoLastAction())
 
-        // Without a pull to time, no countdown or restart action is offered; manual Start works.
+        // Without a pull to time, no countdown or restart action is offered.
         val penaltyTime = state.countdown!!.targetEpoch
         assertNull(timeViolationState.activeCountdown(penaltyTime))
         assertNull(timeViolationState.activeCountdownDisplay(penaltyTime))
         assertFalse(timeViolationState.hasExpiredPullActions(penaltyTime))
         assertEquals(timeViolationState, timeViolationState.restartPullCountdown(penaltyTime))
-        val manualStart = timeViolationState.beginLivePoint(penaltyTime)
-        assertEquals(automaticStart, manualStart)
-        assertFalse(manualStart.pullSkippedForCurrentPoint)
-        assertEquals(undoneStart, manualStart.undoLastAction())
-
-        // A pending misconduct countdown still requires its own start action.
-        val pendingMisconduct = timeViolationState.copy(pendingMisconductCountdown = true)
         assertEquals(
-            pendingMisconduct,
-            pendingMisconduct.applyAutomaticGameTransitions(
+            timeViolationState,
+            timeViolationState.applyAutomaticGameTransitions(
                 state.countdown!!.targetEpoch,
                 showDefenseCountdowns = false,
             ),
@@ -1416,13 +1403,33 @@ class TestPullViolations : GameDomainTestFixtures() {
             "No pull. Animal starts at midfield.",
             pullingNoTimeoutEvent.formatBriefMessage().plainText,
         )
-        assertEquals(
-            GamePhase.LIVE_POINT,
-            timeViolationState.applyAutomaticGameTransitions(
-                state.countdown!!.targetEpoch,
-                showDefenseCountdowns = true,
-            ).phase,
-        )
+        assertEquals(GamePhase.LIVE_POINT, timeViolationState.phase)
+        val undonePullingPenalty = assertUndoRestores(state, timeViolationState)
+        assertEquals(timeViolationState, undonePullingPenalty.redoLastAction())
+
+        // A violation recorded after automatic Start point applies the penalty without starting
+        // the point again or adding a second first-pull entry.
+        val awaitingPull = standardLiveGameState(rules = noTimeoutRules)
+        val warned = awaitingPull.assessTimeViolation(ANIMAL, awaitingPull.countdown!!.targetEpoch).state
+        val startTime = warned.countdown!!.targetEpoch
+        val playing = warned.applyAutomaticGameTransitions(startTime, showDefenseCountdowns = false)
+        assertEquals(GamePhase.LIVE_POINT, playing.phase)
+        assertEquals(1, playing.eventLog.count { it.type == EventLogType.FIRST_PULL })
+        val lateViolation = playing.assessTimeViolation(ANIMAL, startTime + 1_000L)
+        val latePenalty = lateViolation.state
+        assertEquals(TimeViolationOutcome.NO_TIMEOUT,
+            (lateViolation.event as GameEvent.TimeViolationRecorded).outcome)
+        assertEquals(GamePhase.LIVE_POINT, latePenalty.phase)
+        assertNull(latePenalty.countdown)
+        assertTrue(latePenalty.pullSkippedForCurrentPoint)
+        assertEquals(2, latePenalty.teamTwo.timeViolations)
+        assertEquals(playing.eventLog, latePenalty.eventLog.dropLast(1))
+        assertEquals(EventLogType.TIME_VIOLATION, latePenalty.eventLog.last().type)
+
+        // Undo reverses only the late penalty; the point remains live, and Redo restores it.
+        assertEquals("Undo Time violation on Animal", latePenalty.undoEntry?.label)
+        val undoneLatePenalty = assertUndoRestores(playing, latePenalty)
+        assertEquals(latePenalty, undoneLatePenalty.redoLastAction())
     }
 
     /**

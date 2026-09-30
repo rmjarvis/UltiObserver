@@ -469,7 +469,7 @@ internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
 }
 
 /**
- * Apply automatic timer expirations and start a point when a penalty skips the pull.
+ * Apply automatic timer expirations.
  *
  * Note -- don't apply any automatic transitions when there is a redo chain attached to
  * the current state to avoid clearing the redo path.  Otherwise, backing up into a state
@@ -486,12 +486,6 @@ fun GameState.applyAutomaticGameTransitions(
 ): GameState {
     if (this.redoEntry != null) {
         return this
-    }
-    if (
-        phase.isBeforeLivePoint && pullSkippedForCurrentPoint && countdown == null &&
-        !pendingMisconductCountdown
-    ) {
-        return beginLivePoint(now)
     }
     val countdown = this.countdown ?: return this
     if (countdown.isPaused()) {

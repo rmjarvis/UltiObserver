@@ -278,14 +278,14 @@ class TestPersistence : GameDomainTestFixtures() {
     /** Save and resume a no-pull penalty, including Undo and Redo of the subsequent point start. */
     @Test
     fun skippedPullPersistence() {
-        // Two real time violations with no timeout allowance leave the next point without a timer.
+        // Two time violations with no timeout allowance start the next point without a pull.
         val game = standardLiveGameState(rules = GameRules(timeoutsPerHalf = 0))
             .beginLivePoint(1_000_000L)
             .recordGoal(TeamId.TEAM_ONE, 1_060_000L)
         val warned = game.assessTimeViolation(game.pullingTeam, game.countdown!!.targetEpoch).state
         val penaltyTime = warned.countdown!!.targetEpoch
         val penalty = warned.assessTimeViolation(warned.pullingTeam, penaltyTime).state
-        assertEquals(GamePhase.BETWEEN_POINTS, penalty.phase)
+        assertEquals(GamePhase.LIVE_POINT, penalty.phase)
         assertTrue(penalty.pullSkippedForCurrentPoint)
         assertNull(penalty.countdown)
         val storeDir = temporaryFolder.newFolder()
@@ -300,22 +300,19 @@ class TestPersistence : GameDomainTestFixtures() {
         assertNull(restored.currentGame!!.activeCountdown(penaltyTime))
         assertFalse(restored.currentGame!!.hasExpiredPullActions(penaltyTime))
 
-        // Starting manually and reopening the app retains an Undo back to the no-timer penalty.
-        val started = restored.currentGame!!.beginLivePoint(penaltyTime)
-        restored.updateCurrentGame(started)
-        val afterStart = AppState(FileAppStateStorage(storeDir))
-        val undone = afterStart.currentGame!!.undoLastAction()
-        assertEquals(penalty, undone.copy(redoEntry = null))
-        assertNull(undone.countdown)
+        // One Undo restores the warning's countdown and reverses the penalty and point start.
+        val undone = restored.currentGame!!.undoLastAction()
+        assertEquals(warned, undone.copy(redoEntry = null))
+        assertEquals(warned.countdown, undone.countdown)
         assertEquals(undone, undone.applyAutomaticGameTransitions(
             penaltyTime + 1_000L, showDefenseCountdowns = false,
         ))
 
-        // Saving that Undo state preserves Redo without introducing a countdown.
-        afterStart.updateCurrentGame(undone)
+        // Saving that Undo state preserves Redo of the combined penalty and point start.
+        restored.updateCurrentGame(undone)
         val afterUndo = AppState(FileAppStateStorage(storeDir))
         assertEquals(undone, afterUndo.currentGame)
-        assertEquals(started, afterUndo.currentGame!!.redoLastAction())
+        assertEquals(penalty, afterUndo.currentGame!!.redoLastAction())
     }
 
     /** Verify persisted undo history can adopt a newer current-game clock mapping. */

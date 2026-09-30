@@ -428,6 +428,9 @@ internal fun ActiveGameScreen(
         val event = confirmation.event
         val applyTimeViolation = {
             onConfirmation(confirmation)
+            if (event.outcome == TimeViolationOutcome.NO_TIMEOUT && settings.automaticallyLockLivePoint) {
+                locked = true
+            }
             dismissTimeViolation()
         }
         RuleGuidanceGate(

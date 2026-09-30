@@ -108,6 +108,7 @@ class TestEventLog : GameDomainTestFixtures() {
         state = state.assessTimeViolation(animal, timestampAt(state, LocalTime.of(12, 13))).state
 
         // Halftime and game-over entries close the event-log narrative.
+        state = recordGoalAt(state, vc, LocalTime.of(12, 13, 30))
         state = startHalftimeAt(state, LocalTime.of(12, 14))
         state = endGameNowAt(state, LocalTime.of(12, 15))
 
@@ -126,6 +127,7 @@ class TestEventLog : GameDomainTestFixtures() {
                 "12:11  Time violation on Animal, warning",
                 "12:12  Time violation on Animal, timeout charged",
                 "12:13  Time violation on Animal, no timeout remaining",
+                "12:13  Viscous Coupling Goal",
                 "12:14  Halftime",
                 "12:15  Game over",
             ),

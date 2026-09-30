@@ -560,10 +560,10 @@ private fun PullPromptTarget.includesEnd(end: FieldEnd): Boolean {
  * @param team The violating team.
  */
 private fun GameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long): GameState {
-    return this.copy(
+    val liveState = if (phase.isBeforeLivePoint) beginLivePoint(now) else this
+    return liveState.copy(
         teamOne = if (team == TeamId.TEAM_ONE) this.teamOne.withAddedTimeViolation() else this.teamOne,
         teamTwo = if (team == TeamId.TEAM_TWO) this.teamTwo.withAddedTimeViolation() else this.teamTwo,
-        phase = this.pullResetPhase(),
         countdown = null,
         pullSkippedForCurrentPoint = true,
     ).withEventLogEntry(

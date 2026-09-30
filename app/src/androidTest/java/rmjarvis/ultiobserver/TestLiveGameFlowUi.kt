@@ -681,7 +681,11 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     fun expiredPull() {
         setRuleGuidanceMode(RuleGuidanceMode.FULL)
 
-        startLiveGameProgrammatically()
+        startLiveGameProgrammatically(
+            newSetupGameState(now = System.currentTimeMillis()).copy(
+                rules = GameRules(timeoutsPerHalf = 1, hasFloaterTimeout = false),
+            )
+        )
         showExpiredPullSurface()
 
         // Locking the screen disables expired-pull correction actions until the observer unlocks it.
@@ -736,6 +740,44 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 substring = true,
             ).fetchSemanticsNodes().isEmpty()
         )
+
+        // A second pulling-team violation consumes its last timeout and restarts the countdown.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).performClick()
+        waitForText("their last remaining timeout for this half", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Undo Time violation timeout on", substring = true)
+        assertEquals(0, accessCurrentGameState().timeoutsRemaining(TeamId.TEAM_ONE))
+
+        // With no timeouts left, the next violation starts the point and applies automatic lock,
+        // even though automatic countdown advancement is disabled.
+        showExpiredPullSurface()
+        setAutomaticallyLockLivePoint(true)
+        val beforePenalty = accessCurrentGameState()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).performClick()
+        waitForText("No pull. Team 2 starts at midfield.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Slide right to unlock")
+        assertEquals(GamePhase.LIVE_POINT, accessCurrentGameState().phase)
+        assertTrue(accessCurrentGameState().pullSkippedForCurrentPoint)
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).assertIsNotEnabled()
+
+        // One Undo reverses both the penalty and its point start, restoring the expired countdown.
+        unlockLiveScreen()
+        composeRule.onNodeWithText("Undo Time violation on Team 1").performClick()
+        waitForText("Restart countdown")
+        assertEquals(beforePenalty.phase, accessCurrentGameState().phase)
+        assertEquals(2, accessCurrentGameState().teamOne.timeViolations)
+        assertEquals(beforePenalty.countdown, accessCurrentGameState().countdown)
+
+        // Applying the same penalty with automatic lock disabled leaves the live controls usable.
+        setAutomaticallyLockLivePoint(false)
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).performClick()
+        waitForText("No pull. Team 2 starts at midfield.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Undo Time violation on Team 1")
+        assertEquals(GamePhase.LIVE_POINT, accessCurrentGameState().phase)
+        composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).assertIsEnabled()
     }
 
     /**
