@@ -119,13 +119,13 @@ internal fun TeamActionsScreen(
                 .background(display.team.backgroundColor),
         ) {
             val contentWidth = maxWidth * 0.90f
+            val timeoutWidth = maxWidth * 0.68f
+            val contentTopPadding = maxHeight * 0.14f
             val titleHeight = maxHeight * 0.10f
-            val primaryHeight = maxHeight * 0.27f
-            val actionHeight = (primaryHeight - ActionGap) / 2f
-            val timeoutHeight = maxHeight * 0.13f
-            val panelHeight = PanelPadding * 2f + primaryHeight + ActionGap + timeoutHeight
-            val contentTopPadding =
-                (maxHeight - panelHeight) / 2f - titleHeight - ActionGap
+            val cancelHeight = 32.dp
+            val actionHeight =
+                (maxHeight - contentTopPadding - titleHeight - cancelHeight - ActionGap * 4f) / 3f
+            val primaryHeight = actionHeight * 2f + ActionGap
 
             Column(
                 modifier = Modifier
@@ -163,11 +163,8 @@ internal fun TeamActionsScreen(
                     }
                 }
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(PanelShape)
-                        .background(ActionPanelColor)
-                        .padding(PanelPadding),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(ActionGap),
                 ) {
                     Row(
@@ -220,15 +217,15 @@ internal fun TeamActionsScreen(
                         fontSize = 11.sp,
                         onClick = onTimeout,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(timeoutHeight),
+                            .width(timeoutWidth)
+                            .height(actionHeight),
                     )
                 }
             }
             Box(
                 modifier = Modifier
                     .width(maxWidth * 0.55f)
-                    .height(48.dp)
+                    .height(cancelHeight)
                     .align(Alignment.BottomCenter)
                     .clickable(
                         role = Role.Button,
