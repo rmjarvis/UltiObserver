@@ -239,97 +239,96 @@ internal fun ActiveGameScreen(
     }
 
     // Compose the major elements of the active-game screen.
-    CompositionLocalProvider(
-        LocalRequireLongPress provides
-            (settings.accidentalTouchProtection == AccidentalTouchProtection.LONG_PRESS),
-    ) {
-        Scaffold(
-            topBar = {
-                if (usesLandscapeOrientation) {
-                    LandscapeNavigationBar(
-                        onBackHome = onBackHome,
-                        onHome = onHome,
-                    )
-                } else {
-                    CenterAlignedTopAppBar(
-                        title = { Text("UltiObserver") },
-                        navigationIcon = {
-                            TopBarBackButton(onClick = onBackHome)
-                        },
-                        actions = {
-                            TopBarHomeButton(onClick = onHome)
-                        },
-                    )
-                }
-            }
-        ) { innerPadding ->
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            ) {
-                if (usesLandscapeOrientation) {
-                    LandscapeActiveGameContent(
-                        state = state,
-                        settings = settings,
-                        leftDisplayedEnd = activeGameDisplay.topOrLeftDisplayedEnd,
-                        activeGameLayout = activeGameDisplay.layout,
-                        now = now,
-                        capStatus = capStatus,
-                        activeCountdown = activeCountdown,
-                        livePointStatusMessage = livePointStatusMessage,
-                        canStartPoint = canStartPoint,
-                        hasExpiredPullActions = hasExpiredPullActions,
-                        canReportOffenseSet = canReportOffenseSet,
-                        locked = locked,
-                        maxWidth = maxWidth,
-                        maxHeight = maxHeight,
-                        onStateChange = onStateChange,
-                        onGoal = onGoal,
-                        onLockedChange = onLockedChange,
-                        onRulesReference = onRulesReference,
-                        onWaterBreak = onWaterBreak,
-                        onMoreActions = onMoreActions,
-                        onTimeout = onTimeout,
-                        onTimeViolation = onTimeViolation,
-                        onPullViolation = onPullViolation,
-                        onCards = onCards,
-                        onTechnicalFoul = onTechnicalFoul,
-                        onTeamInfo = onTeamInfo,
-                        onUndo = onUndo,
-                    )
-                } else {
-                    PortraitActiveGameContent(
-                        state = state,
-                        settings = settings,
-                        topDisplayedEnd = activeGameDisplay.topOrLeftDisplayedEnd,
-                        now = now,
-                        capStatus = capStatus,
-                        activeCountdown = activeCountdown,
-                        livePointStatusMessage = livePointStatusMessage,
-                        canStartPoint = canStartPoint,
-                        hasExpiredPullActions = hasExpiredPullActions,
-                        canReportOffenseSet = canReportOffenseSet,
-                        locked = locked,
-                        maxHeight = maxHeight,
-                        onStateChange = onStateChange,
-                        onGoal = onGoal,
-                        onLockedChange = onLockedChange,
-                        onRulesReference = onRulesReference,
-                        onWaterBreak = onWaterBreak,
-                        onMoreActions = onMoreActions,
-                        onTimeout = onTimeout,
-                        onTimeViolation = onTimeViolation,
-                        onPullViolation = onPullViolation,
-                        onCards = onCards,
-                        onTechnicalFoul = onTechnicalFoul,
-                        onTeamInfo = onTeamInfo,
-                        onUndo = onUndo,
-                    )
-                }
+    val requireLongPress =
+        settings.accidentalTouchProtection == AccidentalTouchProtection.LONG_PRESS
+    Scaffold(
+        topBar = {
+            if (usesLandscapeOrientation) {
+                LandscapeNavigationBar(
+                    requireLongPress = requireLongPress,
+                    onBackHome = onBackHome,
+                    onHome = onHome,
+                )
+            } else {
+                CenterAlignedTopAppBar(
+                    title = { Text("UltiObserver") },
+                    navigationIcon = {
+                        TopBarBackButton(requireLongPress = requireLongPress, onClick = onBackHome)
+                    },
+                    actions = {
+                        TopBarHomeButton(requireLongPress = requireLongPress, onClick = onHome)
+                    },
+                )
             }
         }
-
+    ) { innerPadding ->
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            if (usesLandscapeOrientation) {
+                LandscapeActiveGameContent(
+                    requireLongPress = requireLongPress,
+                    state = state,
+                    settings = settings,
+                    leftDisplayedEnd = activeGameDisplay.topOrLeftDisplayedEnd,
+                    activeGameLayout = activeGameDisplay.layout,
+                    now = now,
+                    capStatus = capStatus,
+                    activeCountdown = activeCountdown,
+                    livePointStatusMessage = livePointStatusMessage,
+                    canStartPoint = canStartPoint,
+                    hasExpiredPullActions = hasExpiredPullActions,
+                    canReportOffenseSet = canReportOffenseSet,
+                    locked = locked,
+                    maxWidth = maxWidth,
+                    maxHeight = maxHeight,
+                    onStateChange = onStateChange,
+                    onGoal = onGoal,
+                    onLockedChange = onLockedChange,
+                    onRulesReference = onRulesReference,
+                    onWaterBreak = onWaterBreak,
+                    onMoreActions = onMoreActions,
+                    onTimeout = onTimeout,
+                    onTimeViolation = onTimeViolation,
+                    onPullViolation = onPullViolation,
+                    onCards = onCards,
+                    onTechnicalFoul = onTechnicalFoul,
+                    onTeamInfo = onTeamInfo,
+                    onUndo = onUndo,
+                )
+            } else {
+                PortraitActiveGameContent(
+                    requireLongPress = requireLongPress,
+                    state = state,
+                    settings = settings,
+                    topDisplayedEnd = activeGameDisplay.topOrLeftDisplayedEnd,
+                    now = now,
+                    capStatus = capStatus,
+                    activeCountdown = activeCountdown,
+                    livePointStatusMessage = livePointStatusMessage,
+                    canStartPoint = canStartPoint,
+                    hasExpiredPullActions = hasExpiredPullActions,
+                    canReportOffenseSet = canReportOffenseSet,
+                    locked = locked,
+                    maxHeight = maxHeight,
+                    onStateChange = onStateChange,
+                    onGoal = onGoal,
+                    onLockedChange = onLockedChange,
+                    onRulesReference = onRulesReference,
+                    onWaterBreak = onWaterBreak,
+                    onMoreActions = onMoreActions,
+                    onTimeout = onTimeout,
+                    onTimeViolation = onTimeViolation,
+                    onPullViolation = onPullViolation,
+                    onCards = onCards,
+                    onTechnicalFoul = onTechnicalFoul,
+                    onTeamInfo = onTeamInfo,
+                    onUndo = onUndo,
+                )
+            }
+        }
     }
 
     // Only show one dialog on this screen at a time. There are lots of possible dialogs,
@@ -928,6 +927,7 @@ private fun String.nonblankLineCount(): Int {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LandscapeNavigationBar(
+    requireLongPress: Boolean,
     onBackHome: () -> Unit,
     onHome: () -> Unit,
 ) {
@@ -954,10 +954,10 @@ private fun LandscapeNavigationBar(
                 )
             },
             navigationIcon = {
-                TopBarBackButton(onClick = onBackHome)
+                TopBarBackButton(requireLongPress = requireLongPress, onClick = onBackHome)
             },
             actions = {
-                TopBarHomeButton(onClick = onHome)
+                TopBarHomeButton(requireLongPress = requireLongPress, onClick = onHome)
             },
             expandedHeight = barHeight,
         )
@@ -967,6 +967,7 @@ private fun LandscapeNavigationBar(
 /** Render the portrait status, field, and bottom actions for the active-game screen. */
 @Composable
 private fun PortraitActiveGameContent(
+    requireLongPress: Boolean,
     state: GameState,
     settings: Settings,
     topDisplayedEnd: FieldEnd,
@@ -1007,6 +1008,7 @@ private fun PortraitActiveGameContent(
         verticalArrangement = Arrangement.spacedBy(metrics.sectionSpacing),
     ) {
         StatusLine(
+            requireLongPress = requireLongPress,
             clockText = state.formatOfficialGameTime(now),
             capStatus = capStatus,
             now = now,
@@ -1017,6 +1019,7 @@ private fun PortraitActiveGameContent(
         )
 
         CountdownLine(
+            requireLongPress = requireLongPress,
             countdown = activeCountdown,
             enabled = !locked,
             onAdjust = { seconds ->
@@ -1059,6 +1062,7 @@ private fun PortraitActiveGameContent(
         )
 
         PortraitFieldSketchCard(
+            requireLongPress = requireLongPress,
             state = state,
             topDisplayedEnd = topDisplayedEnd,
             showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
@@ -1073,6 +1077,7 @@ private fun PortraitActiveGameContent(
             centerContent = {
                 if (!locked && canReportOffenseSet) {
                     CenterActionButton(
+                        requireLongPress = requireLongPress,
                         label = "Offense is set",
                         minHeight = metrics.centerButtonMinHeight,
                         fontSize = metrics.centerButtonFontSize,
@@ -1085,6 +1090,7 @@ private fun PortraitActiveGameContent(
                     )
                 } else if (!locked && canStartPoint) {
                     CenterActionButton(
+                        requireLongPress = requireLongPress,
                         label = "Start point",
                         minHeight = metrics.centerButtonMinHeight,
                         fontSize = metrics.centerButtonFontSize,
@@ -1103,6 +1109,7 @@ private fun PortraitActiveGameContent(
                     state.countdown != null
                 ) {
                     CenterActionButton(
+                        requireLongPress = requireLongPress,
                         label = "Continue point",
                         minHeight = metrics.centerButtonMinHeight,
                         fontSize = metrics.centerButtonFontSize,
@@ -1136,6 +1143,7 @@ private fun PortraitActiveGameContent(
         )
 
         NavigationButton(
+            requireLongPress = requireLongPress,
             label = "More actions",
             fullWidth = true,
             height = metrics.bottomActionHeight,
@@ -1146,6 +1154,7 @@ private fun PortraitActiveGameContent(
         )
 
         UndoRedoBar(
+            requireLongPress = requireLongPress,
             state = state,
             enabled = !locked,
             height = metrics.undoHeight,
@@ -1160,6 +1169,7 @@ private fun PortraitActiveGameContent(
  */
 @Composable
 private fun LandscapeActiveGameContent(
+    requireLongPress: Boolean,
     state: GameState,
     settings: Settings,
     leftDisplayedEnd: FieldEnd,
@@ -1217,6 +1227,7 @@ private fun LandscapeActiveGameContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             StatusLine(
+                requireLongPress = requireLongPress,
                 clockText = state.formatOfficialGameTime(now),
                 capStatus = capStatus,
                 now = now,
@@ -1226,6 +1237,7 @@ private fun LandscapeActiveGameContent(
                 onRulesReference = onRulesReference,
             )
             CountdownLine(
+                requireLongPress = requireLongPress,
                 countdown = activeCountdown,
                 enabled = !locked,
                 onAdjust = { seconds ->
@@ -1270,6 +1282,7 @@ private fun LandscapeActiveGameContent(
         }
 
         LandscapeFieldSketchCard(
+            requireLongPress = requireLongPress,
             state = state,
             leftDisplayedEnd = leftDisplayedEnd,
             activeGameLayout = activeGameLayout,
@@ -1286,6 +1299,7 @@ private fun LandscapeActiveGameContent(
             centerContent = {
                 if (!locked && canReportOffenseSet) {
                     CenterActionButton(
+                        requireLongPress = requireLongPress,
                         label = "Offense is set",
                         minHeight = metrics.centerButtonMinHeight,
                         fontSize = metrics.centerButtonFontSize,
@@ -1298,6 +1312,7 @@ private fun LandscapeActiveGameContent(
                     )
                 } else if (!locked && canStartPoint) {
                     CenterActionButton(
+                        requireLongPress = requireLongPress,
                         label = "Start point",
                         minHeight = metrics.centerButtonMinHeight,
                         fontSize = metrics.centerButtonFontSize,
@@ -1316,6 +1331,7 @@ private fun LandscapeActiveGameContent(
                     state.countdown != null
                 ) {
                     CenterActionButton(
+                        requireLongPress = requireLongPress,
                         label = "Continue point",
                         minHeight = metrics.centerButtonMinHeight,
                         fontSize = metrics.centerButtonFontSize,
@@ -1362,6 +1378,7 @@ private fun LandscapeActiveGameContent(
                 contentAlignment = Alignment.CenterStart,
             ) {
                 NavigationButton(
+                    requireLongPress = requireLongPress,
                     label = "More actions",
                     fullWidth = true,
                     height = metrics.bottomBarHeight,
@@ -1376,6 +1393,7 @@ private fun LandscapeActiveGameContent(
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 UndoRedoBar(
+                    requireLongPress = requireLongPress,
                     state = state,
                     enabled = !locked,
                     height = metrics.bottomBarHeight,
@@ -1390,6 +1408,7 @@ private fun LandscapeActiveGameContent(
 /// Render the primary center-field action with wrapping when its available width is narrow.
 @Composable
 private fun CenterActionButton(
+    requireLongPress: Boolean,
     label: String,
     minHeight: Dp,
     fontSize: androidx.compose.ui.unit.TextUnit,
@@ -1397,6 +1416,7 @@ private fun CenterActionButton(
     onClick: () -> Unit,
 ) {
     BigActionButton(
+        requireLongPress = requireLongPress,
         label = label,
         minHeight = minHeight,
         containerColor = FieldNeutralButtonColor,
@@ -1524,6 +1544,7 @@ private fun portraitActiveGameLayoutMetrics(contentHeight: Dp): PortraitActiveGa
  */
 @Composable
 private fun UndoRedoBar(
+    requireLongPress: Boolean,
     state: GameState,
     enabled: Boolean,
     height: Dp,
@@ -1542,6 +1563,7 @@ private fun UndoRedoBar(
     ) {
         if (undoEntry != null) {
             NavigationButton(
+                requireLongPress = requireLongPress,
                 label = undoEntry.label,
                 enabled = enabled,
                 modifier = Modifier.weight(3f),
@@ -1557,6 +1579,7 @@ private fun UndoRedoBar(
         }
         if (redoEntry != null) {
             NavigationButton(
+                requireLongPress = requireLongPress,
                 label = "Redo",
                 enabled = enabled,
                 modifier = Modifier.weight(1f),

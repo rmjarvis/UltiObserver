@@ -191,6 +191,7 @@ internal fun SlideToConfirmControl(
  */
 @Composable
 internal fun StatusLine(
+    requireLongPress: Boolean,
     clockText: String,
     capStatus: CapStatus?,
     now: Long,
@@ -317,6 +318,7 @@ internal fun StatusLine(
                     textAlign = if (pushCapToEnd) TextAlign.End else TextAlign.Start,
                 )
                 GameRulesIcon(
+                    requireLongPress = requireLongPress,
                     onClick = onRulesReference,
                     size = rulesIconSize,
                     padding = rulesIconPadding,
@@ -559,6 +561,7 @@ internal data class LandscapeFieldLayoutMetrics(
  */
 @Composable
 internal fun PortraitFieldSketchCard(
+    requireLongPress: Boolean,
     state: GameState,
     topDisplayedEnd: FieldEnd,
     showAbbaRatioAsSequence: Boolean,
@@ -651,6 +654,7 @@ internal fun PortraitFieldSketchCard(
             Column(modifier = Modifier.fillMaxSize()) {
                 // Top end zone/team row.
                 PortraitEndZonePanel(
+                    requireLongPress = requireLongPress,
                     teamId = topSlot,
                     team = topTeam,
                     cardPoints = topCardPoints,
@@ -715,6 +719,7 @@ internal fun PortraitFieldSketchCard(
                             )
                         }
                         FieldCenterLockIcon(
+                            requireLongPress = requireLongPress,
                             onClick = onLock,
                             size = metrics.centerLockSize,
                             padding = metrics.centerLockPadding,
@@ -729,6 +734,7 @@ internal fun PortraitFieldSketchCard(
                 }
                 // Bottom end zone/team row.
                 PortraitEndZonePanel(
+                    requireLongPress = requireLongPress,
                     teamId = bottomSlot,
                     team = bottomTeam,
                     cardPoints = bottomCardPoints,
@@ -785,6 +791,7 @@ internal fun PortraitFieldSketchCard(
  */
 @Composable
 internal fun LandscapeFieldSketchCard(
+    requireLongPress: Boolean,
     state: GameState,
     leftDisplayedEnd: FieldEnd,
     activeGameLayout: ActiveGameOrientation,
@@ -912,6 +919,7 @@ internal fun LandscapeFieldSketchCard(
             val teamWidth = (maxWidth - centerWidth) / 2f
             Row(modifier = Modifier.fillMaxSize()) {
                 LandscapeEndZonePanel(
+                    requireLongPress = requireLongPress,
                     isLeftPanel = true,
                     teamId = leftSlot,
                     team = leftTeam,
@@ -974,6 +982,7 @@ internal fun LandscapeFieldSketchCard(
                             )
                         }
                         FieldCenterLockIcon(
+                            requireLongPress = requireLongPress,
                             onClick = onLock,
                             size = metrics.centerLockSize,
                             padding = metrics.centerLockPadding,
@@ -987,6 +996,7 @@ internal fun LandscapeFieldSketchCard(
                     }
                 }
                 LandscapeEndZonePanel(
+                    requireLongPress = requireLongPress,
                     isLeftPanel = false,
                     teamId = rightSlot,
                     team = rightTeam,
@@ -1034,6 +1044,7 @@ internal fun LandscapeFieldSketchCard(
 /// Render the compact game-rules affordance.
 @Composable
 private fun GameRulesIcon(
+    requireLongPress: Boolean,
     onClick: () -> Unit,
     size: Dp,
     padding: Dp,
@@ -1047,7 +1058,7 @@ private fun GameRulesIcon(
             .testTag(tag)
             .size(size)
             .semantics { contentDescription = "Game rules" }
-            .gameClickable(enabled = true, onClick = onClick)
+            .gameClickable(requireLongPress = requireLongPress, enabled = true, onClick = onClick)
             .padding(padding),
     )
 }
@@ -1055,6 +1066,7 @@ private fun GameRulesIcon(
 /// Render the compact center-field lock affordance.
 @Composable
 private fun FieldCenterLockIcon(
+    requireLongPress: Boolean,
     onClick: () -> Unit,
     size: Dp,
     padding: Dp,
@@ -1067,7 +1079,7 @@ private fun FieldCenterLockIcon(
             .testTag("live-center-lock")
             .size(size)
             .semantics { contentDescription = "Lock" }
-            .gameClickable(enabled = true, onClick = onClick)
+            .gameClickable(requireLongPress = requireLongPress, enabled = true, onClick = onClick)
             .padding(padding),
     )
 }
@@ -1077,6 +1089,7 @@ private fun FieldCenterLockIcon(
  */
 @Composable
 private fun LandscapeEndZonePanel(
+    requireLongPress: Boolean,
     isLeftPanel: Boolean,
     teamId: TeamId,
     team: TeamState,
@@ -1132,6 +1145,7 @@ private fun LandscapeEndZonePanel(
                     fontWeight = FontWeight.Bold,
                 )
                 TeamHeaderIdentity(
+                    requireLongPress = requireLongPress,
                     teamId = teamId,
                     team = team,
                     titleTextStyle = titleTextStyle,
@@ -1146,6 +1160,7 @@ private fun LandscapeEndZonePanel(
                     ((maxHeight - 8.dp - metrics.actionGap * (rows - 1)) / rows).coerceAtLeast(0.dp),
                 )
                 TeamActionGrid(
+                    requireLongPress = requireLongPress,
                     teamId = teamId,
                     team = team,
                     cardPoints = cardPoints,
@@ -1266,6 +1281,7 @@ private fun LandscapeEndZoneLabels(
  */
 @Composable
 private fun PortraitEndZonePanel(
+    requireLongPress: Boolean,
     teamId: TeamId,
     team: TeamState,
     cardPoints: Int,
@@ -1328,6 +1344,7 @@ private fun PortraitEndZonePanel(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             TeamHeaderIdentity(
+                                requireLongPress = requireLongPress,
                                 teamId = teamId,
                                 team = team,
                                 titleTextStyle = titleTextStyle,
@@ -1358,6 +1375,7 @@ private fun PortraitEndZonePanel(
                     }
                 } else {
                     TeamHeaderIdentity(
+                        requireLongPress = requireLongPress,
                         teamId = teamId,
                         team = team,
                         titleTextStyle = titleTextStyle,
@@ -1373,6 +1391,7 @@ private fun PortraitEndZonePanel(
                     ((maxHeight - 8.dp - metrics.actionGap * (rows - 1)) / rows).coerceAtLeast(0.dp),
                 )
                 TeamActionGrid(
+                    requireLongPress = requireLongPress,
                     teamId = teamId,
                     team = team,
                     cardPoints = cardPoints,
@@ -1425,6 +1444,7 @@ private fun PortraitEndZonePanel(
  */
 @Composable
 private fun TeamHeaderIdentity(
+    requireLongPress: Boolean,
     teamId: TeamId,
     team: TeamState,
     titleTextStyle: androidx.compose.ui.text.TextStyle,
@@ -1447,6 +1467,7 @@ private fun TeamHeaderIdentity(
         )
         if (team.hasCoachOrCaptainInfo()) {
             FieldInfoButton(
+                requireLongPress = requireLongPress,
                 teamName = team.name,
                 contentColor = team.content,
                 onClick = onTeamInfo,
@@ -1695,6 +1716,7 @@ private fun teamActionGridWidths(
  */
 @Composable
 private fun TeamActionGrid(
+    requireLongPress: Boolean,
     teamId: TeamId,
     team: TeamState,
     cardPoints: Int,
@@ -1735,6 +1757,7 @@ private fun TeamActionGrid(
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
             TeamActionPrimaryColumns(
+                requireLongPress = requireLongPress,
                 teamId = teamId,
                 team = team,
                 cardPoints = cardPoints,
@@ -1752,6 +1775,7 @@ private fun TeamActionGrid(
                 onTechnicalFoul = onTechnicalFoul,
             )
             FieldControlButton(
+                requireLongPress = requireLongPress,
                 label = "Timeout ($timeoutsRemaining)",
                 fullWidth = true,
                 height = actionButtonHeight,
@@ -1769,6 +1793,7 @@ private fun TeamActionGrid(
             horizontalArrangement = Arrangement.spacedBy(gap),
         ) {
             TeamActionPrimaryColumns(
+                requireLongPress = requireLongPress,
                 teamId = teamId,
                 team = team,
                 cardPoints = cardPoints,
@@ -1786,6 +1811,7 @@ private fun TeamActionGrid(
                 onTechnicalFoul = onTechnicalFoul,
             )
             FieldControlButton(
+                requireLongPress = requireLongPress,
                 label = "TO ($timeoutsRemaining)",
                 width = widths.timeout,
                 height = actionButtonHeight * 2f + gap,
@@ -1803,6 +1829,7 @@ private fun TeamActionGrid(
 /// Render Goal and the two paired action columns shared by both landscape arrangements.
 @Composable
 private fun TeamActionPrimaryColumns(
+    requireLongPress: Boolean,
     teamId: TeamId,
     team: TeamState,
     cardPoints: Int,
@@ -1830,6 +1857,7 @@ private fun TeamActionPrimaryColumns(
         horizontalArrangement = Arrangement.spacedBy(gap),
     ) {
         FieldControlButton(
+            requireLongPress = requireLongPress,
             label = "Goal",
             width = widths.goal,
             height = actionButtonHeight * 2f + gap,
@@ -1845,6 +1873,7 @@ private fun TeamActionPrimaryColumns(
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
             FieldControlButton(
+                requireLongPress = requireLongPress,
                 label = timeViolationLabel,
                 fullWidth = true,
                 height = actionButtonHeight,
@@ -1855,6 +1884,7 @@ private fun TeamActionPrimaryColumns(
                 onClick = onTimeViolation,
             )
             FieldControlButton(
+                requireLongPress = requireLongPress,
                 label = pullViolationLabel,
                 fullWidth = true,
                 height = actionButtonHeight,
@@ -1870,6 +1900,7 @@ private fun TeamActionPrimaryColumns(
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
             FieldControlButton(
+                requireLongPress = requireLongPress,
                 label = cardLabel,
                 fullWidth = true,
                 height = actionButtonHeight,
@@ -1880,6 +1911,7 @@ private fun TeamActionPrimaryColumns(
                 onClick = onCards,
             )
             FieldControlButton(
+                requireLongPress = requireLongPress,
                 label = techLabel,
                 fullWidth = true,
                 height = actionButtonHeight,
@@ -2067,6 +2099,7 @@ private fun PullDirectionLabel() {
  */
 @Composable
 internal fun CountdownLine(
+    requireLongPress: Boolean,
     countdown: ActiveCountdownDisplay?,
     enabled: Boolean,
     onAdjust: (Int) -> Unit,
@@ -2106,6 +2139,7 @@ internal fun CountdownLine(
         ) {
             if (misconductCountdownAction != null) {
                 BigActionButton(
+                    requireLongPress = requireLongPress,
                     label = "Start misconduct countdown",
                     enabled = enabled,
                     fullWidth = true,
@@ -2119,6 +2153,7 @@ internal fun CountdownLine(
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     BigActionButton(
+                        requireLongPress = requireLongPress,
                         label = "Restart countdown",
                         enabled = enabled,
                         fullWidth = true,
@@ -2160,18 +2195,21 @@ internal fun CountdownLine(
                 ) {
                     if (waterBreakAction != null) {
                         WaterBreakButton(
+                            requireLongPress = requireLongPress,
                             enabled = enabled,
                             height = controlHeight,
                             onClick = waterBreakAction,
                         )
                     }
                     PauseResumeButton(
+                        requireLongPress = requireLongPress,
                         isPaused = countdown.isPaused,
                         enabled = enabled,
                         height = controlHeight,
                         onClick = onTogglePaused,
                     )
                     AdjustButton(
+                        requireLongPress = requireLongPress,
                         label = "-5",
                         enabled = enabled,
                         containerColor = DarkNeutralColor,
@@ -2180,6 +2218,7 @@ internal fun CountdownLine(
                         onAdjust(-5)
                     }
                     AdjustButton(
+                        requireLongPress = requireLongPress,
                         label = "+5",
                         enabled = enabled,
                         containerColor = DarkNeutralColor,

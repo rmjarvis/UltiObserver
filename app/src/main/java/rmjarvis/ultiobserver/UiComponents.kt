@@ -1,6 +1,5 @@
 package rmjarvis.ultiobserver
 
-import androidx.compose.runtime.staticCompositionLocalOf
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -123,13 +122,13 @@ import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 
-/** Whether controls in this game surface require a deliberate hold. */
-internal val LocalRequireLongPress = staticCompositionLocalOf { false }
-
 /** Use Compose's gesture handling for the tap or hold required by this game surface. */
-@Composable
-internal fun Modifier.gameClickable(enabled: Boolean, onClick: () -> Unit): Modifier {
-    return if (LocalRequireLongPress.current) {
+internal fun Modifier.gameClickable(
+    requireLongPress: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+): Modifier {
+    return if (requireLongPress) {
         combinedClickable(
             enabled = enabled,
             role = Role.Button,
@@ -146,6 +145,7 @@ internal fun Modifier.gameClickable(enabled: Boolean, onClick: () -> Unit): Modi
 /** Render the shared button styling with tap or hold handling owned by Compose. */
 @Composable
 private fun ButtonContainer(
+    requireLongPress: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier,
     enabled: Boolean,
@@ -159,7 +159,7 @@ private fun ButtonContainer(
         modifier = modifier
             .minimumInteractiveComponentSize()
             .clip(shape)
-            .gameClickable(enabled, onClick),
+            .gameClickable(requireLongPress = requireLongPress, enabled = enabled, onClick = onClick),
         shape = shape,
         color = if (enabled) colors.containerColor else colors.disabledContainerColor,
         contentColor = if (enabled) colors.contentColor else colors.disabledContentColor,
@@ -185,6 +185,7 @@ private fun ButtonContainer(
 /** Render the shared icon touch target with the same tap or hold behavior as text buttons. */
 @Composable
 private fun IconButtonContainer(
+    requireLongPress: Boolean,
     onClick: () -> Unit,
     modifier: Modifier,
     content: @Composable () -> Unit,
@@ -193,7 +194,7 @@ private fun IconButtonContainer(
         modifier = modifier
             .minimumInteractiveComponentSize()
             .clip(IconButtonDefaults.standardShape)
-            .gameClickable(enabled = true, onClick = onClick),
+            .gameClickable(requireLongPress = requireLongPress, enabled = true, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         CompositionLocalProvider(
@@ -315,7 +316,6 @@ internal fun ResponsiveAlertDialog(
         modifier = dialogModifier,
         properties = DialogProperties(
             usePlatformDefaultWidth = !usesResponsiveLandscapeWidth,
-            dismissOnClickOutside = !LocalRequireLongPress.current,
         ),
     ) {
         Surface(
@@ -1288,6 +1288,7 @@ private fun textEntryLineLimits(singleLine: Boolean, minLines: Int): TextFieldLi
  */
 @Composable
 internal fun NavigationButton(
+    requireLongPress: Boolean = false,
     label: String,
     fullWidth: Boolean = false,
     height: Dp? = null,
@@ -1308,6 +1309,7 @@ internal fun NavigationButton(
         null
     }
     StandardRoleButton(
+        requireLongPress = requireLongPress,
         label = label,
         modifier = buttonLayoutModifier(
             modifier = modifier,
@@ -1347,6 +1349,7 @@ internal fun NavigationButton(
  */
 @Composable
 internal fun BigActionButton(
+    requireLongPress: Boolean = false,
     label: String,
     fullWidth: Boolean = false,
     enabled: Boolean = true,
@@ -1363,6 +1366,7 @@ internal fun BigActionButton(
     onClick: () -> Unit,
 ) {
     StandardRoleButton(
+        requireLongPress = requireLongPress,
         label = label,
         modifier = buttonLayoutModifier(
             modifier = modifier,
@@ -1551,6 +1555,7 @@ private fun pickerTimestampToDate(timestamp: Long): LocalDate {
  */
 @Composable
 internal fun IconButton(
+    requireLongPress: Boolean = false,
     icon: ImageVector,
     contentDescription: String,
     modifier: Modifier = Modifier,
@@ -1561,6 +1566,7 @@ internal fun IconButton(
     onClick: () -> Unit,
 ) {
     IconButtonContainer(
+        requireLongPress = requireLongPress,
         onClick = onClick,
         modifier = modifier
             .withTag(tag)
@@ -1577,8 +1583,9 @@ internal fun IconButton(
 
 /// Render the shared top-bar action that navigates back from the current screen.
 @Composable
-internal fun TopBarBackButton(onClick: () -> Unit) {
+internal fun TopBarBackButton(requireLongPress: Boolean = false, onClick: () -> Unit) {
     IconButton(
+        requireLongPress = requireLongPress,
         icon = Icons.AutoMirrored.Filled.ArrowBack,
         contentDescription = "Back",
         tag = "top-bar-back",
@@ -1588,8 +1595,9 @@ internal fun TopBarBackButton(onClick: () -> Unit) {
 
 /// Render the shared top-bar action that returns directly to Home.
 @Composable
-internal fun TopBarHomeButton(onClick: () -> Unit) {
+internal fun TopBarHomeButton(requireLongPress: Boolean = false, onClick: () -> Unit) {
     IconButton(
+        requireLongPress = requireLongPress,
         icon = Icons.Filled.Home,
         contentDescription = "Home",
         tag = "top-bar-home",
@@ -1619,6 +1627,7 @@ internal fun TopBarHomeButton(onClick: () -> Unit) {
  */
 @Composable
 private fun StandardRoleButton(
+    requireLongPress: Boolean = false,
     label: String,
     modifier: Modifier,
     enabled: Boolean,
@@ -1737,6 +1746,7 @@ private fun StandardRoleButton(
     }
     val button: @Composable () -> Unit = {
         ButtonContainer(
+            requireLongPress = requireLongPress,
             onClick = {
                 clearFocusAndHideKeyboard()
                 onClick()
@@ -1771,6 +1781,7 @@ private fun StandardRoleButton(
  */
 @Composable
 internal fun AdjustButton(
+    requireLongPress: Boolean = false,
     label: String,
     enabled: Boolean = true,
     containerColor: Color = LightNeutralColor,
@@ -1787,6 +1798,7 @@ internal fun AdjustButton(
     val fontSize = minOf(preferredFontSize.value, maximumFontSize.value).sp
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         ButtonContainer(
+            requireLongPress = requireLongPress,
             onClick = {
                 clearFocusAndHideKeyboard()
                 onClick()
@@ -1832,6 +1844,7 @@ internal fun AdjustButton(
  */
 @Composable
 internal fun FieldControlButton(
+    requireLongPress: Boolean,
     label: String,
     fullWidth: Boolean = false,
     width: Dp? = null,
@@ -1846,6 +1859,7 @@ internal fun FieldControlButton(
     val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         ButtonContainer(
+            requireLongPress = requireLongPress,
             onClick = {
                 clearFocusAndHideKeyboard()
                 onClick()
@@ -1892,6 +1906,7 @@ internal fun FieldControlButton(
  */
 @Composable
 internal fun FieldInfoButton(
+    requireLongPress: Boolean = false,
     teamName: String,
     contentColor: Color,
     tag: String,
@@ -1900,6 +1915,7 @@ internal fun FieldInfoButton(
     val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         IconButtonContainer(
+            requireLongPress = requireLongPress,
             onClick = {
                 clearFocusAndHideKeyboard()
                 onClick()
@@ -1929,6 +1945,7 @@ internal fun FieldInfoButton(
  */
 @Composable
 internal fun PauseResumeButton(
+    requireLongPress: Boolean,
     isPaused: Boolean,
     enabled: Boolean,
     height: Dp,
@@ -1941,6 +1958,7 @@ internal fun PauseResumeButton(
     val horizontalPadding = height * (8f / 34f)
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         ButtonContainer(
+            requireLongPress = requireLongPress,
             onClick = onClick,
             enabled = enabled,
             modifier = Modifier
@@ -1976,6 +1994,7 @@ internal fun PauseResumeButton(
  */
 @Composable
 internal fun WaterBreakButton(
+    requireLongPress: Boolean,
     enabled: Boolean,
     height: Dp,
     onClick: () -> Unit,
@@ -1986,6 +2005,7 @@ internal fun WaterBreakButton(
     val horizontalPadding = height * (8f / 34f)
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         ButtonContainer(
+            requireLongPress = requireLongPress,
             onClick = onClick,
             enabled = enabled,
             modifier = Modifier
