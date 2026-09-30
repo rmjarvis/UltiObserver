@@ -701,9 +701,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Redo")
         waitForText("Restart countdown")
 
-        // Recording a pulling-team time violation doesn't start the shortened pull clock
-        // countdown until the user confirms it, since there is probably stuff to talk
-        // about with the teams before starting the countdown.
+        // Cancel dismisses the pulling-team time-violation confirmation.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).performClick()
         waitForText("now has 30 seconds to pull.", substring = true)
         dismissDialog(text = "Cancel")
@@ -713,15 +711,18 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 substring = true,
             ).fetchSemanticsNodes().isEmpty()
         )
+
+        // OK applies the shortened pull countdown, timed from the initial time violation press.
+        val beforeRequestingTimeViolation = System.currentTimeMillis()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation"))
             .performClick()
+        val afterRequestingTimeViolation = System.currentTimeMillis()
         waitForText("now has 30 seconds to pull.", substring = true)
-        val beforeConfirmingTimeViolation = System.currentTimeMillis()
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Time violation warning on", substring = true)
         val timeViolationCountdown = accessCurrentGameState().countdown!!
-        assertTrue(timeViolationCountdown.targetEpoch >= beforeConfirmingTimeViolation + 29_000L)
-        assertTrue(timeViolationCountdown.targetEpoch <= System.currentTimeMillis() + 31_000L)
+        assertTrue(timeViolationCountdown.targetEpoch >= beforeRequestingTimeViolation + 30_000L)
+        assertTrue(timeViolationCountdown.targetEpoch <= afterRequestingTimeViolation + 30_000L)
 
         // Reset the expired-pull surface so the receiving-team warning can be previewed and
         // canceled independently.
