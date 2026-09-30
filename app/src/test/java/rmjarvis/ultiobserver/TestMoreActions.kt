@@ -138,7 +138,7 @@ class TestMoreActions : GameDomainTestFixtures() {
 
         // Changing pull prompts without an active countdown stores the target without starting
         // one.
-        val noCountdownPromptState = standardLiveGameState().copy(countdown = null)
+        val noCountdownPromptState = standardLiveGameState().beginLivePoint()
             .withPullPromptTarget(PullPromptTarget.BOTH)
         assertEquals(PullPromptTarget.BOTH, noCountdownPromptState.pullPromptTarget)
         assertNull(noCountdownPromptState.countdown)

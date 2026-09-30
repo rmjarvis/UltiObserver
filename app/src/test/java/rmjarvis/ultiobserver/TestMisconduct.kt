@@ -755,18 +755,16 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertFalse(state.pullSkippedForCurrentPoint)
         assertTrue(state.canRecordPullViolation(VC))
 
-        // With no regular countdown left, treat its 60-second offense deadline as exactly expired.
-        // A threshold technical foul therefore previews and starts the remaining 30 seconds of the
-        // misconduct offense-set period rather than trying to convert the absent countdown.
-        val baseState = standardLiveGameState()
-        val expiredCountdownAssessmentTime = baseState.startEpoch + 75_000L
+        // A threshold technical foul extends an expired offense countdown to the misconduct deadline.
+        val playingState = standardLiveGameState().beginLivePoint()
+        val baseState = playingState.recordGoal(VC, playingState.startEpoch + 60_000L)
+            .withPullPromptTarget(PullPromptTarget.FAR)
+        val expiredCountdownAssessmentTime = baseState.countdown!!.targetEpoch
         val expiredCountdownState = baseState.copy(
-            countdown = null,
             teamOne = baseState.teamOne.copy(technicalFouls = 2),
         )
         val expiredCountdownPreview = expiredCountdownState.previewTechnicalFoul(
             VC,
-            expiredCountdownAssessmentTime,
         )
         assertEquals(
             expiredCountdownAssessmentTime + 30_000L,
@@ -782,7 +780,7 @@ class TestMisconduct : GameDomainTestFixtures() {
             expiredCountdownTechnicalFoulResult.state.countdown?.kind,
         )
         assertEquals(
-            30,
+            90,
             expiredCountdownTechnicalFoulResult.state.countdown?.durationSeconds,
         )
         assertEquals(
@@ -790,8 +788,7 @@ class TestMisconduct : GameDomainTestFixtures() {
             expiredCountdownTechnicalFoulResult.state.countdown?.targetEpoch,
         )
 
-        // The fallback countdown retains the normal early offense-set action and switches to the
-        // defense deadline measured from the assumed 60-second point in the original sequence.
+        // The retained countdown measures defense timing from the original offense deadline.
         assertTrue(expiredCountdownTechnicalFoulResult.state.canReportOffenseSet(true))
         val expiredCountdownDefenseCheck = expiredCountdownTechnicalFoulResult.state
             .reportOffenseSet(expiredCountdownAssessmentTime + 20_000L)
@@ -1039,7 +1036,7 @@ class TestMisconduct : GameDomainTestFixtures() {
 
         // Blue cards count as one team card point each and do not create player records.
         state = standardLiveGameState()
-        val bluePreview = state.previewBlueCard(ANIMAL, state.startEpoch)
+        val bluePreview = state.previewBlueCard(ANIMAL)
         assertEquals(
             "Blue card on Animal.\nAnimal has 1 card total.",
             bluePreview.formatMessage().plainText,
@@ -1094,7 +1091,7 @@ class TestMisconduct : GameDomainTestFixtures() {
 
         // Technical fouls use a separate count, with the same third-and-later misconduct handling.
         state = standardLiveGameState()
-        val technicalFoulPreview = state.previewTechnicalFoul(ANIMAL, state.startEpoch)
+        val technicalFoulPreview = state.previewTechnicalFoul(ANIMAL)
         assertEquals(
             "This is Animal's first technical foul.",
             technicalFoulPreview.formatMessage().plainText,

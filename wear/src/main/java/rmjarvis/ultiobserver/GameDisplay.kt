@@ -33,8 +33,8 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
         .lastOrNull { transition -> transition.targetEpochMillis <= currentPhoneEpochMillis }
         ?.message
     val showPrimaryAction = !gameOver && timingControls != null &&
-        countdown?.pausedAtEpochMillis == null && nextCue == null &&
-        countdownRemainingMillis != null && countdownRemainingMillis <= 0L
+        countdown!!.pausedAtEpochMillis == null && nextCue == null &&
+        countdownRemainingMillis!! <= 0L
     return GameDisplay(
         officialTime = formatOfficialTime(
             epochMillis = currentPhoneEpochMillis + officialClockOffsetMillis,
@@ -61,7 +61,7 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
         nextCue = if (gameOver) null else if (countdown?.pausedAtEpochMillis != null) "Paused"
             else nextCue?.let { cue -> "Next: ${cue.message}" },
         statusMessage = statusMessage.takeIf {
-            countdown == null && countdownActions.isEmpty() && timingControls == null
+            countdown == null && countdownActions.isEmpty()
         },
         teamOne = teamOne.toTeamDisplay(),
         teamTwo = teamTwo.toTeamDisplay(),

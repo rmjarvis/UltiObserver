@@ -286,7 +286,7 @@ fun GameState.hasExpiredPullActions(now: Long): Boolean {
     if (!this.phase.isBeforeLivePoint || this.pullSkippedForCurrentPoint) {
         return false
     }
-    val countdown = this.countdown ?: return true
+    val countdown = this.countdown!!
     return countdown.kind.usesBetweenPointsTarget() &&
         !countdown.isPaused() &&
         now >= countdown.targetEpoch

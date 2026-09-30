@@ -33,6 +33,7 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
     /** Host the test of scoring and undoing goals from the watch. */
     @Test
     fun goalAndUndo() {
+        setAutomaticallyAdvanceCountdowns(false)
         setTimingAlertPreferences(
             TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
         )
@@ -78,10 +79,10 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         // that the phone has finished, then undoes this phone-recorded goal.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
 
-        // Clear this phone-recorded goal's countdown so the watch can restart it, then undo
+        // Expire this phone-recorded goal's countdown so the watch can restart it, then undo
         // the restart before undoing the goal. No watch goal request is pending during this edit.
         updateCurrentStateProgrammatically {
-            copy(countdown = null)
+            copy(countdown = countdown!!.copy(targetEpoch = System.currentTimeMillis() - 1_000L))
         }
 
         // The watch undoes the phone's goal for Animal. Validate the final state.

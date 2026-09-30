@@ -99,7 +99,7 @@ class TestRuleGuidance : GameDomainTestFixtures() {
             "Yellow card on player 4.",
             yellowEvent.formatBriefMessage().plainText,
         )
-        val blueEvent: GameEvent = state.previewBlueCard(TeamId.TEAM_ONE, state.startEpoch)
+        val blueEvent: GameEvent = state.previewBlueCard(TeamId.TEAM_ONE)
         assertEquals(
             "Blue card on Viscous Coupling.",
             blueEvent.formatBriefMessage().plainText,

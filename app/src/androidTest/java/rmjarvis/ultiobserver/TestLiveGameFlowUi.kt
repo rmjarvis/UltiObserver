@@ -1020,14 +1020,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("live-center-lock").assertIsDisplayed()
     }
 
-    /// Put the current game on the between-points expired-pull action surface.
+    /// Expire the current pull countdown while keeping the observer's next actions available.
     private fun showExpiredPullSurface() {
-        updateCurrentStateProgrammatically {
-            copy(
-                phase = GamePhase.BETWEEN_POINTS,
-                countdown = null,
-            )
-        }
+        setAutomaticallyAdvanceCountdowns(false)
+        expireActiveCountdownProgrammatically()
         waitForText("Restart countdown")
     }
 

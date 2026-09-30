@@ -1000,11 +1000,15 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertNull(pendingGameOver.pendingCapOffer)
 
         // The watch renders the newly pending game-over acknowledgement.
-        val gameOverDecision = buildWearStateSnapshot(
+        val pendingGameOverSnapshot = buildWearStateSnapshot(
             game = pendingGameOver,
             settings = settings,
             now = hardCapGoalTime,
-        ).activeGame!!.pendingDecision!!
+        ).activeGame!!
+        assertNotNull(pendingGameOver.countdown)
+        assertNull(pendingGameOverSnapshot.countdown)
+        assertNull(pendingGameOverSnapshot.timingControls)
+        val gameOverDecision = pendingGameOverSnapshot.pendingDecision!!
         assertEquals("Game over", gameOverDecision.title)
         assertEquals(WearGuidancePresentation.VISIBLE, gameOverDecision.presentation)
 
@@ -1260,16 +1264,15 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         val settings = Settings(timingAlerts = TimingAlertPreferences(
             watchConnectionMode = WatchConnectionMode.WEAR_OS,
         ))
-        val now = 1_000_000L
-
         // An expired pull offers Restart countdown and keeps the usual undo behavior.
-        val expired = standardLiveGameState().copy(countdown = null)
+        val expired = standardLiveGameState()
+        val now = expired.countdown!!.targetEpoch
         val appState = activeWearState(settings, expired)
         val restartDisplay = buildWearStateSnapshot(expired, settings, now).activeGame!!
         assertTrue(restartDisplay.countdownActions.isEmpty())
         assertEquals(WearCountdownAction.START_POINT, restartDisplay.timingControls!!.pointAction)
         assertEquals(WearCountdownAction.RESTART_PULL, restartDisplay.timingControls!!.secondaryAction)
-        assertTrue(restartDisplay.timingControls!!.adjustments.isEmpty())
+        assertTrue(WearCountdownAction.PAUSE in restartDisplay.timingControls!!.adjustments)
         val restart = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
             WearCountdownActionRequest(restartDisplay.stateToken, WearCountdownAction.RESTART_PULL))
         val restarted = requestResponse(appState, WearRequestAction.COUNTDOWN, restart, now)
@@ -1302,7 +1305,8 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertTrue(openingStarted.snapshot.activeGame!!.countdownActions.isEmpty())
 
         // Between points, the observer may start play instead of restarting the countdown.
-        val betweenPoints = expired.copy(phase = GamePhase.BETWEEN_POINTS)
+        val betweenPoints = expired.beginLivePoint(now - 120_000L)
+            .recordGoal(TeamId.TEAM_ONE, now - 90_000L)
         appState.updateCurrentGame(betweenPoints)
         val choices = buildWearStateSnapshot(betweenPoints, settings, now).activeGame!!.timingControls!!
         assertEquals(WearCountdownAction.START_POINT, choices.pointAction)
@@ -1316,7 +1320,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertEquals("Undo Start point", playing.snapshot.activeGame!!.undoDescription)
         val restored = appState.currentGame!!.undoLastAction()
         assertEquals(GamePhase.BETWEEN_POINTS, restored.phase)
-        assertNull(restored.countdown)
+        assertEquals(betweenPoints.countdown, restored.countdown)
         assertEquals(choices, buildWearStateSnapshot(restored, settings, now).activeGame!!.timingControls)
 
         // Start point cannot be repeated once play is live.

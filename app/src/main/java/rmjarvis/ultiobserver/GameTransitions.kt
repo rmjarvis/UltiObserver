@@ -462,10 +462,8 @@ fun GameState.continueLivePoint(): GameState {
  * @param now The current epoch millis used to compare against halftime's target time.
  */
 internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
-    val countdown = countdown ?: return false
     return phase == GamePhase.HALFTIME &&
-        countdown.kind == CountdownKind.HALFTIME &&
-        now >= countdown.targetEpoch
+        countdown!!.kind == CountdownKind.HALFTIME && now >= countdown.targetEpoch
 }
 
 /**

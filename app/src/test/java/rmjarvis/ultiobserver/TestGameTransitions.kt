@@ -521,9 +521,8 @@ class TestGameTransitions : GameDomainTestFixtures() {
             halftimeMismatchException.message,
         )
 
-        // Defensive guard for malformed halftime states: without a halftime countdown, or outside
-        // halftime, the helper should simply say the second half is not ready.
-        assertFalse(standardLiveGameState().copy(countdown = null).halftimeTransitionReady(1_000L))
+        // Outside halftime, the second half is not ready whether a countdown is active or absent.
+        assertFalse(standardLiveGameState().beginLivePoint().halftimeTransitionReady(1_000L))
         assertFalse(standardLiveGameState().halftimeTransitionReady(1_000L))
     }
 

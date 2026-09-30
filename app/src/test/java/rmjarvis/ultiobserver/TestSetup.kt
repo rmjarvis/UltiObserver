@@ -1121,10 +1121,15 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(90, timingEditedState.countdown?.pullTiming?.offenseReadySeconds)
 
         // Setup edits preserve a skipped pull rather than creating a replacement countdown.
-        val skippedPullState = fieldStateAfterGoal.copy(countdown = null)
+        val noTimeoutState = fieldStateAfterGoal.copy(
+            rules = fieldStateAfterGoal.rules.copy(timeoutsPerHalf = 0, hasFloaterTimeout = false),
+        )
+        val warnedState = noTimeoutState.assessTimeViolation(TeamId.TEAM_ONE, 290_000L).state
+        val skippedPullState = warnedState.assessTimeViolation(TeamId.TEAM_ONE, 295_000L).state
+        assertEquals(GamePhase.LIVE_POINT, skippedPullState.phase)
         val skippedPullEdit = applySetupToLiveGame(
             skippedPullState,
-            setupEdit2,
+            skippedPullState.copy(rules = skippedPullState.rules.copy(nominalTimeBetweenPointsSeconds = 90)),
             300_000L,
         )
         assertNull(skippedPullEdit.countdown)

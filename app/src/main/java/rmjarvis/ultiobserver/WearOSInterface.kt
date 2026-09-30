@@ -648,9 +648,7 @@ private fun GameState.wearCountdownActions(): List<WearCountdownAction> {
 /** Select the controls shown while the phone displays a countdown. */
 private fun GameState.wearTimingControls(now: Long, settings: Settings): WearTimingControlsSnapshot? {
     if (pendingMisconductCountdown || phase == GamePhase.GAME_OVER) return null
-    val expiredPull = hasExpiredPullActions(now)
-    val countdown = countdown
-    if (countdown == null && !expiredPull) return null
+    val countdown = activeCountdown(now) ?: return null
     val pointAction = when {
         phase.isBeforeLivePoint || halftimeTransitionReady(now) -> WearCountdownAction.START_POINT
         phase == GamePhase.LIVE_POINT -> WearCountdownAction.CONTINUE_POINT
@@ -659,18 +657,15 @@ private fun GameState.wearTimingControls(now: Long, settings: Settings): WearTim
     val offenseSet = canReportOffenseSet(settings.showDefenseCountdowns)
     return WearTimingControlsSnapshot(
         adjustments = buildList {
-            if (countdown != null) {
-                if (canApplyWaterBreak()) add(WearCountdownAction.WATER_BREAK)
-                add(if (countdown.isPaused()) WearCountdownAction.RESUME else WearCountdownAction.PAUSE)
-                add(WearCountdownAction.MINUS_FIVE)
-                add(WearCountdownAction.PLUS_FIVE)
-            }
+            if (canApplyWaterBreak()) add(WearCountdownAction.WATER_BREAK)
+            add(if (countdown.isPaused()) WearCountdownAction.RESUME else WearCountdownAction.PAUSE)
+            add(WearCountdownAction.MINUS_FIVE)
+            add(WearCountdownAction.PLUS_FIVE)
         },
         pointAction = if (offenseSet) WearCountdownAction.OFFENSE_SET else pointAction,
         secondaryAction = when {
             offenseSet -> pointAction
-            expiredPull || (phase.isBeforeLivePoint && !pullSkippedForCurrentPoint &&
-                countdown?.kind?.usesBetweenPointsTarget() == true) -> WearCountdownAction.RESTART_PULL
+            phase.isBeforeLivePoint && !pullSkippedForCurrentPoint -> WearCountdownAction.RESTART_PULL
             else -> null
         },
     )

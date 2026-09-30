@@ -461,43 +461,15 @@ class TestPersistence : GameDomainTestFixtures() {
         val storeDir = temporaryFolder.newFolder()
         val appState = AppState(FileAppStateStorage(storeDir))
 
-        // Complete and archive a game that still has live-only countdown and undo state.
+        // Complete and archive a game while retaining its pre-end countdown in Undo.
         appState.startNewGame(now = 123_000L)
         appState.updateCurrentGame(
             appState.currentGame!!.copy(officialClockOffsetMillis = 45_000L)
         )
         appState.finishSetup(now = 123_000L)
-        val beforeEndGame = appState.currentGame!!
-        val completedGame = beforeEndGame.copy(
-            phase = GamePhase.GAME_OVER,
-            countdown = CountdownState(
-                kind = CountdownKind.BETWEEN_POINTS,
-                label = "Pull in",
-                durationSeconds = 80,
-                targetEpoch = 80_000L,
-                betweenPointsTarget = BetweenPointsCountdownTarget.PULL,
-            ),
-            undoEntry = UndoEntry("Undo End game", beforeEndGame),
-        ).withEventLogEntries(
-            listOf(
-                EventLogEntry(
-                    timeText = beforeEndGame.formatOfficialGameTime(
-                        beforeEndGame.startEpoch,
-                        EVENT_LOG_TIME_FORMATTER,
-                    ),
-                    type = EventLogType.FIRST_PULL,
-                    team = TeamId.TEAM_ONE,
-                ),
-                EventLogEntry(
-                    timeText = beforeEndGame.formatOfficialGameTime(
-                        beforeEndGame.startEpoch + 60_000L,
-                        EVENT_LOG_TIME_FORMATTER,
-                    ),
-                    type = EventLogType.GOAL,
-                    team = TeamId.TEAM_TWO,
-                ),
-            )
-        )
+        val started = appState.currentGame!!.beginLivePoint(appState.currentGame!!.startEpoch)
+        val beforeEndGame = started.recordGoal(TeamId.TEAM_TWO, started.startEpoch + 60_000L)
+        val completedGame = beforeEndGame.endGameNow(started.startEpoch + 90_000L)
         appState.updateCurrentGame(completedGame)
         appState.goHome()
         appState.archiveCompletedGame()
@@ -519,6 +491,7 @@ class TestPersistence : GameDomainTestFixtures() {
             beforeEndGame.pruneUndoHistory(),
             restored.archivedGames.single().undoEntry!!.previous,
         )
+        assertEquals(beforeEndGame.countdown, restored.archivedGames.single().undoLastAction().countdown)
         assertNull(restored.archivedGames.single().redoEntry)
         assertEquals(GamePhase.GAME_OVER, restored.archivedGames.single().phase)
         assertEquals(45_000L, restored.archivedGames.single().officialClockOffsetMillis)

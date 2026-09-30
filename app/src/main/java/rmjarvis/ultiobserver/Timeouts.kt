@@ -163,7 +163,7 @@ fun GameState.chargeTimeout(
     )
 
     if (timeoutState.phase.isBeforeLivePoint) {
-        return applyBetweenPointsTimeout(updatedState, now)
+        return applyBetweenPointsTimeout(updatedState)
             .withEventLogEntry(
                 EventLogEntry(
                     timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
@@ -223,7 +223,7 @@ fun GameState.timeoutsRemaining(team: TeamId): Int {
 }
 /**
  * Return the state in which a timeout may be charged, if one is legal now.
- * Pre-pull states are returned directly, even when their countdown has expired or cleared.
+ * Pre-pull states are returned directly, even when their countdown has expired.
  */
 private fun GameState.timeoutEligibleState(): GameState? {
     return when {
@@ -234,29 +234,13 @@ private fun GameState.timeoutEligibleState(): GameState? {
 }
 /**
  * Extend a between-points countdown after a timeout is charged before the pull.
- * If the countdown has cleared, rebuild it at zero so the same timeout extension leaves
- * the configured timeout duration on the visible timer.
  *
  * @param state The already-charged timeout state whose countdown should be extended.
- * @param now The epoch millis used when rebuilding a cleared countdown.
  */
 private fun applyBetweenPointsTimeout(
     state: GameState,
-    now: Long,
 ): GameState {
-    val countdown = state.countdown ?: run {
-        buildBetweenPointsCountdown(
-            pullingFromEnd = state.pullingFromEnd,
-            sequenceStart = now,
-            kind = if (state.phase == GamePhase.PRE_GAME) {
-                CountdownKind.OPENING_PULL
-            } else {
-                CountdownKind.BETWEEN_POINTS
-            },
-            promptTarget = state.pullPromptTarget,
-            rules = state.rules,
-        ).copy(targetEpoch = now)
-    }
+    val countdown = state.countdown!!
     val timeoutSeconds = state.rules.timeoutSeconds
     return state.copy(
         countdown = countdown.extendBy(timeoutSeconds),

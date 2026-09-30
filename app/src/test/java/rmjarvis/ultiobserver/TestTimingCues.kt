@@ -55,7 +55,6 @@ class TestTimingCues : GameDomainTestFixtures() {
             division = GameDivision.OPEN,
             teamOne = mixedState.teamOne.copy(score = 11),
             teamTwo = mixedState.teamTwo.copy(score = 11),
-            countdown = null,
         ).watchNotificationScoreLine(Settings())
         assertEquals("11-11 tied", tiedScoreLine)
         val tiedContent = watchNotificationContent(tiedScoreLine, nextCueText = null)
@@ -864,11 +863,11 @@ class TestTimingCues : GameDomainTestFixtures() {
         // and "next future alert" requests.
         assertEquals(
             listOf(TimingCueId.HALF_CAP),
-            state.copy(countdown = null).dueTimingAlerts(halfCapTime).map { it.id },
+            state.beginLivePoint().dueTimingAlerts(halfCapTime).map { it.id },
         )
         assertEquals(
             TimingCueId.HALF_CAP,
-            state.copy(countdown = null).nextTimingAlert(halfCapTime - 10_000L)?.id,
+            state.beginLivePoint().nextTimingAlert(halfCapTime - 10_000L)?.id,
         )
 
         // If the countdown's next cue comes before the next cap time, the service should wake for

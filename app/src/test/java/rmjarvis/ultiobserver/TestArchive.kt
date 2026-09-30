@@ -1168,7 +1168,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(ArchivedGameCategory.COMPLETED, convertedArchive.archiveCategory)
         assertEquals(234_000L, convertedArchive.endEpoch)
         assertEquals(
-            savedLiveState.pruneUndoHistory(clearCountdown = false),
+            savedLiveState.pruneUndoHistory(),
             convertedArchive.undoLastAction().copy(redoEntry = null),
         )
 
@@ -1179,7 +1179,7 @@ class TestArchive : GameDomainTestFixtures() {
         appState.makeArchivedGameCurrent()
         assertEquals(GamePhase.GAME_OVER, appState.currentGame!!.phase)
         assertEquals(
-            savedLiveState.pruneUndoHistory(clearCountdown = false),
+            savedLiveState.pruneUndoHistory(),
             appState.currentGame!!.undoLastAction().copy(redoEntry = null),
         )
     }
@@ -1232,14 +1232,9 @@ class TestArchive : GameDomainTestFixtures() {
         appState.startNewGame(now = 123_000L)
         appState.finishSetup(now = 123_000L)
         val initialLiveState = appState.currentGame!!
-        val beforeEndGame = initialLiveState.copy(
-            undoEntry = UndoEntry("Undo Start point", initialLiveState),
-        )
-        val completedGame = beforeEndGame.copy(
-            phase = GamePhase.GAME_OVER,
-            undoEntry = UndoEntry("Undo End game", beforeEndGame),
-            redoEntry = beforeEndGame,
-        )
+        val beforeEndGame = initialLiveState.beginLivePoint(124_000L)
+            .recordGoal(TeamId.TEAM_ONE, 125_000L)
+        val completedGame = beforeEndGame.endGameNow(126_000L)
         appState.updateCurrentGame(completedGame)
         appState.archiveCompletedGame()
         val archivedState = appState.archivedGames.single()
@@ -1256,7 +1251,22 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(GamePhase.GAME_OVER, restoredGame.phase)
         assertEquals("Undo End game", restoredGame.undoEntry?.label)
         assertEquals(prunedBeforeEndGame, restoredUndo.copy(redoEntry = null))
+        assertEquals(GamePhase.BETWEEN_POINTS, restoredUndo.phase)
+        assertEquals(beforeEndGame.countdown, restoredUndo.countdown)
+        assertNotNull(restoredUndo.countdown)
         assertNotNull(restoredUndo.redoEntry)
+
+        // Ending during halftime also retains the halftime countdown through archive restoration.
+        val halftime = beforeEndGame.startHalftimeNow(127_000L)
+        appState.updateCurrentGame(halftime.endGameNow(128_000L))
+        appState.archiveCompletedGame()
+        appState.openArchivedGame(0, now = 129_000L)
+        appState.makeArchivedGameCurrent()
+        val restoredHalftime = appState.currentGame!!.undoLastAction()
+        assertEquals(GamePhase.HALFTIME, restoredHalftime.phase)
+        assertEquals(halftime.countdown, restoredHalftime.countdown)
+        assertNotNull(restoredHalftime.countdown)
+        assertNull(restoredHalftime.undoEntry)
 
         // An untied hard cap uses the same archive invariant and restores to the applied cap
         // state behind game over; the older Apply hard cap undo is pruned by archiving.
@@ -1452,17 +1462,7 @@ class TestArchive : GameDomainTestFixtures() {
         appState.startNewGame(now = 123_000L)
         appState.finishSetup(now = 123_000L)
         val beforeUndoAction = appState.currentGame!!
-        val completedGame = beforeUndoAction.copy(
-            phase = GamePhase.GAME_OVER,
-            countdown = CountdownState(
-                kind = CountdownKind.BETWEEN_POINTS,
-                label = "Pull in",
-                durationSeconds = 80,
-                targetEpoch = 80_000L,
-                betweenPointsTarget = BetweenPointsCountdownTarget.PULL,
-            ),
-            undoEntry = UndoEntry("Undo End game", beforeUndoAction),
-        )
+        val completedGame = beforeUndoAction.endGameNow(124_000L)
         appState.updateCurrentGame(completedGame)
         appState.startNewGame(now = 123_000L)
         assertEquals(AppScreen.SETUP, appState.screen)

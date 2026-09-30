@@ -96,7 +96,7 @@ class TestTimingAlerts {
 
         // A live state without an active countdown still sends cap alert information, but there
         // are no countdown cues for the service to schedule.
-        val noCountdownSnapshot = liveState.copy(countdown = null).timingAlertSnapshot(
+        val noCountdownSnapshot = liveState.beginLivePoint(liveState.startEpoch).timingAlertSnapshot(
             Settings(timingAlerts = preferences)
         )
         assertTrue(noCountdownSnapshot.countdownCues.isEmpty())
@@ -440,7 +440,7 @@ class TestTimingAlerts {
         )
         val initialGame = newSetupGameState(now = phoneNow)
             .startGame(OrientationPreference.PORTRAIT)
-            .copy(countdown = null)
+            .beginLivePoint(phoneNow)
         val platform = FakeTimingAlertServicePlatform(now = phoneNow)
         val controller = newController(platform)
         try {

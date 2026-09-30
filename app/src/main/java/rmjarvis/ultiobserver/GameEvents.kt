@@ -227,7 +227,7 @@ sealed interface GamePrompt {
         val team: TeamId,
         override val requestedAt: Long,
     ) : ActionConfirmation {
-        override val event = state.previewBlueCard(team, requestedAt)
+        override val event = state.previewBlueCard(team)
     }
 
     /** Confirmation shown before recording a yellow or red card for one player. */
@@ -254,7 +254,7 @@ sealed interface GamePrompt {
         val team: TeamId,
         override val requestedAt: Long,
     ) : ActionConfirmation {
-        override val event = state.previewTechnicalFoul(team, requestedAt)
+        override val event = state.previewTechnicalFoul(team)
     }
 
     /**

@@ -1042,7 +1042,7 @@ fun GameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
         )
     ).withUndo(this, "Undo Blue card on ${this.teamName(team)}")
     val cardTotal = updatedState.teamCardTotal(team)
-    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal, now)
+    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
@@ -1057,12 +1057,11 @@ fun GameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
  * Preview a blue card and its misconduct consequence without changing game state.
  *
  * @param team The team receiving the blue card.
- * @param now Current epoch millis used if the preview needs a fresh misconduct countdown.
  */
-fun GameState.previewBlueCard(team: TeamId, now: Long): GameEvent.TeamCardsChanged {
+fun GameState.previewBlueCard(team: TeamId): GameEvent.TeamCardsChanged {
     var previewState = this.withAddedBlueCard(team)
     val cardTotal = previewState.teamCardTotal(team)
-    previewState = previewState.withMisconductPenaltyForThreshold(cardTotal, now)
+    previewState = previewState.withMisconductPenaltyForThreshold(cardTotal)
     return GameEvent.TeamCardsChanged(
         state = previewState,
         team = team,
@@ -1107,7 +1106,7 @@ internal fun GameState.assessTechnicalFoul(
         )
     ).withUndo(this, "Undo Technical foul on ${this.teamName(team)}")
     val technicalFouls = updatedState.technicalFoulsFor(team)
-    updatedState = updatedState.withMisconductPenaltyForThreshold(technicalFouls, now)
+    updatedState = updatedState.withMisconductPenaltyForThreshold(technicalFouls)
     val event = GameEvent.TechnicalFoulsChanged(
         state = updatedState,
         team = team,
@@ -1123,12 +1122,11 @@ internal fun GameState.assessTechnicalFoul(
  * Preview a technical foul and its misconduct consequence without changing game state.
  *
  * @param team The team receiving the technical foul.
- * @param now Current epoch millis used if the preview needs a fresh misconduct countdown.
  */
-fun GameState.previewTechnicalFoul(team: TeamId, now: Long): GameEvent.TechnicalFoulsChanged {
+fun GameState.previewTechnicalFoul(team: TeamId): GameEvent.TechnicalFoulsChanged {
     var previewState = this.withAddedTechnicalFoul(team)
     val technicalFouls = previewState.technicalFoulsFor(team)
-    previewState = previewState.withMisconductPenaltyForThreshold(technicalFouls, now)
+    previewState = previewState.withMisconductPenaltyForThreshold(technicalFouls)
     return GameEvent.TechnicalFoulsChanged(
         state = previewState,
         team = team,
@@ -1215,7 +1213,7 @@ fun GameState.assessFirstYellowCard(
             )
         ).withUndo(this, playerCardUndoLabel("Yellow", team, identity))
     val cardTotal = updatedState.teamCardTotal(team)
-    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal, now)
+    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
@@ -1251,7 +1249,7 @@ fun GameState.assessRedCard(
             )
         ).withUndo(this, playerCardUndoLabel("Red", team, identity))
     val cardTotal = updatedState.teamCardTotal(team)
-    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal, now)
+    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
@@ -1288,7 +1286,7 @@ fun GameState.assessSecondYellowCard(
             )
         ).withUndo(this, playerCardUndoLabel("Second yellow", team, identity))
     val cardTotal = updatedState.teamCardTotal(team)
-    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal, now)
+    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
@@ -1381,11 +1379,9 @@ internal fun GameState.playerCardRemoveUndoLabel(
  * Apply the misconduct consequence for a threshold card or technical foul.
  *
  * @param thresholdCount The team-card or technical-foul count after the recorded action.
- * @param now Current epoch millis used to start a fresh countdown when the prior one has expired.
  */
 private fun GameState.withMisconductPenaltyForThreshold(
     thresholdCount: Int,
-    now: Long,
 ): GameState {
     if (thresholdCount < 3 || phase == GamePhase.GAME_OVER) {
         return this
@@ -1393,16 +1389,7 @@ private fun GameState.withMisconductPenaltyForThreshold(
     if (phase == GamePhase.LIVE_POINT) {
         return withPendingMisconductCountdown()
     }
-    val misconductCountdown = if (this.countdown == null) {
-        // An absent between-points countdown represents an expired 60-second offense deadline.
-        // Start the remaining 30 seconds of the 90-second misconduct offense-set period now.
-        betweenPointsMisconductCountdown(
-            sequenceStart = now,
-            durationSeconds = 30,
-        )
-    } else {
-        this.countdown.toBetweenPointsMisconductCountdown()
-    }
+    val misconductCountdown = this.countdown!!.toBetweenPointsMisconductCountdown()
     return this.copy(
         countdown = misconductCountdown,
         pullSkippedForCurrentPoint = true,

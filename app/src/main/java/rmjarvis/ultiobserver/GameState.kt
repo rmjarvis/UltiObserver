@@ -512,6 +512,7 @@ data class GameState(
     val openingPullingTeam: TeamId,
     val openingPullingFromEnd: FieldEnd,
     val phase: GamePhase,
+    // PRE_GAME, BETWEEN_POINTS, and HALFTIME always retain a countdown, including after expiry.
     val countdown: CountdownState?,
     val pullSequenceOffsidesRecorded: Boolean = false,
     val pullSequenceFalseStartRecorded: Boolean = false,
@@ -541,21 +542,18 @@ data class GameState(
     }
 
     /**
-     * Drop undo/redo state, optionally keeping the immediate end-game undo for archived games.
-     *
-     * @param clearCountdown Whether to clear an active countdown from the returned state.
+     * Drop older undo/redo state while preserving the immediate end-game undo and its countdown.
      */
-    fun pruneUndoHistory(clearCountdown: Boolean = true): GameState {
+    fun pruneUndoHistory(): GameState {
         val prunedUndoEntry = undoEntry
             ?.takeIf { it.label == "Undo End game" }
             ?.let { entry ->
                 UndoEntry(
                     label = entry.label,
-                    previous = entry.previous.pruneUndoHistory(clearCountdown = clearCountdown),
+                    previous = entry.previous.pruneUndoHistory(),
                 )
             }
         return copy(
-            countdown = if (clearCountdown) null else countdown,
             undoEntry = prunedUndoEntry,
             redoEntry = null,
         )
@@ -773,12 +771,12 @@ fun applySetupEditToActiveGame(
     // But we do want to update the prompt target and possibly the duration.
     if (existing.phase == GamePhase.BETWEEN_POINTS) {
         // Change the prompt target if necessary
-        var countdown = existing.countdown?.withPullPromptTarget(
+        var countdown = existing.countdown!!.withPullPromptTarget(
             pullingFromEnd = existing.pullingFromEnd,
             promptTarget = edited.pullPromptTarget,
         )
         // Adjust the pull timing if necessary
-        if (countdown?.kind == CountdownKind.BETWEEN_POINTS) {
+        if (countdown.kind == CountdownKind.BETWEEN_POINTS) {
             countdown = countdown.withPullTiming(edited.rules.standardPullTiming())
         }
         updatedState = updatedState.copy(countdown = countdown)

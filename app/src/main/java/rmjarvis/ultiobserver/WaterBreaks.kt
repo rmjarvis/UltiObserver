@@ -5,7 +5,6 @@ internal const val AQI_LEVEL_THREE_UNDO_LABEL = "Undo AQI level 3 — game suspe
 
 /// Return whether a water break can add time to the current countdown.
 fun GameState.canApplyWaterBreak(): Boolean {
-    if (countdown == null) return false
     return rules.waterBreakMode != WaterBreakMode.NONE &&
         phase.isBeforeLivePoint
 }
