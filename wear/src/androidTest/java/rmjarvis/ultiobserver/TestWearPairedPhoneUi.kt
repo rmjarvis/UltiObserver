@@ -26,6 +26,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
@@ -217,8 +218,10 @@ class TestWearPairedPhoneUi {
         assertEquals(1, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
 
         // The phone clears the post-goal countdown; restart it from the watch.
-        waitForPairedText("Restart countdown")
+        waitForPairedText("Start point")
+        composeRule.onNodeWithContentDescription("Countdown controls").performClick()
         composeRule.onNodeWithText("Restart countdown").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Back").performClick()
         waitForContentDescription("Undo Restart countdown")
         composeRule.onNodeWithText("Restart countdown").assertDoesNotExist()
         composeRule.onNodeWithText("Pull in").assertIsDisplayed()
@@ -230,11 +233,15 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("Restart countdown").assertDoesNotExist()
         composeRule.onNodeWithText("Undo").performTouchInput { longClick() }
         waitForContentDescription("Undo Goal by Animal")
+        composeRule.onNodeWithContentDescription("Countdown controls").performClick()
         composeRule.onNodeWithText("Restart countdown").assertIsDisplayed()
+        composeRule.onNodeWithText("Back").performClick()
 
         // Redo restores the restart, then disappears; Undo still restores both point choices.
         composeRule.onNodeWithText("Redo").assertIsDisplayed().performTouchInput { click() }
+        composeRule.onNodeWithContentDescription("Countdown controls").performClick()
         composeRule.onNodeWithText("Restart countdown").assertIsDisplayed()
+        composeRule.onNodeWithText("Back").performClick()
         composeRule.onNodeWithText("Redo").performTouchInput { longClick() }
         waitForContentDescription("Undo Restart countdown")
         composeRule.onNodeWithText("Redo").assertDoesNotExist()
@@ -251,7 +258,9 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("Undo").performTouchInput { longClick() }
         waitForContentDescription("Undo Goal by Animal")
         composeRule.onNodeWithText("Start point").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Countdown controls").performClick()
         composeRule.onNodeWithText("Restart countdown").assertIsDisplayed()
+        composeRule.onNodeWithText("Back").performClick()
 
         // The watch can then undo that phone-recorded goal.
         composeRule.onNode(

@@ -68,7 +68,7 @@ internal data class NavigationState(
             selectedTeam = selectedTeam,
             teamInfoOpen = teamInfoOpen && selectedTeam != null,
             timingControlsOpen = timingControlsOpen && game.actionsAvailable &&
-                game.timingControls != null && game.countdown != null,
+                game.timingControls != null,
             pendingActionPrompt = pendingActionPrompt,
             cardChoiceStateToken = cardChoiceStateToken,
             playerCard = playerCard,

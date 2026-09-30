@@ -18,6 +18,7 @@ class TestNavigation {
             countdown = WearCountdownSnapshot("Pull in", 100_000L, null, emptyList()),
             timingControls = WearTimingControlsSnapshot(
                 listOf(WearCountdownAction.PLUS_FIVE), WearCountdownAction.START_POINT,
+                WearCountdownAction.RESTART_PULL,
             ),
         )
         navigation = navigation.copy(timingControlsOpen = true)
@@ -46,9 +47,6 @@ class TestNavigation {
         assertFalse(navigation.receive(snapshot, ConnectionState.DISCONNECTED).timingControlsOpen)
         assertFalse(navigation.receive(snapshot.copy(activeGame = timedGame.copy(
             actionsAvailable = false,
-        )), ConnectionState.CONNECTED).timingControlsOpen)
-        assertFalse(navigation.receive(snapshot.copy(activeGame = timedGame.copy(
-            countdown = null,
         )), ConnectionState.CONNECTED).timingControlsOpen)
         navigation = navigation.back()
 

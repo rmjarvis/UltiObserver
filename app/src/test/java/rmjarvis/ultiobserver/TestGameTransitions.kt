@@ -637,11 +637,8 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(GamePhase.LIVE_POINT, automaticStartState.phase)
         assertNull(automaticStartState.countdown)
         assertEquals("Undo Start point", automaticStartState.undoEntry?.label)
-        val expiredPullDecisionState = state.copy(
-            countdown = null,
-        )
         val undoneAutomaticStartState = assertUndoRestores(
-            expiredPullDecisionState,
+            state,
             automaticStartState,
         )
         assertEquals(
@@ -650,14 +647,13 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         assertEquals(state, state.redoLastAction())
 
-        // An expired-pull decision surface does not auto-start again when its countdown is gone.
-        assertEquals(
-            undoneAutomaticStartState,
-            undoneAutomaticStartState.applyAutomaticGameTransitions(
-                betweenPointsCountdown.targetEpoch,
-                showDefenseCountdowns = false,
-            ),
-        )
+        // Automatic Start point matches the button, including its saved countdown and label.
+        assertEquals(state.beginLivePoint(betweenPointsCountdown.targetEpoch), automaticStartState)
+        assertEquals(betweenPointsCountdown, undoneAutomaticStartState.countdown)
+        assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.applyAutomaticGameTransitions(
+            betweenPointsCountdown.targetEpoch + 1_000L,
+            showDefenseCountdowns = false,
+        ))
 
         // Expired-pull actions are available only for active pull countdown decisions.
         assertTrue(undoneAutomaticStartState.hasExpiredPullActions(betweenPointsCountdown.targetEpoch))
@@ -742,6 +738,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         var inPointState = state.beginLivePoint()
         inPointState = inPointState.assessTimeout(VC, 500_000L).state
         val timeoutCountdown = inPointState.countdown!!
+        val manuallyContinuedState = inPointState.continueLivePoint()
         assertEquals(
             inPointState,
             inPointState.applyAutomaticGameTransitions(
@@ -755,6 +752,9 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         assertEquals(GamePhase.LIVE_POINT, inPointState.phase)
         assertNull(inPointState.countdown)
+
+        // Automatic Continue point preserves exactly the same state and Undo entry as the button.
+        assertEquals(manuallyContinuedState, inPointState)
     }
 
     /// Test game-prompt formatting for halftime and game-over prompts.

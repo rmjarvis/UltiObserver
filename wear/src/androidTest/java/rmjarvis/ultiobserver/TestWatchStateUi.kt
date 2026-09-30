@@ -148,6 +148,64 @@ class TestWatchStateUi {
         assertTrue(countdownSeconds() < firstValue)
     }
 
+    /** Keep early actions below, then expose the next action directly when the countdown expires. */
+    @Test
+    fun countdownActions() {
+        val now = System.currentTimeMillis()
+        val initial = activeSnapshot()
+        val timedGame = initial.snapshot.activeGame!!.copy(
+            countdown = WearCountdownSnapshot("Pull in", now + 120_000L, null, emptyList()),
+            timingControls = WearTimingControlsSnapshot(
+                listOf(WearCountdownAction.PAUSE, WearCountdownAction.MINUS_FIVE,
+                    WearCountdownAction.PLUS_FIVE),
+                WearCountdownAction.START_POINT, WearCountdownAction.RESTART_PULL,
+            ),
+        )
+        var state by mutableStateOf(initial.copy(snapshot = initial.snapshot.copy(activeGame = timedGame)))
+        show(state = { state }, connection = { ConnectionState.CONNECTED })
+
+        // Before expiry the early action is reached by opening the timer controls.
+        composeRule.onNodeWithText("Start point").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Countdown controls").performClick()
+        composeRule.onNodeWithText("Start point").assertIsDisplayed()
+        composeRule.onNodeWithText("Restart countdown").assertDoesNotExist()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithText("Start point").assertDoesNotExist()
+
+        // An expired pull offers Start point directly and Restart countdown in the lower panel.
+        composeRule.runOnIdle {
+            state = initial.copy(snapshot = initial.snapshot.copy(activeGame = timedGame.copy(
+                countdown = timedGame.countdown!!.copy(targetEpochMillis = now - 1_000L),
+            )))
+        }
+        composeRule.onNodeWithTag("countdown-value", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Start point").assertIsDisplayed()
+        composeRule.onNodeWithText("Restart countdown").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Countdown controls").performClick()
+        composeRule.onNodeWithText("Start point").assertIsDisplayed()
+        catchAndDiagnoseFailure(composeRule) {
+            composeRule.onNodeWithText("Restart countdown").assertIsDisplayed().performClick()
+        }
+        composeRule.runOnIdle { assertEquals(1, submittedCommands) }
+
+        // Offense timing uses the same placement, with Continue point as its secondary action.
+        composeRule.runOnIdle {
+            state = initial.copy(snapshot = initial.snapshot.copy(activeGame = timedGame.copy(
+                stateToken = "expired-timeout",
+                countdown = WearCountdownSnapshot("Offense set in", now - 1_000L, null, emptyList()),
+                timingControls = timedGame.timingControls!!.copy(
+                    pointAction = WearCountdownAction.OFFENSE_SET,
+                    secondaryAction = WearCountdownAction.CONTINUE_POINT,
+                ),
+            )))
+        }
+        composeRule.onNodeWithText("Continue point").assertIsDisplayed()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithText("Continue point").assertDoesNotExist()
+        composeRule.onNodeWithText("Offense is set").assertIsDisplayed().performClick()
+        composeRule.runOnIdle { assertEquals(2, submittedCommands) }
+    }
+
     private fun countdownSeconds(): Int {
         val text = composeRule.onNodeWithTag("countdown-value", useUnmergedTree = true)
             .fetchSemanticsNode().config[SemanticsProperties.Text].single().text
@@ -499,6 +557,7 @@ class TestWatchStateUi {
                 timingControls = WearTimingControlsSnapshot(
                     adjustments = listOf(WearCountdownAction.RESUME),
                     pointAction = WearCountdownAction.START_POINT,
+                    secondaryAction = WearCountdownAction.RESTART_PULL,
                 ),
                 countdown = WearCountdownSnapshot(
                     label = "Between points",

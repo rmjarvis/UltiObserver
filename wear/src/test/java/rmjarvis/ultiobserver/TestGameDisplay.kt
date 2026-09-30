@@ -141,14 +141,85 @@ class TestGameDisplay {
         assertNull(display.statusMessage)
         assertNull(display.countdownValue)
 
-        // Between points, both phone-selected choices retain their display order.
-        val choices = listOf(WearCountdownAction.RESTART_PULL, WearCountdownAction.START_POINT)
-        assertEquals(choices, game.copy(countdownActions = choices).toGameDisplay(0L, true).countdownActions)
-
         // The replacement snapshot restores ordinary status text once the action is gone.
         val cleared = game.copy(countdownActions = emptyList()).toGameDisplay(0L, true)
         assertTrue(cleared.countdownActions.isEmpty())
         assertEquals("Half cap passed", cleared.statusMessage)
+    }
+
+    /** Move the primary action above only after expiry and the last cue, retaining alternatives. */
+    @Test
+    fun countdownControls() {
+        // Early Start point stays in the expanded panel while the pull timer is running.
+        val game = navigationSnapshot().activeGame!!.copy(
+            countdown = WearCountdownSnapshot("Pull in", 90_000L, null,
+                listOf(WearCueSnapshot("Pull", 90_000L))),
+            timingControls = WearTimingControlsSnapshot(
+                listOf(WearCountdownAction.PAUSE, WearCountdownAction.MINUS_FIVE,
+                    WearCountdownAction.PLUS_FIVE),
+                WearCountdownAction.START_POINT, WearCountdownAction.RESTART_PULL,
+            ),
+        )
+        val running = game.toGameDisplay(60_000L, true)
+        assertNull(running.primaryCountdownAction)
+        assertEquals(WearCountdownAction.START_POINT, running.timingControls!!.pointAction)
+        assertEquals("Next: Pull", running.nextCue)
+
+        // At the final cue, zero still retains that cue; after it, Start point moves above.
+        val atCue = game.toGameDisplay(90_000L, true)
+        assertEquals("0:00", atCue.countdownValue)
+        assertNull(atCue.primaryCountdownAction)
+        val expired = game.toGameDisplay(90_001L, true)
+        assertEquals("0:00", expired.countdownValue)
+        assertNull(expired.nextCue)
+        assertEquals(WearCountdownAction.START_POINT, expired.primaryCountdownAction)
+        assertEquals(WearCountdownAction.RESTART_PULL, expired.timingControls!!.pointAction)
+        assertEquals(running.timingControls.adjustments, expired.timingControls.adjustments)
+
+        // With no zero cue, the action can move at the exact deadline, but not before it.
+        val noCues = game.copy(countdown = game.countdown!!.copy(cues = emptyList()))
+        assertNull(noCues.toGameDisplay(89_999L, true).primaryCountdownAction)
+        assertEquals(WearCountdownAction.START_POINT,
+            noCues.toGameDisplay(90_000L, true).primaryCountdownAction)
+
+        // Pause keeps the early action below even if wall-clock time passes the target.
+        val paused = game.copy(countdown = game.countdown!!.copy(pausedAtEpochMillis = 60_000L))
+            .toGameDisplay(120_000L, true)
+        assertEquals("0:30", paused.countdownValue)
+        assertEquals("Paused", paused.nextCue)
+        assertNull(paused.primaryCountdownAction)
+        assertEquals(WearCountdownAction.START_POINT, paused.timingControls!!.pointAction)
+
+        // Undo preserves the expired countdown, including its label and adjustment controls.
+        val undone = game.copy(countdown = game.countdown!!.copy(label = "Signal in"),
+            redoAvailable = true).toGameDisplay(120_000L, true)
+        assertEquals("0:00", undone.countdownValue)
+        assertEquals("Signal in", undone.countdownLabel)
+        assertEquals(WearCountdownAction.START_POINT, undone.primaryCountdownAction)
+        assertEquals(WearCountdownAction.RESTART_PULL, undone.timingControls!!.pointAction)
+        assertEquals(running.timingControls.adjustments, undone.timingControls.adjustments)
+
+        // Offense is set moves above, leaving the phone-selected Start/Continue alternative below.
+        for (alternative in listOf(WearCountdownAction.START_POINT, WearCountdownAction.CONTINUE_POINT)) {
+            val offense = game.copy(timingControls = game.timingControls!!.copy(
+                pointAction = WearCountdownAction.OFFENSE_SET, secondaryAction = alternative,
+            ))
+            val early = offense.toGameDisplay(60_000L, true)
+            assertNull(early.primaryCountdownAction)
+            assertEquals(WearCountdownAction.OFFENSE_SET, early.timingControls!!.pointAction)
+            val ready = offense.toGameDisplay(90_001L, true)
+            assertEquals(WearCountdownAction.OFFENSE_SET, ready.primaryCountdownAction)
+            assertEquals(alternative, ready.timingControls!!.pointAction)
+        }
+
+        // After defense timing, Continue point has no secondary action to leave below.
+        val defense = game.copy(timingControls = game.timingControls!!.copy(
+            pointAction = WearCountdownAction.CONTINUE_POINT, secondaryAction = null,
+        ))
+        assertEquals(WearCountdownAction.CONTINUE_POINT,
+            defense.toGameDisplay(90_001L, true).primaryCountdownAction)
+        assertNull(defense.toGameDisplay(90_001L, true).timingControls!!.pointAction)
+        assertNull(defense.copy(gameOver = true).toGameDisplay(90_001L, true).primaryCountdownAction)
     }
 
     /** Preserve individual action restrictions and disable all actions while a request is pending. */

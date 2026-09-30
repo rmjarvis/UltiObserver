@@ -299,13 +299,6 @@ fun GameState.canAssessTimeViolation(): Boolean {
         (this.phase.isBeforeLivePoint || this.phase == GamePhase.LIVE_POINT)
 }
 
-/// Build the state restored by undoing automatic start point so time violation can still be assessed.
-internal fun GameState.expiredPullDecisionState(): GameState {
-    return this.copy(
-        countdown = null,
-    )
-}
-
 /**
  * Record a time violation for a team.
  * First violations are warnings, later violations charge a timeout when available, and no-timeout

@@ -389,7 +389,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         )
         assertEquals(GamePhase.BETWEEN_POINTS, expiredPullState.phase)
         assertEquals(CountdownKind.BETWEEN_POINTS, expiredPullState.countdown?.kind)
-        val expiredCountdownNow = expiredPullState.countdown!!.targetEpoch + 1L
+        val expiredCountdownNow = expiredPullState.countdown!!.targetEpoch
         var timeoutResult = expiredPullState.assessTimeout(
             VC,
             expiredCountdownNow,
@@ -413,23 +413,22 @@ class TestTimeouts : GameDomainTestFixtures() {
         // represents a call at the deadline.  The countdown keeps the normal timeout-extension
         // duration metadata for cue selection, but only the timeout duration remains on the
         // visible timer.
-        val expiredDecisionState = expiredPullState.expiredPullDecisionState()
-        assertTrue(expiredDecisionState.hasExpiredPullActions(expiredCountdownNow))
-        assertTrue(expiredDecisionState.canRequestTimeout(expiredCountdownNow))
+        assertTrue(expiredPullState.hasExpiredPullActions(expiredCountdownNow))
+        assertTrue(expiredPullState.canRequestTimeout(expiredCountdownNow))
         assertTrue(
-            expiredDecisionState.previewTimeout(
+            expiredPullState.previewTimeout(
                 VC,
                 expiredCountdownNow,
             ).event is GameEvent.TimeoutCharged
         )
-        timeoutResult = expiredDecisionState.assessTimeout(VC, expiredCountdownNow)
+        timeoutResult = expiredPullState.assessTimeout(VC, expiredCountdownNow)
         val expiredDecisionTimeoutState = timeoutResult.state
         assertEquals(GamePhase.BETWEEN_POINTS, expiredDecisionTimeoutState.phase)
         assertEquals(CountdownKind.BETWEEN_POINTS, expiredDecisionTimeoutState.countdown?.kind)
         assertEquals("Signal in", expiredDecisionTimeoutState.countdown?.label)
         assertEquals(130, expiredDecisionTimeoutState.countdown?.durationSeconds)
         assertEquals(
-            expiredCountdownNow + 70_000L,
+            expiredPullState.countdown!!.targetEpoch + 70_000L,
             expiredDecisionTimeoutState.countdown?.targetEpoch,
         )
         assertEquals(
@@ -441,9 +440,8 @@ class TestTimeouts : GameDomainTestFixtures() {
         // The same expired-pull action surface before the opening pull keeps opening-pull
         // timing metadata while showing only the timeout duration.
         val expiredOpeningPullState = standardLiveGameState()
-        val expiredOpeningPullNow = expiredOpeningPullState.countdown!!.targetEpoch + 1L
-        val expiredOpeningDecisionState = expiredOpeningPullState.expiredPullDecisionState()
-        timeoutResult = expiredOpeningDecisionState.assessTimeout(VC, expiredOpeningPullNow)
+        val expiredOpeningPullNow = expiredOpeningPullState.countdown!!.targetEpoch
+        timeoutResult = expiredOpeningPullState.assessTimeout(VC, expiredOpeningPullNow)
         val expiredOpeningTimeoutState = timeoutResult.state
         assertEquals(GamePhase.PRE_GAME, expiredOpeningTimeoutState.phase)
         assertEquals(CountdownKind.OPENING_PULL, expiredOpeningTimeoutState.countdown?.kind)

@@ -7,6 +7,13 @@ import java.time.format.DateTimeFormatter
 import rmjarvis.ultiobserver.wearprotocol.WearActiveGameSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
+
+/** Controls remaining in the expanded panel after placing the primary action beside the timer. */
+internal data class TimingControlsDisplay(
+    val adjustments: List<WearCountdownAction>,
+    val pointAction: WearCountdownAction?,
+)
 
 /** Convert one protocol game into the existing display-only main-screen model. */
 internal fun WearActiveGameSnapshot.toGameDisplay(
@@ -25,6 +32,9 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
     val statusMessage = statusMessageTransitions
         .lastOrNull { transition -> transition.targetEpochMillis <= currentPhoneEpochMillis }
         ?.message
+    val showPrimaryAction = !gameOver && timingControls != null &&
+        countdown?.pausedAtEpochMillis == null && nextCue == null &&
+        countdownRemainingMillis != null && countdownRemainingMillis <= 0L
     return GameDisplay(
         officialTime = formatOfficialTime(
             epochMillis = currentPhoneEpochMillis + officialClockOffsetMillis,
@@ -35,7 +45,13 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
             "${cap.label} in ${formatDurationMillis(remainingMillis)}"
         },
         countdownActions = countdownActions,
-        timingControls = timingControls,
+        primaryCountdownAction = timingControls?.pointAction.takeIf { showPrimaryAction },
+        timingControls = timingControls?.let { controls ->
+            TimingControlsDisplay(
+                adjustments = controls.adjustments,
+                pointAction = if (showPrimaryAction) controls.secondaryAction else controls.pointAction,
+            )
+        },
         countdownLabel = countdown?.label.orEmpty(),
         countdownValue = if (gameOver) {
             null
@@ -44,7 +60,9 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
         },
         nextCue = if (gameOver) null else if (countdown?.pausedAtEpochMillis != null) "Paused"
             else nextCue?.let { cue -> "Next: ${cue.message}" },
-        statusMessage = statusMessage.takeIf { countdown == null && countdownActions.isEmpty() },
+        statusMessage = statusMessage.takeIf {
+            countdown == null && countdownActions.isEmpty() && timingControls == null
+        },
         teamOne = teamOne.toTeamDisplay(),
         teamTwo = teamTwo.toTeamDisplay(),
         leftTeamId = leftTeam,

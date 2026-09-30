@@ -1370,6 +1370,17 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals(automaticStart, undoneStart.redoLastAction())
 
+        // Without a pull to time, no countdown or restart action is offered; manual Start works.
+        val penaltyTime = state.countdown!!.targetEpoch
+        assertNull(timeViolationState.activeCountdown(penaltyTime))
+        assertNull(timeViolationState.activeCountdownDisplay(penaltyTime))
+        assertFalse(timeViolationState.hasExpiredPullActions(penaltyTime))
+        assertEquals(timeViolationState, timeViolationState.restartPullCountdown(penaltyTime))
+        val manualStart = timeViolationState.beginLivePoint(penaltyTime)
+        assertEquals(automaticStart, manualStart)
+        assertFalse(manualStart.pullSkippedForCurrentPoint)
+        assertEquals(undoneStart, manualStart.undoLastAction())
+
         // A pending misconduct countdown still requires its own start action.
         val pendingMisconduct = timeViolationState.copy(pendingMisconductCountdown = true)
         assertEquals(
@@ -1422,14 +1433,12 @@ class TestPullViolations : GameDomainTestFixtures() {
         // Restarting the expired opening-pull countdown restores opening-pull timing and clears
         // the action surface.
         val state = standardLiveGameState()
-        val expiredPullDecisionState = state.expiredPullDecisionState()
-        val timeViolationState = expiredPullDecisionState.restartPullCountdown(
-            state.countdown!!.targetEpoch
-        )
+        val expiredNow = state.countdown!!.targetEpoch + 1_000L
+        val timeViolationState = state.restartPullCountdown(expiredNow)
         assertEquals(CountdownKind.OPENING_PULL, timeViolationState.countdown?.kind)
         assertEquals("Signal in", timeViolationState.countdown?.label)
         assertEquals(20, timeViolationState.countdown?.durationSeconds)
-        assertFalse(timeViolationState.hasExpiredPullActions(state.countdown!!.targetEpoch))
+        assertFalse(timeViolationState.hasExpiredPullActions(expiredNow))
         assertEquals("Undo Restart countdown", timeViolationState.undoEntry?.label)
 
         // An active pull countdown that reaches its target is also treated as expired for
@@ -1445,8 +1454,9 @@ class TestPullViolations : GameDomainTestFixtures() {
             TeamId.TEAM_TWO,
             LocalTime.of(11, 5),
         )
-        val betweenPointsRestart = betweenPointsState.expiredPullDecisionState()
-            .restartPullCountdown(betweenPointsState.countdown!!.targetEpoch)
+        val betweenPointsRestart = betweenPointsState.restartPullCountdown(
+            betweenPointsState.countdown!!.targetEpoch,
+        )
         assertEquals(CountdownKind.BETWEEN_POINTS, betweenPointsRestart.countdown?.kind)
         assertEquals("Signal in", betweenPointsRestart.countdown?.label)
         assertEquals(60, betweenPointsRestart.countdown?.durationSeconds)

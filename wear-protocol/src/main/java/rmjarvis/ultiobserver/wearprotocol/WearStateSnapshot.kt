@@ -152,9 +152,10 @@ data class WearPhoneCardEntrySnapshot(
 data class WearTimingControlsSnapshot(
     val adjustments: List<WearCountdownAction>,
     val pointAction: WearCountdownAction?,
+    val secondaryAction: WearCountdownAction?,
 ) {
     /** Return every action available in the timing panel, in display order. */
-    fun all(): List<WearCountdownAction> = adjustments + listOfNotNull(pointAction)
+    fun all(): List<WearCountdownAction> = adjustments + listOfNotNull(pointAction, secondaryAction)
 }
 
 /** One phone-formatted rule, including the phone's heat-adjustment emphasis. */

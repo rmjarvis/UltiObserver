@@ -2,8 +2,6 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.contentDescription
@@ -102,8 +100,7 @@ internal fun CountdownActionButton(
 ) {
     val shape = RoundedCornerShape(12.dp)
     val contentColor = Color(0xFF1F1A17)
-    Text(
-        text = label,
+    Box(
         modifier = modifier
             .clip(shape)
             .background(Color(0xFFFFFDF8))
@@ -114,13 +111,18 @@ internal fun CountdownActionButton(
                 onClick = onClick,
             )
             .padding(horizontal = 14.dp, vertical = 4.dp),
-        color = contentColor,
-        fontSize = 12.sp,
-        lineHeight = 14.sp,
-        fontWeight = FontWeight.Medium,
-        maxLines = 2,
-        textAlign = TextAlign.Center,
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = contentColor,
+            fontSize = 12.sp,
+            lineHeight = 14.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 2,
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 /** Compact timing control using the same pause, play, and water-drop icons as the phone. */
@@ -129,12 +131,13 @@ internal fun TimingAdjustmentButton(
     action: WearCountdownAction,
     enabled: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier,
 ) {
     val shape = RoundedCornerShape(10.dp)
     val contentColor = Color(0xFF1F1A17)
     val lineHeight = with(LocalDensity.current) { 14.sp.toDp() }
     Box(
-        modifier = Modifier.width(34.dp).height(lineHeight + 8.dp)
+        modifier = modifier
             .clip(shape)
             .background(Color(0xFFFFFDF8))
             .border(1.dp, contentColor, shape)

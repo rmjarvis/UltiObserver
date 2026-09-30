@@ -162,9 +162,8 @@ private fun GameState.prepareForNextStressPoint(
 
     if (timeViolationIndex < 2) {
         val violatingTeam = if (timeViolationIndex == 0) TeamId.TEAM_ONE else TeamId.TEAM_TWO
-        state = state.expiredPullDecisionState()
-            .assessTimeViolation(violatingTeam, clock.next())
-            .state
+        clock.advancePast(state.countdown!!.targetEpoch)
+        state = state.assessTimeViolation(violatingTeam, clock.next()).state
         state = state.applyCountdownIfNeeded(clock)
     }
 

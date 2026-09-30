@@ -161,6 +161,16 @@ class TestWearProtocol {
         assertEquals(CardType.RED, decodedCardEntry.cardType)
         assertEquals("23", decodedCardEntry.jerseyNumber)
 
+        // Primary and secondary timing choices survive transport together with adjustments.
+        val controls = WearTimingControlsSnapshot(
+            listOf(WearCountdownAction.PAUSE, WearCountdownAction.PLUS_FIVE),
+            WearCountdownAction.OFFENSE_SET, WearCountdownAction.CONTINUE_POINT,
+        )
+        val timedGame = activeGame.copy(timingControls = controls)
+        assertEquals(timedGame, roundTrip(WearActiveGameSnapshot.serializer(), timedGame))
+        assertEquals(listOf(WearCountdownAction.PAUSE, WearCountdownAction.PLUS_FIVE,
+            WearCountdownAction.OFFENSE_SET, WearCountdownAction.CONTINUE_POINT), controls.all())
+
         // The compact ordinary-game constructor supplies every documented default, and the codec
         // emits those values so both sides agree on the complete versioned representation.
         val defaultGame = activeGame.copy(

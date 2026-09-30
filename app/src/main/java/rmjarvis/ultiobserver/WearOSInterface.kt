@@ -99,7 +99,8 @@ internal fun handleWearRequest(
                 game != null &&
                 snapshot.activeCardEntry == null &&
                 game.pendingGameDecision() == null &&
-                (request.action in game.wearCountdownActions(now) ||
+                (request.action != WearCountdownAction.RESTART_PULL || game.hasExpiredPullActions(now)) &&
+                (request.action in game.wearCountdownActions() ||
                     request.action in game.wearTimingControls(now, snapshot.settings)?.all().orEmpty())
             ) {
                 // No else branch: every WearCountdownAction value is handled.
@@ -592,7 +593,7 @@ internal fun buildWearStateSnapshot(
                     },
                 )
             },
-            countdownActions = game.wearCountdownActions(now),
+            countdownActions = game.wearCountdownActions(),
             timingControls = game.wearTimingControls(now, settings),
             statusMessageTransitions = game.wearStatusMessageTransitions(now),
             teamOne = game.wearTeamSnapshot(TeamId.TEAM_ONE, now),
@@ -637,31 +638,39 @@ internal fun buildWearStateSnapshot(
 }
 
 /** Select the phone-authorized actions replacing the watch countdown. */
-private fun GameState.wearCountdownActions(now: Long): List<WearCountdownAction> {
+private fun GameState.wearCountdownActions(): List<WearCountdownAction> {
     return when {
         pendingMisconductCountdown -> listOf(WearCountdownAction.START_MISCONDUCT)
-        hasExpiredPullActions(now) -> {
-            listOf(WearCountdownAction.RESTART_PULL, WearCountdownAction.START_POINT)
-        }
         else -> emptyList()
     }
 }
 
 /** Select the controls shown while the phone displays a countdown. */
 private fun GameState.wearTimingControls(now: Long, settings: Settings): WearTimingControlsSnapshot? {
-    val countdown = countdown ?: return null
-    if (wearCountdownActions(now).isNotEmpty() || phase == GamePhase.GAME_OVER) return null
+    if (pendingMisconductCountdown || phase == GamePhase.GAME_OVER) return null
+    val expiredPull = hasExpiredPullActions(now)
+    val countdown = countdown
+    if (countdown == null && !expiredPull) return null
+    val pointAction = when {
+        phase.isBeforeLivePoint || halftimeTransitionReady(now) -> WearCountdownAction.START_POINT
+        phase == GamePhase.LIVE_POINT -> WearCountdownAction.CONTINUE_POINT
+        else -> null
+    }
+    val offenseSet = canReportOffenseSet(settings.showDefenseCountdowns)
     return WearTimingControlsSnapshot(
         adjustments = buildList {
-            if (canApplyWaterBreak()) add(WearCountdownAction.WATER_BREAK)
-            add(if (countdown.isPaused()) WearCountdownAction.RESUME else WearCountdownAction.PAUSE)
-            add(WearCountdownAction.MINUS_FIVE)
-            add(WearCountdownAction.PLUS_FIVE)
+            if (countdown != null) {
+                if (canApplyWaterBreak()) add(WearCountdownAction.WATER_BREAK)
+                add(if (countdown.isPaused()) WearCountdownAction.RESUME else WearCountdownAction.PAUSE)
+                add(WearCountdownAction.MINUS_FIVE)
+                add(WearCountdownAction.PLUS_FIVE)
+            }
         },
-        pointAction = when {
-            canReportOffenseSet(settings.showDefenseCountdowns) -> WearCountdownAction.OFFENSE_SET
-            phase.isBeforeLivePoint || halftimeTransitionReady(now) -> WearCountdownAction.START_POINT
-            phase == GamePhase.LIVE_POINT -> WearCountdownAction.CONTINUE_POINT
+        pointAction = if (offenseSet) WearCountdownAction.OFFENSE_SET else pointAction,
+        secondaryAction = when {
+            offenseSet -> pointAction
+            expiredPull || (phase.isBeforeLivePoint && !pullSkippedForCurrentPoint &&
+                countdown?.kind?.usesBetweenPointsTarget() == true) -> WearCountdownAction.RESTART_PULL
             else -> null
         },
     )

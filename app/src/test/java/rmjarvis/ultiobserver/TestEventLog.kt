@@ -103,12 +103,9 @@ class TestEventLog : GameDomainTestFixtures() {
         state = state.recordOffsides(timestampAt(state, LocalTime.of(12, 8)))
         state = state.recordFalseStart(timestampAt(state, LocalTime.of(12, 9)))
         state = state.startPullSequence(timestampAt(state, LocalTime.of(12, 10)))
-        state = state.expiredPullDecisionState()
-            .assessTimeViolation(animal, timestampAt(state, LocalTime.of(12, 11))).state
-        state = state.expiredPullDecisionState()
-            .assessTimeViolation(animal, timestampAt(state, LocalTime.of(12, 12))).state
-        state = state.expiredPullDecisionState()
-            .assessTimeViolation(animal, timestampAt(state, LocalTime.of(12, 13))).state
+        state = state.assessTimeViolation(animal, timestampAt(state, LocalTime.of(12, 11))).state
+        state = state.assessTimeViolation(animal, timestampAt(state, LocalTime.of(12, 12))).state
+        state = state.assessTimeViolation(animal, timestampAt(state, LocalTime.of(12, 13))).state
 
         // Halftime and game-over entries close the event-log narrative.
         state = startHalftimeAt(state, LocalTime.of(12, 14))

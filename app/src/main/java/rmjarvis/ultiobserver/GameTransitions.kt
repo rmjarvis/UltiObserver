@@ -491,7 +491,7 @@ fun GameState.applyAutomaticGameTransitions(
         phase.isBeforeLivePoint && pullSkippedForCurrentPoint && countdown == null &&
         !pendingMisconductCountdown
     ) {
-        return automaticLivePointState(now)
+        return beginLivePoint(now)
     }
     val countdown = this.countdown ?: return this
     if (countdown.isPaused()) {
@@ -502,20 +502,20 @@ fun GameState.applyAutomaticGameTransitions(
     }
     return when {
         this.phase.isBeforeLivePoint && countdown.kind.usesBetweenPointsTarget() -> {
-            this.automaticLivePointState(now)
+            this.beginLivePoint(now)
         }
         this.phase.isBeforeLivePoint &&
             countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> {
-            if (showDefenseCountdowns) this else this.automaticLivePointState(now)
+            if (showDefenseCountdowns) this else this.beginLivePoint(now)
         }
         this.phase.isBeforeLivePoint && countdown.kind == CountdownKind.DEFENSE_CHECK -> {
-            this.automaticLivePointState(now)
+            this.beginLivePoint(now)
         }
         this.phase == GamePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {
-            if (showDefenseCountdowns) this else this.automaticContinueLivePointState()
+            if (showDefenseCountdowns) this else this.continueLivePoint()
         }
         this.phase == GamePhase.LIVE_POINT && countdown.kind == CountdownKind.DEFENSE_CHECK -> {
-            this.automaticContinueLivePointState()
+            this.continueLivePoint()
         }
         this.phase == GamePhase.HALFTIME && countdown.kind == CountdownKind.HALFTIME -> {
             val betweenPointsState = this.copy(
@@ -547,38 +547,6 @@ fun GameState.undoLastAction(): GameState {
 /// Reapply the state that was just undone, if redo is still available.
 fun GameState.redoLastAction(): GameState {
     return this.redoEntry?.withOfficialClockOffset(officialClockOffsetMillis) ?: this
-}
-/// Enter live-point play automatically while preserving undo to the preceding pre-point state.
-private fun GameState.automaticLivePointState(now: Long): GameState {
-    val previous = this.expiredPullDecisionState()
-    val firstPullTimestamp = this.firstPullLogTimestamp(now)
-    val firstPullEntry = if (this.teamOne.score == 0 && this.teamTwo.score == 0) {
-        listOf(
-            EventLogEntry(
-                timeText = formatOfficialGameTime(firstPullTimestamp, EVENT_LOG_TIME_FORMATTER),
-                type = EventLogType.FIRST_PULL,
-                team = this.pullingTeam,
-            )
-        )
-    } else {
-        emptyList()
-    }
-    return copy(
-        phase = GamePhase.LIVE_POINT,
-        countdown = null,
-        pullSequenceOffsidesRecorded = false,
-        pullSequenceFalseStartRecorded = false,
-        pullSkippedForCurrentPoint = false,
-        pendingMisconductCountdown = false,
-    ).withEventLogEntries(firstPullEntry).withUndo(previous, "Undo Start point")
-}
-/// Clear an expired in-point countdown without replacing the undo entry for the action that started it.
-private fun GameState.automaticContinueLivePointState(): GameState {
-    return copy(
-        phase = GamePhase.LIVE_POINT,
-        countdown = null,
-        pendingMisconductCountdown = false,
-    )
 }
 /**
  * Attach undo metadata to a state returned by a user-initiated action.

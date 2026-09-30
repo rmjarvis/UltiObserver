@@ -50,7 +50,6 @@ import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.LocalTextStyle
 import androidx.wear.compose.material3.Text
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
-import rmjarvis.ultiobserver.wearprotocol.WearTimingControlsSnapshot
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /** One team as presented on the fixed left or right side of the watch. */
@@ -94,7 +93,8 @@ internal data class GameDisplay(
     val officialTime: String,
     val capStatus: String?,
     val countdownActions: List<WearCountdownAction>,
-    val timingControls: WearTimingControlsSnapshot?,
+    val primaryCountdownAction: WearCountdownAction?,
+    val timingControls: TimingControlsDisplay?,
     val countdownLabel: String,
     val countdownValue: String?,
     val nextCue: String?,
@@ -321,23 +321,42 @@ private fun StatusRegion(
                 )
             } else if (display.countdownValue != null) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().gameClickable(
-                        enabled = true,
-                        role = Role.Button,
-                        onClick = onToggleTimingControls,
-                    ).semantics { contentDescription = "Countdown controls" },
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    CountdownStatus(display.countdownLabel, display.countdownValue)
+                    Box(
+                        modifier = Modifier.fillMaxWidth().gameClickable(
+                            enabled = true,
+                            role = Role.Button,
+                            onClick = onToggleTimingControls,
+                        ).semantics { contentDescription = "Countdown controls" },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CountdownStatus(display.countdownLabel, display.countdownValue)
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = display.nextCue.orEmpty(),
-                        color = StatusTextColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    val action = display.primaryCountdownAction
+                    if (action != null) {
+                        CompositionLocalProvider(LocalRequireLongPress provides false) {
+                            CountdownActionButton(
+                                label = action.label,
+                                enabled = countdownActionEnabled,
+                                onClick = {
+                                    onCountdownAction(action)
+                                },
+                                modifier = Modifier,
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = display.nextCue.orEmpty(),
+                            color = StatusTextColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }
@@ -750,7 +769,7 @@ private const val DisabledContentAlpha = 0.55f
 /** Replace the scores with countdown adjustments while keeping the timer visible above. */
 @Composable
 private fun TimingControls(
-    controls: WearTimingControlsSnapshot,
+    controls: TimingControlsDisplay,
     enabled: Boolean,
     onAction: (WearCountdownAction) -> Unit,
     onBack: () -> Unit,
@@ -760,27 +779,37 @@ private fun TimingControls(
         onBack()
     }
     Column(
-        modifier = modifier.padding(top = 3.dp, bottom = 10.dp),
+        modifier = modifier.padding(top = 3.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceEvenly,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(0.90f).weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             controls.adjustments.forEach { action ->
-                TimingAdjustmentButton(action, enabled) {
-                    onAction(action)
-                }
-            }
-        }
-        controls.pointAction?.let { action ->
-            CompositionLocalProvider(LocalRequireLongPress provides false) {
-                CountdownActionButton(
-                    label = action.label,
+                TimingAdjustmentButton(
+                    action = action,
                     enabled = enabled,
                     onClick = {
                         onAction(action)
                     },
-                    modifier = Modifier,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
+            }
+        }
+        Box(modifier = Modifier.fillMaxWidth(0.68f).weight(1f)) {
+            controls.pointAction?.let { action ->
+                CompositionLocalProvider(LocalRequireLongPress provides false) {
+                    CountdownActionButton(
+                        label = action.label,
+                        enabled = enabled,
+                        onClick = {
+                            onAction(action)
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
         Text(
