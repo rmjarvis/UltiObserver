@@ -162,6 +162,18 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Swap pulling team").performClick()
         assertLiveScreen()
 
+        // Switching ends keeps the pulling team and can be undone from the live screen.
+        val beforeSwitch = accessCurrentGameState()
+        openMoreActionsDialog()
+        selectMoreActionsCategory("Field and pull controls")
+        clickMoreActionsItem("Switch field ends")
+        waitForText("Undo Switch field ends")
+        assertEquals(beforeSwitch.pullingTeam, accessCurrentGameState().pullingTeam)
+        assertEquals(beforeSwitch.pullingFromEnd.flip(), accessCurrentGameState().pullingFromEnd)
+        composeRule.onNodeWithText("Undo Switch field ends").performClick()
+        assertEquals(beforeSwitch.pullingFromEnd, accessCurrentGameState().pullingFromEnd)
+        assertLiveScreen()
+
         // Manual halftime is only available between points, so score the opening point first.
         updateCurrentStateProgrammatically {
             recordGoalFromCurrentState(TeamId.TEAM_ONE, System.currentTimeMillis())

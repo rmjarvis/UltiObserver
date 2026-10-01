@@ -66,6 +66,20 @@ Swap pulling team
     the initial pull wrong in setup to quickly correct which team is pulling. This keeps the
     teams where they are on the field and only changes which team is pulling.
 
+    Note: If this is done before the first pull, then it is equivalent to changing the opening
+    pull in the `Field And Starting Pull` setup screen, so it will affect the halftime
+    pull as well.
+
+Switch field ends
+    Changes the field end where each team is located. This keeps the ends in the same position
+    on the game screen, but switches where the two teams are. This is most useful if you
+    make a mistake recording the team positions in the pre-game flip and need to switch
+    where each team is located.
+
+    Note: As with **Swap pulling team**, if this is done before the first pull, then it is
+    equivalent to changing the field ends in the `Field And Starting Pull` setup screen,
+    so it will affect the halftime positions as well.
+
 Corrections
 -----------
 

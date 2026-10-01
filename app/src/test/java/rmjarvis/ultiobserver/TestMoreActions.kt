@@ -202,6 +202,96 @@ class TestMoreActions : GameDomainTestFixtures() {
         )
     }
 
+    /** Test field-end corrections before and after the opening pull. */
+    @Test
+    fun fieldEndSwitch() {
+        // Correct the opening ends without changing the pulling team or observer's field settings.
+        val opening = standardLiveGameState()
+        val switched = opening.switchFieldEnds()
+        assertEquals(TeamId.TEAM_ONE, switched.pullingTeam)
+        assertEquals(TeamId.TEAM_ONE, switched.teamDefendingEnd(FieldEnd.NEAR))
+        assertEquals(TeamId.TEAM_TWO, switched.teamDefendingEnd(FieldEnd.FAR))
+        assertEquals(FieldEnd.NEAR, switched.pullingFromEnd)
+        assertEquals(FieldEnd.NEAR, switched.openingPullingFromEnd)
+        assertEquals(opening.openingPullingTeam, switched.openingPullingTeam)
+        assertEquals(opening.topDisplayedEnd, switched.topDisplayedEnd)
+        assertEquals(opening.nearEndName, switched.nearEndName)
+        assertEquals(opening.farEndName, switched.farEndName)
+        assertEquals(opening.pullPromptTarget, switched.pullPromptTarget)
+        assertEquals("Pull in", switched.countdown?.label)
+        assertEquals(opening.countdown!!.targetEpoch + 20_000L, switched.countdown?.targetEpoch)
+        assertEquals("Undo Switch field ends", switched.undoEntry?.label)
+        assertUndoRestores(opening, switched)
+        assertEquals(switched, switched.undoLastAction().redoLastAction())
+
+        // A second switch restores the original ends and countdown.
+        val restored = switched.switchFieldEnds()
+        assertEquals(opening, restored.copy(undoEntry = opening.undoEntry))
+
+        // Halftime uses the corrected opening end.
+        val afterGoal = recordGoalFromCurrentStateAt(switched, TeamId.TEAM_ONE, LocalTime.of(11, 5))
+        val halftime = afterGoal.startHalftimeNow(timestampAt(afterGoal, LocalTime.of(11, 10)))
+        assertEquals(TeamId.TEAM_TWO, halftime.pullingTeam)
+        assertEquals(FieldEnd.NEAR, halftime.pullingFromEnd)
+
+        // Once the first point starts, even at 0-0, switching leaves the opening pull alone.
+        val live = opening.beginLivePoint()
+        val switchedLive = live.switchFieldEnds()
+        assertEquals(FieldEnd.NEAR, switchedLive.pullingFromEnd)
+        assertEquals(opening.openingPullingFromEnd, switchedLive.openingPullingFromEnd)
+        assertEquals(opening.openingPullingTeam, switchedLive.openingPullingTeam)
+        assertNull(switchedLive.countdown)
+        assertUndoRestores(live, switchedLive)
+
+        // Between-points switches preserve timeout extensions and the saved opening end.
+        val betweenPoints = recordGoalFromCurrentStateAt(live, TeamId.TEAM_TWO, LocalTime.of(11, 5))
+        val extended = betweenPoints.assessTimeout(
+            TeamId.TEAM_ONE, betweenPoints.countdown!!.targetEpoch - 1_000L,
+        ).state
+        val switchedExtended = extended.switchFieldEnds()
+        assertEquals(130, extended.countdown?.durationSeconds)
+        assertEquals(150, switchedExtended.countdown?.durationSeconds)
+        assertEquals(extended.countdown!!.targetEpoch + 20_000L, switchedExtended.countdown?.targetEpoch)
+        assertEquals(extended.pullingTeam, switchedExtended.pullingTeam)
+        assertEquals(opening.openingPullingFromEnd, switchedExtended.openingPullingFromEnd)
+
+        // Both/neither prompt modes retain pull timing when the teams change ends.
+        for (target in listOf(PullPromptTarget.BOTH, PullPromptTarget.NEITHER)) {
+            val state = opening.withPullPromptTarget(target)
+            assertEquals(state.countdown, state.switchFieldEnds().countdown)
+        }
+
+        // An in-point timeout keeps its countdown when field ends are corrected.
+        val timeout = live.assessTimeout(TeamId.TEAM_ONE, 100_000L).state
+        assertEquals(timeout.countdown, timeout.switchFieldEnds().countdown)
+    }
+
+    /** Test when pulling-team corrections update the saved opening pull. */
+    @Test
+    fun openingPullCorrection() {
+        // Before play starts, swapping the pulling team corrects both saved opening fields.
+        val opening = standardLiveGameState()
+        val swapped = opening.swapPullingTeam()
+        assertEquals(TeamId.TEAM_TWO, swapped.openingPullingTeam)
+        assertEquals(FieldEnd.NEAR, swapped.openingPullingFromEnd)
+        assertUndoRestores(opening, swapped)
+        assertEquals(swapped, swapped.undoLastAction().redoLastAction())
+        val afterGoal = recordGoalFromCurrentStateAt(swapped, TeamId.TEAM_ONE, LocalTime.of(11, 5))
+        val halftime = afterGoal.startHalftimeNow(timestampAt(afterGoal, LocalTime.of(11, 10)))
+        assertEquals(TeamId.TEAM_ONE, halftime.pullingTeam)
+        assertEquals(FieldEnd.NEAR, halftime.pullingFromEnd)
+
+        // During the first point and between later points, the opening pull stays fixed.
+        val live = opening.beginLivePoint()
+        val swappedLive = live.swapPullingTeam()
+        assertEquals(opening.openingPullingTeam, swappedLive.openingPullingTeam)
+        assertEquals(opening.openingPullingFromEnd, swappedLive.openingPullingFromEnd)
+        val betweenPoints = recordGoalFromCurrentStateAt(live, TeamId.TEAM_TWO, LocalTime.of(11, 5))
+        val swappedLater = betweenPoints.swapPullingTeam()
+        assertEquals(opening.openingPullingTeam, swappedLater.openingPullingTeam)
+        assertEquals(opening.openingPullingFromEnd, swappedLater.openingPullingFromEnd)
+    }
+
     /**
      * Test starting halftime manually from More actions.
      */

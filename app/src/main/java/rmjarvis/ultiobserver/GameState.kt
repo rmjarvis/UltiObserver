@@ -653,10 +653,30 @@ data class GameState(
         return this.copy(
             pullingTeam = newPullingTeam,
             pullingFromEnd = newPullingFromEnd,
+            openingPullingTeam = if (phase == GamePhase.PRE_GAME) newPullingTeam else openingPullingTeam,
+            openingPullingFromEnd = if (phase == GamePhase.PRE_GAME) {
+                newPullingFromEnd
+            } else {
+                openingPullingFromEnd
+            },
             countdown = this.countdown?.swapOD(),
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
         ).withUndo(this, "Undo Swap pulling team")
+    }
+
+    /// Switch the teams' field ends while keeping the same team pulling.
+    fun switchFieldEnds(): GameState {
+        val newPullingFromEnd = pullingFromEnd.flip()
+        return copy(
+            pullingFromEnd = newPullingFromEnd,
+            openingPullingFromEnd = if (phase == GamePhase.PRE_GAME) {
+                newPullingFromEnd
+            } else {
+                openingPullingFromEnd
+            },
+            countdown = countdown?.withPullPromptTarget(newPullingFromEnd, pullPromptTarget),
+        ).withUndo(this, "Undo Switch field ends")
     }
 
     /**

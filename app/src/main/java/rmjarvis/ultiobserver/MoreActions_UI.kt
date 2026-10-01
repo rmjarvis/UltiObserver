@@ -479,6 +479,13 @@ internal fun MoreActionsContent(
                 onAction(state.swapPullingTeam())
             },
         ),
+        MoreActionsItem(
+            label = "Switch field ends",
+            tag = null,
+            onClick = {
+                onAction(state.switchFieldEnds())
+            },
+        ),
     )
     val correctionActions = listOf(
         MoreActionsItem(
