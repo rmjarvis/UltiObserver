@@ -165,7 +165,7 @@ enum class TeamColorChoice(
     val contentArgb: Long,   // A text color with good contrast to the accent color.
 ) {
     WHITE("White", 0xFFF8F9FA, 0xFF1F1A17),
-    BLACK("Black", 0xFF232220, 0xFFF6F2E8),
+    BLACK("Black", 0xFF404040, 0xFFF6F2E8),
     RED("Red", 0xFFC23B2A, 0xFFFFF8F5),
     BLUE("Blue", 0xFF2A5CAA, 0xFFF7FAFF),
     GREEN("Green", 0xFF2E7D32, 0xFFF4FFF4),
