@@ -720,7 +720,7 @@ internal fun CustomColorChoiceDialog(
         title = { Text(title) },
         text = {
             CustomColorPicker(
-                initialColor = customColor,
+                initialColor = Color(initialColorArgb),
                 testTagPrefix = testTagPrefix,
                 onColorChange = {
                     customColor = it
