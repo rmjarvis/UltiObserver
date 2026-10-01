@@ -456,12 +456,12 @@ internal data class PortraitFieldLayoutMetrics(
                     .coerceIn(4.dp, 6.dp),
                 genderRatioBadgeVerticalPadding = (centerHeight.value * 0.025f).dp
                     .coerceIn(0.dp, 2.dp),
-                genderRatioBadgeFontSize = (centerHeight.value * 0.20f).coerceIn(12.5f, 18f).sp,
+                genderRatioBadgeFontSize = (centerHeight.value * 0.20f).coerceIn(12f, 18f).sp,
                 teamRowPadding = rowPadding,
                 titleGap = (teamRowHeight.value * 0.035f).dp.coerceIn(4.dp, 10.dp),
                 detailGap = detailGap,
                 actionGap = (contentHeight.value * 0.035f).dp.coerceIn(4.dp, 7.dp),
-                actionButtonHeight = (teamRowHeight.value * 0.17f).dp.coerceIn(28.dp, 34.dp),
+                actionButtonHeight = (teamRowHeight.value * 0.21f).dp.coerceIn(28.dp, 42.dp),
                 titleFontSize = titleFontSizeValue.sp,
                 titleLineHeight = (titleFontSizeValue + 4f).sp,
             )
@@ -500,7 +500,7 @@ internal data class LandscapeFieldLayoutMetrics(
             val detailGap = (fieldHeight.value * 0.018f).dp.coerceIn(3.dp, 6.dp)
             val actionGap = (fieldHeight.value * 0.016f).dp.coerceIn(3.dp, 5.dp)
             val preferredActionButtonHeight =
-                (fieldHeight.value * 0.17f).dp.coerceIn(28.dp, 34.dp)
+                (fieldHeight.value * 0.21f).dp.coerceIn(28.dp, 42.dp)
             val fieldEndLabelClearance = 18.dp
             val actionPanelVerticalPadding = 8.dp
             val availableActionGridHeight = (
@@ -870,16 +870,27 @@ internal fun LandscapeFieldSketchCard(
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val preferredCenterWidth = maxWidth * 0.72f / 2.72f
-            val wideRequiredTeamWidth = maxOf(
-                naturalLeftActionGridWidths.panel,
-                naturalRightActionGridWidths.panel,
-            ) + metrics.teamPanelPadding * 2f
-            val wideCenterWidth =
-                (maxWidth - wideRequiredTeamWidth * 2f).coerceAtLeast(0.dp)
+            val preferredActionGridWidth =
+                (maxWidth - preferredCenterWidth) / 2f - metrics.teamPanelPadding * 2f
+            val wideHeight = metrics.actionButtonHeight * 2f + metrics.actionGap + 8.dp
             val timeoutRowHeight =
                 metrics.actionButtonHeight * 3f + metrics.actionGap * 2f + 8.dp
+            val wideClearance = minOf(
+                preferredActionGridWidth - maxOf(
+                    naturalLeftActionGridWidths.panel,
+                    naturalRightActionGridWidths.panel,
+                ),
+                metrics.availableActionGridHeight - wideHeight,
+            )
+            val timeoutRowClearance = minOf(
+                preferredActionGridWidth - maxOf(
+                    naturalLeftActionGridWidths.timeoutRowPanel,
+                    naturalRightActionGridWidths.timeoutRowPanel,
+                ),
+                metrics.availableActionGridHeight - timeoutRowHeight,
+            )
             val actionGridLayout = if (
-                wideCenterWidth < minimumCenterWidth &&
+                timeoutRowClearance > wideClearance &&
                 timeoutRowHeight <= metrics.availableActionGridHeight
             ) {
                 TeamActionGridLayout.TIMEOUT_ROW
@@ -1639,7 +1650,9 @@ private fun teamActionGridWidths(
     val fullTimeoutLabel = "Timeout ($timeoutsRemaining)"
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val preferredTextStyle = MaterialTheme.typography.labelLarge
+    val preferredTextStyle = MaterialTheme.typography.labelLarge.let {
+        it.copy(fontSize = it.fontSize * 1.2f, lineHeight = it.lineHeight * 1.2f)
+    }
     val preferredTextHeight = textMeasurer.measure(
         text = AnnotatedString("Goal"),
         style = preferredTextStyle,
@@ -1669,7 +1682,7 @@ private fun teamActionGridWidths(
                     .width,
             )
         }
-        return with(density) { labelWidthPx.toDp() } + 20.dp
+        return with(density) { labelWidthPx.toDp() } + 24.dp
     }
 
     val goalWidth = measuredButtonWidth("Goal")
