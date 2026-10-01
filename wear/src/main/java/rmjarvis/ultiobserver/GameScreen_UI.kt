@@ -587,34 +587,36 @@ private fun PullArrow(
             },
     ) {
         val travelsRight = direction == PullDirection.LEFT_TO_RIGHT
-        val startX = if (travelsRight) 1.dp.toPx() else size.width - 1.dp.toPx()
-        val endX = if (travelsRight) size.width - 1.dp.toPx() else 1.dp.toPx()
+        val startX = if (travelsRight) 2.dp.toPx() else size.width - 2.dp.toPx()
+        val endX = if (travelsRight) size.width - 2.dp.toPx() else 2.dp.toPx()
         val centerY = size.height / 2f
         val arrowLength = 6.dp.toPx()
         val arrowHeight = 5.dp.toPx()
         val arrowBaseX = if (travelsRight) endX - arrowLength else endX + arrowLength
 
-        drawLine(
-            color = FieldContentColor,
-            start = androidx.compose.ui.geometry.Offset(startX, centerY),
-            end = androidx.compose.ui.geometry.Offset(endX, centerY),
-            strokeWidth = 2.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color = FieldContentColor,
-            start = androidx.compose.ui.geometry.Offset(arrowBaseX, centerY - arrowHeight),
-            end = androidx.compose.ui.geometry.Offset(endX, centerY),
-            strokeWidth = 2.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color = FieldContentColor,
-            start = androidx.compose.ui.geometry.Offset(arrowBaseX, centerY + arrowHeight),
-            end = androidx.compose.ui.geometry.Offset(endX, centerY),
-            strokeWidth = 2.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
+        for ((color, width) in listOf(Color.White to 4.dp, FieldContentColor to 2.dp)) {
+            drawLine(
+                color = color,
+                start = androidx.compose.ui.geometry.Offset(startX, centerY),
+                end = androidx.compose.ui.geometry.Offset(endX, centerY),
+                strokeWidth = width.toPx(),
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = color,
+                start = androidx.compose.ui.geometry.Offset(arrowBaseX, centerY - arrowHeight),
+                end = androidx.compose.ui.geometry.Offset(endX, centerY),
+                strokeWidth = width.toPx(),
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = color,
+                start = androidx.compose.ui.geometry.Offset(arrowBaseX, centerY + arrowHeight),
+                end = androidx.compose.ui.geometry.Offset(endX, centerY),
+                strokeWidth = width.toPx(),
+                cap = StrokeCap.Round,
+            )
+        }
     }
 }
 
