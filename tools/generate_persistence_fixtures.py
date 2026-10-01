@@ -34,6 +34,15 @@ persisted_scenarios = {
         "complete-current-game": ScenarioSource("complete-current-game", None),
         "completed-archive": ScenarioSource("completed-archive", None),
     },
+    "v1.4": {
+        "default-buckets": ScenarioSource("default-buckets", "v1.4.0"),
+        "started-game-no-events": ScenarioSource("started-game-no-events", "v1.4.0"),
+        "setup-draft": ScenarioSource("setup-draft", "v1.4.0"),
+        "active-game": ScenarioSource("active-game", "v1.4.0"),
+        "complete-current-game": ScenarioSource("complete-current-game", "v1.4.0"),
+        "completed-archive": ScenarioSource("completed-archive", "v1.4.0"),
+        "countdown-history": ScenarioSource("countdown-history", "v1.4.0"),
+    },
     "v1.3": {
         "default-buckets": ScenarioSource("default-buckets", "v1.3.1"),
         "started-game-no-events": ScenarioSource("started-game-no-events", "v1.3.1"),

@@ -5,7 +5,6 @@ import java.nio.file.Paths
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
-import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -93,8 +92,8 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(SetupMode.EDIT_CURRENT_GAME, activeGame.setupMode)
         assertNull(currentState.undoEntry)
         assertNull(currentState.redoEntry)
-        assertNull(currentState.countdown)
-        assertTrue(currentState.hasExpiredPullActions(currentState.startEpoch))
+        assertNotNull(currentState.countdown)
+        assertTrue(currentState.hasExpiredPullActions(currentState.countdown!!.targetEpoch))
         assertEquals(1, activeGame.archivedGames.size)
         assertEquals(TeamId.TEAM_ONE, currentState.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(TeamId.TEAM_TWO, currentState.pullingTeam)
@@ -176,7 +175,7 @@ class TestMigration : GameDomainTestFixtures() {
         val setupSavedCurrentGame = setupSaved.currentGame!!
         assertEquals(GamePhase.PRE_GAME, setupSavedCurrentGame.phase)
         assertNull(setupSavedCurrentGame.undoEntry)
-        assertNull(setupSavedCurrentGame.countdown)
+        assertEquals(setupSavedCurrentGame.startEpoch, setupSavedCurrentGame.countdown!!.targetEpoch)
         assertTrue(setupSavedCurrentGame.hasExpiredPullActions(setupSavedCurrentGame.startEpoch))
         assertEquals(1, setupSaved.archivedGames.size)
         val setupSavedArchive = setupSaved.archivedGames.single()
@@ -184,7 +183,7 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(GamePhase.PRE_GAME, setupSavedArchive.phase)
         assertEquals("Simple One", setupSavedArchive.teamOne.name)
         assertEquals("Simple Two", setupSavedArchive.teamTwo.name)
-        assertNull(setupSavedArchive.countdown)
+        assertEquals(setupSavedArchive.startEpoch, setupSavedArchive.countdown!!.targetEpoch)
         assertTrue(setupSavedArchive.hasExpiredPullActions(setupSavedArchive.startEpoch))
         assertTrue(setupSavedArchive.teamOnePlayers.isEmpty())
         assertTrue(setupSavedArchive.teamTwoPlayers.isEmpty())
@@ -748,6 +747,125 @@ class TestMigration : GameDomainTestFixtures() {
             v1_1FixtureProfile(),
             v1_3FixtureSettings("completed-archive"),
         )
+    }
+
+    /** Load the standard v1.4 saves directly through the v1.4-to-v1.5 migration. */
+    @Test
+    fun loadFixturesFromV1_4() {
+        // The standard v1.4 scenarios retain the profile/settings values used in v1.3.
+        val defaultBuckets = loadMigratedFixture("v1.4", "default-buckets")
+        assertNull(defaultBuckets.currentGame)
+        assertFalse(defaultBuckets.hasSetupDraft)
+        assertTrue(defaultBuckets.archivedGames.isEmpty())
+        assertProfileAndSettings(defaultBuckets, Profile(), v1_3FixtureSettings("default-buckets"))
+
+        // A started game with no events keeps its opening countdown and empty history.
+        val started = loadMigratedFixture("v1.4", "started-game-no-events")
+        assertStartedGameNoEvents(started)
+        assertEquals(CountdownKind.OPENING_PULL, started.currentGame!!.countdown!!.kind)
+        assertProfileAndSettings(started, Profile(), v1_3FixtureSettings("default-buckets"))
+
+        // A saved setup remains editable, with its customized rules and settings.
+        val setup = loadMigratedFixture("v1.4", "setup-draft")
+        assertTrue(setup.hasSetupDraft)
+        assertEquals("Youth", setup.setupGame.level)
+        assertEquals(80, setup.setupGame.rules.nominalTimeBetweenPointsSeconds)
+        assertEquals(HeatLevel.MANUAL, setup.setupGame.rules.heatLevel)
+        assertProfileAndSettings(setup, v1_1FixtureProfile(), v1_3FixtureSettings("setup-draft"))
+
+        // An active game retains its score, current countdown, archive, and watch setting.
+        val active = loadMigratedFixture("v1.4", "active-game")
+        assertEquals(GamePhase.BETWEEN_POINTS, active.currentGame!!.phase)
+        assertEquals(1, active.currentGame!!.teamOne.score)
+        assertEquals(1, active.currentGame!!.teamTwo.score)
+        assertNotNull(active.currentGame!!.countdown)
+        assertEquals(1, active.archivedGames.size)
+        assertProfileAndSettings(active, v1_1FixtureProfile(), v1_3FixtureSettings("active-game"))
+
+        // A completed current game retains its End game action and preceding pull countdown.
+        val completed = loadMigratedFixture("v1.4", "complete-current-game")
+        assertEquals(GamePhase.GAME_OVER, completed.currentGame!!.phase)
+        assertEquals("Undo End game", completed.currentGame!!.undoEntry?.label)
+        assertNotNull(completed.currentGame!!.undoLastAction().countdown)
+        assertProfileAndSettings(
+            completed, v1_1FixtureProfile(), v1_3FixtureSettings("complete-current-game"),
+        )
+
+        // Archived games retain their completed state and receive usable Undo End game states.
+        val archived = loadMigratedFixture("v1.4", "completed-archive")
+        assertNull(archived.currentGame)
+        assertEquals(2, archived.archivedGames.size)
+        for (game in archived.archivedGames) {
+            assertEquals(GamePhase.GAME_OVER, game.phase)
+            assertEquals(GamePhase.BETWEEN_POINTS, game.undoLastAction().phase)
+            assertNotNull(game.undoLastAction().countdown)
+        }
+        assertProfileAndSettings(
+            archived, v1_1FixtureProfile(), v1_3FixtureSettings("completed-archive"),
+        )
+    }
+
+    /** Restore countdowns pruned from completed archives without changing the recorded game. */
+    @Test
+    fun archivedCountdowns() {
+        val loaded = loadMigratedFixture("v1.4", "countdown-history")
+        val phases = listOf(GamePhase.PRE_GAME, GamePhase.BETWEEN_POINTS, GamePhase.HALFTIME)
+        val kinds = listOf(CountdownKind.OPENING_PULL, CountdownKind.BETWEEN_POINTS,
+            CountdownKind.HALFTIME)
+        val minutes = listOf(0, 20, 25)
+
+        // The released archive path pruned countdowns at all three milestones of this game.
+        // Check that the migration added the right kind of countdown in each case, all of
+        // which are now expired.
+        for (index in phases.indices) {
+            // After restoring, the game is removed from archivedGames, so always take the first.
+            val completed = loaded.archivedGames[0]
+            val targetTime = completed.startEpoch + minutes[index] * 60_000L
+            loaded.openArchivedGame(0, now = targetTime + 3_600_000L)
+            loaded.makeArchivedGameCurrent()
+            val restored = loaded.currentGame!!.undoLastAction()
+            assertEquals(phases[index], restored.phase)
+            assertEquals(kinds[index], restored.countdown!!.kind)
+            assertTrue(restored.countdown!!.remainingDuration(targetTime + 3_600_000L).isZero)
+            assertNull(restored.undoEntry)
+        }
+    }
+
+    /** Normalize abandoned games and their full history while preserving real countdowns. */
+    @Test
+    fun currentCountdownHistory() {
+        val loaded = loadMigratedFixture("v1.4", "countdown-history")
+        val restored = loaded.currentGame!!
+
+        // The game was saved after undoing an automatic second-half Start point.
+        assertEquals(GamePhase.BETWEEN_POINTS, restored.phase)
+        assertNotNull(restored.countdown)
+        assertEquals(restored.startEpoch + 25 * 60_000L, restored.countdown!!.targetEpoch)
+        assertEquals(GamePhase.LIVE_POINT, restored.redoLastAction().phase)
+        assertEquals(restored, restored.redoLastAction().undoLastAction())
+
+        // Follow the real history back through halftime, the goal, and the skipped pull.
+        val between = restored.undoLastAction()
+        assertEquals(GamePhase.BETWEEN_POINTS, between.phase)
+        assertEquals(restored.startEpoch + 24 * 60_000L + 80_000L,
+            between.countdown!!.targetEpoch)
+        val penalty = between.undoLastAction().undoLastAction()
+        assertTrue(penalty.pullSkippedForCurrentPoint)
+        assertEquals(2, penalty.teamTwo.timeViolations)
+        assertEquals(GamePhase.LIVE_POINT, penalty.phase)
+
+        // Undoing the penalty preserves the warning's original 50-second countdown.
+        val warning = penalty.undoLastAction()
+        assertEquals(GamePhase.BETWEEN_POINTS, warning.phase)
+        assertEquals(1, warning.teamTwo.timeViolations)
+        assertEquals(restored.startEpoch + 22 * 60_000L + 50_000L,
+            warning.countdown!!.targetEpoch)
+
+        // Undoing the warning reaches the null countdown left by the earlier automatic start.
+        val expiredPull = warning.undoLastAction()
+        assertEquals(GamePhase.BETWEEN_POINTS, expiredPull.phase)
+        assertEquals(0, expiredPull.teamTwo.timeViolations)
+        assertEquals(restored.startEpoch + 20 * 60_000L, expiredPull.countdown!!.targetEpoch)
     }
 
     private fun assertMigratedV1_2TerminalCurrentGame(

@@ -3,6 +3,8 @@ package rmjarvis.ultiobserver
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.temporal.ChronoField
+import kotlin.math.abs
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -176,7 +178,7 @@ internal fun migrateArchivedGameJson(jsonElement: JsonElement, version: AppVersi
  * always expose `Undo End game`, restore the same pre-terminal state, and end their event log
  * explicitly.
  */
-internal fun GameState.migrateTerminalGame(): GameState {
+private fun GameState.migrateTerminalGame(): GameState {
     val legacyUndoLabel = undoEntry?.label
     val gameEndingHardCap = legacyUndoLabel == null ||
         legacyUndoLabel in legacyHardCapUndoLabels
@@ -214,6 +216,58 @@ internal fun GameState.migrateTerminalGame(): GameState {
         eventLog = migratedEventLog,
         undoEntry = terminalUndo,
     )
+}
+
+/** Normalize decoded legacy states after reconstructing their serialized history patches. */
+internal fun GameState.migrateGameState(): GameState {
+    val terminalState = if (phase == GamePhase.GAME_OVER) migrateTerminalGame() else this
+    return terminalState.migrateCountdowns()
+}
+
+/** Restore the countdown invariant throughout an old game's Undo/Redo history. */
+private fun GameState.migrateCountdowns(): GameState {
+    val normalized = if (countdown == null && (phase.isBeforeLivePoint || phase == GamePhase.HALFTIME)) {
+        if (phase.isBeforeLivePoint && pullSkippedForCurrentPoint) {
+            copy(phase = GamePhase.LIVE_POINT)
+        } else {
+            val targetEpoch = approximateLastEventEpoch()
+            val restoredCountdown = if (phase == GamePhase.HALFTIME) {
+                buildHalftimeCountdown(rules.halftimeMinutes, targetEpoch)
+            } else {
+                buildBetweenPointsCountdown(
+                    pullingFromEnd = pullingFromEnd,
+                    sequenceStart = targetEpoch,
+                    kind = if (phase == GamePhase.PRE_GAME) CountdownKind.OPENING_PULL else CountdownKind.BETWEEN_POINTS,
+                    promptTarget = pullPromptTarget,
+                    rules = rules,
+                )
+            }
+            copy(countdown = restoredCountdown.copy(targetEpoch = targetEpoch))
+        }
+    } else {
+        this
+    }
+    return normalized.copy(
+        undoEntry = undoEntry?.let { entry ->
+            entry.copy(previous = entry.previous.migrateCountdowns())
+        },
+        redoEntry = redoEntry?.migrateCountdowns(),
+    )
+}
+
+/** Estimate a legacy countdown deadline from minute-resolution event text without AM/PM. */
+private fun GameState.approximateLastEventEpoch(): Long {
+    val lastEvent = eventLog.lastOrNull() ?: return startEpoch
+    val parsed = EVENT_LOG_TIME_FORMATTER.parse(lastEvent.timeText)
+    val eventTime = LocalTime.of(
+        parsed.get(ChronoField.HOUR_OF_AMPM),
+        parsed.get(ChronoField.MINUTE_OF_HOUR),
+    )
+    val morning = startDate.atTime(eventTime).atZone(timeZone)
+    // Choose the half-day nearest the scheduled start; exact historical timing is not recoverable.
+    return listOf(morning, morning.plusHours(12), morning.plusHours(24))
+        .map { it.toInstant().toEpochMilli() - officialClockOffsetMillis }
+        .minBy { abs(it - startEpoch) }
 }
 
 private fun migrateJsonToCurrent(
