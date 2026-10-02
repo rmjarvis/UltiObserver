@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
@@ -86,9 +87,9 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // the observer names or selects an end.
         composeRule.onNodeWithText("Left end name").assertIsDisplayed()
         composeRule.onNodeWithText("Right end name").assertIsDisplayed()
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.FAR.name}")
+        composeRule.onNodeWithTag("setup-team-one-end-${FieldEnd.FAR.name}")
             .assertTextContains("Left end", substring = true)
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}")
+        composeRule.onNodeWithTag("setup-team-one-end-${FieldEnd.NEAR.name}")
             .assertTextContains("Right end", substring = true)
         composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.FAR.name}")
             .performScrollTo()
@@ -106,9 +107,15 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}")
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.FAR.name}")
+        composeRule.onNodeWithTag("setup-team-one-end-${FieldEnd.NEAR.name}")
             .performScrollTo()
             .performClick()
+        composeRule.onNodeWithTag("setup-pull-diagram-left").performScrollTo()
+            .assertTextContains("Team 2").assertTextContains(leftEndName)
+        composeRule.onNodeWithTag("setup-pull-diagram-right")
+            .assertTextContains("Team 1").assertTextContains(rightEndName)
+        composeRule.onNodeWithTag("setup-pull-diagram-arrow")
+            .assertContentDescriptionEquals("Pull to the right")
         closeSetupEditor()
 
         // The setup summary uses the landscape names and selected opening-pull assignment.
@@ -302,13 +309,13 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openStartingPullSetupEditor()
         composeRule.onNodeWithTag("setup-far-end-name").performTextReplacement("Trees")
         composeRule.onNodeWithTag("setup-near-end-name").performClick()
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.FAR.name}")
+        composeRule.onNodeWithTag("setup-team-one-end-${FieldEnd.FAR.name}")
             .assertTextContains("Trees", substring = true)
         composeRule.onNodeWithTag("setup-near-end-name").performTextReplacement("Road")
         composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}")
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}")
+        composeRule.onNodeWithTag("setup-team-one-end-${FieldEnd.NEAR.name}")
             .assertTextContains("Road", substring = true)
 
         // The same editor also accepts either team, either field end, prompts, and the ABBA
@@ -316,13 +323,32 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_ONE.name}")
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}")
+        composeRule.onNodeWithTag("setup-team-one-end-${FieldEnd.NEAR.name}")
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.FAR.name}")
+
+        // The diagram keeps ends fixed while changing the pulling team reverses its arrow.
+        composeRule.onNodeWithTag("setup-pull-diagram-left").performScrollTo()
+            .assertTextContains(if (landscape) beagles else aardvarks)
+            .assertTextContains(if (landscape) "Trees" else "Road")
+        composeRule.onNodeWithTag("setup-pull-diagram-right")
+            .assertTextContains(if (landscape) aardvarks else beagles)
+            .assertTextContains(if (landscape) "Road" else "Trees")
+        composeRule.onNodeWithTag("setup-pull-diagram-arrow")
+            .assertContentDescriptionEquals(if (landscape) "Pull to the left" else "Pull to the right")
+        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}")
+            .performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-team-one-end-${FieldEnd.NEAR.name}").assertIsSelected()
+        composeRule.onNodeWithTag("setup-pull-diagram-arrow").performScrollTo()
+            .assertContentDescriptionEquals(if (landscape) "Pull to the right" else "Pull to the left")
+        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_ONE.name}")
+            .performScrollTo().performClick()
+
+        // Changing starting ends still leaves the remaining setup choices available.
+        composeRule.onNodeWithTag("setup-team-one-end-${FieldEnd.FAR.name}")
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}")
+        composeRule.onNodeWithTag("setup-team-one-end-${FieldEnd.NEAR.name}")
             .performScrollTo()
             .performClick()
         composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.FAR.name}")
@@ -1046,12 +1072,19 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Team 1 pulls from $pullingEndName")
             .performScrollTo()
             .assertIsDisplayed()
+
+        // Changing the pulling team preserves the teams' ends, so Team 2 pulls from the other end.
         openStartingPullSetupEditor()
         composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}")
             .performScrollTo()
             .performClick()
         closeSetupEditor()
-        composeRule.onNodeWithText("Team 2 pulls from $pullingEndName")
+        val otherEndName = if (testOrientationPreference() == OrientationPreference.LANDSCAPE) {
+            "Right end"
+        } else {
+            "Near end"
+        }
+        composeRule.onNodeWithText("Team 2 pulls from $otherEndName")
             .performScrollTo()
             .assertIsDisplayed()
 

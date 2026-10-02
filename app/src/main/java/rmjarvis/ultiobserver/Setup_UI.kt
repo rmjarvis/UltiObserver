@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -24,6 +26,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.East
+import androidx.compose.material.icons.filled.West
 import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonColors
@@ -31,6 +35,7 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -1578,7 +1583,7 @@ private fun StartingPullSetupDialog(
     var committedNearEndName by remember { mutableStateOf(state.nearEndName) }
     var committedFarEndName by remember { mutableStateOf(state.farEndName) }
     var pullingTeam by remember { mutableStateOf(state.openingPullingTeam) }
-    var pullingFromEnd by remember { mutableStateOf(state.openingPullingFromEnd) }
+    var teamOneEnd by remember { mutableStateOf(state.teamOneStartingEnd()) }
     var pullPromptTarget by remember { mutableStateOf(state.pullPromptTarget) }
     var initialGenderRatio by remember { mutableStateOf(state.initialGenderRatio) }
     var firstHalfGenZone by remember { mutableStateOf(state.firstHalfGenZone) }
@@ -1606,13 +1611,11 @@ private fun StartingPullSetupDialog(
             state.copy(
                 nearEndName = nearEndName,
                 farEndName = farEndName,
-                openingPullingTeam = pullingTeam,
-                openingPullingFromEnd = pullingFromEnd,
                 pullPromptTarget = pullPromptTarget,
                 initialGenderRatio = initialGenderRatio,
                 firstHalfGenZone = firstHalfGenZone,
                 watchLeftEnd = watchLeftEnd,
-            )
+            ).withStartingPull(pullingTeam, teamOneEnd)
         )
         onDismiss()
     }
@@ -1666,7 +1669,7 @@ private fun StartingPullSetupDialog(
                     onDone = { commitNearEndLabel() },
                     onFocusLost = { commitNearEndLabel() },
                 )
-                Text("Pulling team", fontWeight = FontWeight.SemiBold)
+                Text("Which team is pulling?", fontWeight = FontWeight.SemiBold)
                 TeamChoiceRow(
                     teamOne = state.teamOne,
                     teamTwo = state.teamTwo,
@@ -1674,12 +1677,21 @@ private fun StartingPullSetupDialog(
                     testTagPrefix = "setup-pulling-team",
                     onSelected = { pullingTeam = it },
                 )
-                Text("Pulling from", fontWeight = FontWeight.SemiBold)
+                Text("${TeamId.TEAM_ONE.setupName(state)} starts at which end?", fontWeight = FontWeight.SemiBold)
                 FieldEndChoiceRow(
-                    selected = pullingFromEnd,
+                    selected = teamOneEnd,
                     nearLabel = displayFieldEndName(FieldEnd.NEAR),
                     farLabel = displayFieldEndName(FieldEnd.FAR),
-                    onSelected = { pullingFromEnd = it },
+                    onSelected = { teamOneEnd = it },
+                    testTagPrefix = "setup-team-one-end",
+                )
+                StartingPullDiagram(
+                    state = state,
+                    preference = preference,
+                    pullingTeam = pullingTeam,
+                    teamOneEnd = teamOneEnd,
+                    nearLabel = displayFieldEndName(FieldEnd.NEAR),
+                    farLabel = displayFieldEndName(FieldEnd.FAR),
                 )
                 if (state.usesMixedDivision()) {
                     when (state.rules.genderRatioRule) {
@@ -2866,6 +2878,103 @@ private fun TeamChoiceRow(
     }
 }
 
+/** Show the starting teams and pull direction with field ends in a fixed order. */
+@Composable
+private fun StartingPullDiagram(
+    state: GameState,
+    preference: OrientationPreference,
+    pullingTeam: TeamId,
+    teamOneEnd: FieldEnd,
+    nearLabel: String,
+    farLabel: String,
+) {
+    val leftEnd = if (preference == OrientationPreference.LANDSCAPE) FieldEnd.FAR else FieldEnd.NEAR
+    val leftTeam = if (teamOneEnd == leftEnd) TeamId.TEAM_ONE else TeamId.TEAM_TWO
+    val leftTeamState = state.teamFor(leftTeam)
+    val rightTeamState = state.teamFor(leftTeam.flip())
+    Row(
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)
+            .border(1.dp, FieldBorderColor),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight()
+                .background(leftTeamState.accent).padding(8.dp)
+                .semantics(mergeDescendants = true) {}
+                .testTag("setup-pull-diagram-left"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    leftTeam.setupName(state),
+                    color = leftTeamState.content,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                if (leftEnd == FieldEnd.NEAR) nearLabel else farLabel,
+                modifier = Modifier.align(Alignment.Start),
+                color = leftTeamState.content,
+                textAlign = TextAlign.Start,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Column(
+            modifier = Modifier.fillMaxHeight().background(FieldPullAreaColor)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text("Pull", color = Color.Black)
+            val pullsRight = pullingTeam == leftTeam
+            Icon(
+                imageVector = if (pullsRight) Icons.Filled.East else Icons.Filled.West,
+                contentDescription = if (pullsRight) "Pull to the right" else "Pull to the left",
+                modifier = Modifier.size(width = 42.dp, height = 32.dp)
+                    .testTag("setup-pull-diagram-arrow"),
+                tint = Color.Black,
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight()
+                .background(rightTeamState.accent).padding(8.dp)
+                .semantics(mergeDescendants = true) {}
+                .testTag("setup-pull-diagram-right"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    leftTeam.flip().setupName(state),
+                    color = rightTeamState.content,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                if (leftEnd == FieldEnd.NEAR) farLabel else nearLabel,
+                modifier = Modifier.align(Alignment.End),
+                color = rightTeamState.content,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
 /**
  * Render a two-choice row for Near end vs Far end selection.
  *
@@ -2881,7 +2990,7 @@ private fun FieldEndChoiceRow(
     nearLabel: String,
     farLabel: String,
     onSelected: (FieldEnd) -> Unit,
-    testTagPrefix: String = "setup-pulling-from",
+    testTagPrefix: String,
 ) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -2938,8 +3047,9 @@ internal fun PullPromptTargetChoiceRow(
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Row(
+        FlowRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             ChoiceChip(PullPromptTarget.NEAR)
             ChoiceChip(PullPromptTarget.FAR)

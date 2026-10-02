@@ -13,6 +13,34 @@ import org.junit.Test
 
 /// Tests for setup-state conversion and applying setup edits to current games.
 class TestSetup : GameDomainTestFixtures() {
+    /** Test independent flip choices and the derived opening pull. */
+    @Test
+    fun startingPositions() {
+        // Team 1 pulls from its selected starting end.
+        val setup = standardGameSetup(startTime = LocalTime.of(11, 0))
+        val teamOnePulls = setup.withStartingPull(TeamId.TEAM_ONE, FieldEnd.NEAR)
+        assertEquals(TeamId.TEAM_ONE, teamOnePulls.openingPullingTeam)
+        assertEquals(FieldEnd.NEAR, teamOnePulls.openingPullingFromEnd)
+        assertEquals(FieldEnd.NEAR, teamOnePulls.teamOneStartingEnd())
+
+        // Choosing Team 2 to pull preserves starting positions and reverses the pull direction.
+        val teamTwoPulls = teamOnePulls.withStartingPull(TeamId.TEAM_TWO, teamOnePulls.teamOneStartingEnd())
+        assertEquals(TeamId.TEAM_TWO, teamTwoPulls.openingPullingTeam)
+        assertEquals(FieldEnd.FAR, teamTwoPulls.openingPullingFromEnd)
+        assertEquals(FieldEnd.NEAR, teamTwoPulls.teamOneStartingEnd())
+
+        // Moving Team 1 to the far end moves the pulling Team 2 to the near end.
+        val switchedEnds = teamTwoPulls.withStartingPull(TeamId.TEAM_TWO, FieldEnd.FAR)
+        assertEquals(TeamId.TEAM_TWO, switchedEnds.openingPullingTeam)
+        assertEquals(FieldEnd.NEAR, switchedEnds.openingPullingFromEnd)
+        assertEquals(FieldEnd.FAR, switchedEnds.teamOneStartingEnd())
+
+        // Switching back to Team 1 pulling derives the remaining starting-pull combination.
+        val teamOneFar = switchedEnds.withStartingPull(TeamId.TEAM_ONE, switchedEnds.teamOneStartingEnd())
+        assertEquals(FieldEnd.FAR, teamOneFar.openingPullingFromEnd)
+        assertEquals(FieldEnd.FAR, teamOneFar.teamOneStartingEnd())
+    }
+
     /**
      * Test current-game creation and setup-state conversion from setup form data.
      */

@@ -124,11 +124,15 @@ whatever you want.
 
 The rest of the items are the details that are decided at the pre-game flip.
 
-Pulling team
+Which team is pulling?
     Which team starts on defense.
 
-Pulling from
-    Which end are they pulling from?
+Team 1 starts at which end?
+    Where Team 1 (given by their actual name, of course) will be at the start of the game.
+
+    Below these two choices is a schematic diagram to help you visualize the positions of the
+    teams and the direction of the first pull to help make sure you recorded both choices
+    correctly.
 
 First point gender ratio
     This option is only available if the division is set to Mixed and the rules are set to use

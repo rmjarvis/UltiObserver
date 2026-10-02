@@ -193,6 +193,23 @@ internal fun List<String>.observersDisplayText(): String? {
         .takeIf { it.isNotEmpty() }
 }
 
+/// Return Team 1's starting end from the saved opening pull.
+internal fun GameState.teamOneStartingEnd(): FieldEnd {
+    return if (openingPullingTeam == TeamId.TEAM_ONE) {
+        openingPullingFromEnd
+    } else {
+        openingPullingFromEnd.flip()
+    }
+}
+
+/// Save the opening pull derived from the pulling team and Team 1's starting end.
+internal fun GameState.withStartingPull(pullingTeam: TeamId, teamOneEnd: FieldEnd): GameState {
+    return copy(
+        openingPullingTeam = pullingTeam,
+        openingPullingFromEnd = if (pullingTeam == TeamId.TEAM_ONE) teamOneEnd else teamOneEnd.flip(),
+    )
+}
+
 /// Return setup summary lines for the field ends and opening pull.
 internal fun GameState.fieldStartingPullSummaryLines(
     preference: OrientationPreference,

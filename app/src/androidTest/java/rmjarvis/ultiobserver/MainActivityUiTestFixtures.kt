@@ -1133,7 +1133,7 @@ abstract class MainActivityUiTestFixtures {
     /// Open the setup starting-pull editor.
     protected fun openStartingPullSetupEditor() {
         composeRule.onNodeWithTag("setup-edit-starting-pull").performScrollTo().performClick()
-        waitForText("Pulling team")
+        waitForText("Which team is pulling?")
     }
 
     /// Open the setup game-rules editor.
