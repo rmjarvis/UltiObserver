@@ -131,7 +131,7 @@ Countdown Controls
 ------------------
 
 From the main watch screen, if you tap the countdown area, it will open up the countdown
-controls on the bottom of the screen. 
+controls on the bottom of the screen.
 
 You can pause or resume the timer, add or subtract 5 seconds, or start a water break when
 the game's rules allow it.
@@ -275,6 +275,23 @@ Check that notifications are allowed for UltiObserver in the watch's system sett
 then reopen UltiObserver on the watch. The shortcut is only present while there is a
 current game. If the shortcut isn't present, you can always reopen the app from the
 watch's app list instead.
+
+Gemini activates when I call out times
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Some Wear OS watches have an option called "Raise to talk", which activates Gemini when
+you raise your wrist and then say something. As an observer, it's not uncommon to
+raise your wrist to check a countdown and then call out something to the teams, like
+"20 seconds" or "1 minute". Gemini may think you are talking to it and try to do something
+like start a timer or set a reminder.
+
+If you notice this happening, the solution is to turn off your watch's **Raise to talk**
+gesture setting. On a Pixel watch, this is in the watch's **Settings**, then **Gestures**.
+It may be located somewhere else on other models.
+
+See Google's
+`Raise to talk instructions <https://support.google.com/googlepixelwatch/answer/16603950>`_
+for details. On other watches, check the manufacturer's gesture settings.
 
 Still having trouble?
 ~~~~~~~~~~~~~~~~~~~~~
