@@ -26,6 +26,7 @@ import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.swipeRight
 import androidx.test.espresso.Espresso.pressBackUnconditionally
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
 import java.io.File
 import java.io.FileInputStream
 import java.time.LocalDate
@@ -1306,6 +1307,10 @@ abstract class MainActivityUiTestFixtures {
             val name = "wait-failure-${System.currentTimeMillis()}"
             val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "wait-failures")
             // A capture failure must not hide the original wait failure.
+            runCatching {
+                directory.mkdirs()
+                UiDevice.getInstance(instrumentation).dumpWindowHierarchy(File(directory, "$name.xml"))
+            }.exceptionOrNull()?.let { failure.addSuppressed(it) }
             runCatching {
                 directory.mkdirs()
                 val tree = composeRule.onAllNodes(isRoot(), useUnmergedTree = true)

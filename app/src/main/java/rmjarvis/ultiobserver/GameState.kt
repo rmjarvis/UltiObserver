@@ -480,6 +480,8 @@ data class PendingScoreTransition(
  */
 @Serializable
 data class GameState(
+    /// Permanent identity shared by this game and its undo/redo states.
+    val gameId: String,
     @Serializable(with = LocalDateAsStringSerializer::class)
     val startDate: LocalDate,
     @Serializable(with = LocalTimeAsStringSerializer::class)
@@ -531,6 +533,13 @@ data class GameState(
     val undoEntry: UndoEntry? = null,
     val redoEntry: GameState? = null,
 ) {
+    /// Assign a new identity consistently throughout this game's retained history.
+    internal fun withGameId(id: String): GameState = copy(
+        gameId = id,
+        undoEntry = undoEntry?.let { it.copy(previous = it.previous.withGameId(id)) },
+        redoEntry = redoEntry?.withGameId(id),
+    )
+
     /// Epoch millis for the scheduled game start.
     val startEpoch: Long
         get() = epochTimestamp(startDate, startTime, timeZone) - officialClockOffsetMillis

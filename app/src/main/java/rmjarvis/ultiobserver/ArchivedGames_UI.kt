@@ -91,6 +91,8 @@ internal fun ArchivedGamesScreen(
     onBackHome: () -> Unit,
     onBackCategories: () -> Unit,
     onHome: () -> Unit,
+    onBackup: () -> Unit,
+    onLoadBackup: () -> Unit,
 ) {
     var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
     var pendingDeleteCurrentGame by remember { mutableStateOf(false) }
@@ -159,6 +161,24 @@ internal fun ArchivedGamesScreen(
                             onOpenCategory = onOpenCategory,
                         )
                     }
+                    HorizontalDivider()
+                    MenuButton(
+                        label = "Back up archived games",
+                        colors = neutralOutlinedButtonColors(
+                            containerColor = SecondaryColor,
+                            contentColor = OnSecondaryColor,
+                        ),
+                        enabled = categoryCounts.getValue(ArchivedGameCategory.COMPLETED) > 0,
+                        onClick = onBackup,
+                    )
+                    MenuButton(
+                        label = "Load games from backup",
+                        colors = neutralOutlinedButtonColors(
+                            containerColor = SecondaryColor,
+                            contentColor = OnSecondaryColor,
+                        ),
+                        onClick = onLoadBackup,
+                    )
                 } else {
                     val selectedGames = filteredArchiveState.selectedGames!!
                     if (category == ArchivedGameCategory.IN_PROGRESS) {
@@ -288,6 +308,7 @@ private fun ArchiveListWithControls(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         ArchiveListControls(
+            bulkActionLabel = "Delete all",
             visible = showControls,
             filterAndSortSummaryText = filterAndSortSummaryText,
             showDeleteAll = showDeleteAll,
@@ -341,7 +362,8 @@ private fun ArchiveListWithControls(
  * @param onDeleteAll Callback requesting deletion of all selected archive rows.
  */
 @Composable
-private fun ArchiveListControls(
+internal fun ArchiveListControls(
+    bulkActionLabel: String,
     visible: Boolean,
     filterAndSortSummaryText: String,
     showDeleteAll: Boolean,
@@ -379,7 +401,7 @@ private fun ArchiveListControls(
         Spacer(modifier = Modifier.weight(1f))
         if (showDeleteAll) {
             TextButton(
-                label = "Delete all",
+                label = bulkActionLabel,
                 tag = "delete-all-archived-games",
                 onClick = onDeleteAll,
             )
@@ -415,7 +437,7 @@ private fun ArchiveFilterAndSortSummary(text: String) {
  * @param onDismiss Callback closing the dialog.
  */
 @Composable
-private fun ArchiveFilterDialog(
+internal fun ArchiveFilterDialog(
     filterSelections: ArchiveFilterSelections,
     availableValues: Map<ArchiveFilterField, List<ArchiveFilterValueOption>>,
     onUpdateValues: (ArchiveFilterField, Set<String>) -> Unit,
@@ -747,7 +769,7 @@ private fun ArchiveRadioRow(
  * @param onDismiss Callback closing the dialog.
  */
 @Composable
-private fun ArchiveSortDialog(
+internal fun ArchiveSortDialog(
     sortMode: ArchiveSortMode,
     onSortModeSelected: (ArchiveSortMode) -> Unit,
     onDismiss: () -> Unit,

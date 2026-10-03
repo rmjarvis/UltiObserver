@@ -4,6 +4,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.temporal.ChronoField
+import java.util.UUID
 import kotlin.math.abs
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -25,11 +26,15 @@ internal data class PersistenceDecodeResult<T>(
     val wasMigrated: Boolean,
 )
 
-/// JSON bucket migrated far enough for the current serializer to decode.
+/// Migrated JSON and the version-specific game repairs to apply after decoding its history.
 internal data class MigratedJson(
     val jsonElement: JsonElement,
     val wasMigrated: Boolean,
-)
+    private val gameStateMigrations: List<(GameState) -> GameState>,
+) {
+    fun migrateGameState(game: GameState): GameState =
+        gameStateMigrations.fold(game) { state, migrate -> migrate(state) }
+}
 
 /// Independently decoded persistence bucket that may need a bucket-specific migration.
 private enum class PersistenceBucket {
@@ -43,15 +48,6 @@ private typealias BucketMigration = (JsonElement) -> JsonElement
 private typealias UnknownPlayerReference = Pair<TeamId, Int>
 private typealias MigratedEventLogEntry = Pair<JsonObject, UnknownPlayerReference?>
 
-private val legacyHardCapUndoLabels = setOf(
-    "Undo Apply hard cap",
-    "Undo Apply hard cap now",
-)
-private val legacyLevelThreeUndoLabels = setOf(
-    HEAT_LEVEL_THREE_UNDO_LABEL,
-    AQI_LEVEL_THREE_UNDO_LABEL,
-)
-
 /**
  * One persistence-version migration step, with optional converters for each persistence bucket.
  *
@@ -61,6 +57,7 @@ private val legacyLevelThreeUndoLabels = setOf(
  * @param profile Converter for the profile bucket, or null when unchanged.
  * @param settings Converter for the settings bucket, or null when unchanged.
  * @param archivedGame Converter for one archived-game file, or null when unchanged.
+ * @param decodedGame Repair for current and archived games after decoding, or null when unchanged.
  */
 private class VersionMigration(
     val sourceVersion: String,
@@ -69,6 +66,7 @@ private class VersionMigration(
     val profile: BucketMigration?,
     val settings: BucketMigration?,
     val archivedGame: BucketMigration?,
+    val decodedGame: ((GameState) -> GameState)?,
 ) {
     /**
      * Return the migration function for one bucket, or null if this step does not change
@@ -94,6 +92,7 @@ private val knownVersionMigrations = listOf(
         profile = null,
         settings = V1_0ToV1_1::migrateSettings,
         archivedGame = V1_0ToV1_1::migrateArchivedGame,
+        decodedGame = null,
     ),
     VersionMigration(
         sourceVersion = "1.1",
@@ -102,6 +101,7 @@ private val knownVersionMigrations = listOf(
         profile = V1_1ToV1_2::migrateProfile,
         settings = V1_1ToV1_2::migrateSettings,
         archivedGame = null,
+        decodedGame = null,
     ),
     VersionMigration(
         sourceVersion = "1.2",
@@ -110,6 +110,7 @@ private val knownVersionMigrations = listOf(
         profile = null,
         settings = V1_2ToV1_3::migrateSettings,
         archivedGame = V1_2ToV1_3::migrateGame,
+        decodedGame = V1_2ToV1_3::migrateTerminalGame,
     ),
     VersionMigration(
         sourceVersion = "1.3",
@@ -118,14 +119,16 @@ private val knownVersionMigrations = listOf(
         profile = null,
         settings = V1_3ToV1_4::migrateSettings,
         archivedGame = null,
+        decodedGame = null,
     ),
     VersionMigration(
         sourceVersion = "1.4",
         targetVersion = "1.5",
-        currentGame = null,
+        currentGame = V1_4ToV1_5::migrateCurrentGame,
         profile = null,
         settings = null,
-        archivedGame = null,
+        archivedGame = V1_4ToV1_5::migrateArchivedGame,
+        decodedGame = V1_4ToV1_5::migrateCountdowns,
     ),
 )
 
@@ -169,107 +172,6 @@ internal fun migrateArchivedGameJson(jsonElement: JsonElement, version: AppVersi
     return migrateJsonToCurrent(jsonElement, version, PersistenceBucket.ARCHIVED_GAME)
 }
 
-/**
- * Normalize former terminal undo shapes to the standard End game invariant.
- *
- * Older builds completed untied hard-cap games and Level 3 heat/AQI suspensions without a terminal
- * Game over event. Current games retained action-specific undo labels, Level 3 archives retained
- * the same labels, and archive pruning removed the hard-cap undo entirely. Completed games now
- * always expose `Undo End game`, restore the same pre-terminal state, and end their event log
- * explicitly.
- */
-private fun GameState.migrateTerminalGame(): GameState {
-    val legacyUndoLabel = undoEntry?.label
-    val gameEndingHardCap = legacyUndoLabel == null ||
-        legacyUndoLabel in legacyHardCapUndoLabels
-    val levelThreeEnd = legacyUndoLabel in legacyLevelThreeUndoLabels
-    if (!gameEndingHardCap && !levelThreeEnd) {
-        return this
-    }
-    val eventTimeText = formatOfficialGameTime(
-        endEpoch!!,
-        EVENT_LOG_TIME_FORMATTER,
-    )
-    val migratedEventLog = eventLog +
-        (if (gameEndingHardCap) {
-            listOf(EventLogEntry(timeText = eventTimeText, type = EventLogType.HARD_CAP))
-        } else {
-            emptyList()
-        }) +
-        EventLogEntry(timeText = eventTimeText, type = EventLogType.GAME_OVER)
-    val terminalUndo = undoEntry?.copy(label = "Undo End game") ?: UndoEntry(
-        label = "Undo End game",
-        previous = copy(
-            endEpoch = null,
-            phase = if (eventLog.last().type == EventLogType.HALFTIME) {
-                GamePhase.HALFTIME
-            } else {
-                GamePhase.BETWEEN_POINTS
-            },
-            hardCapApplied = false,
-            pendingCapOffer = CapType.HARD,
-            undoEntry = null,
-            redoEntry = null,
-        ),
-    )
-    return copy(
-        eventLog = migratedEventLog,
-        undoEntry = terminalUndo,
-    )
-}
-
-/** Normalize decoded legacy states after reconstructing their serialized history patches. */
-internal fun GameState.migrateGameState(): GameState {
-    val terminalState = if (phase == GamePhase.GAME_OVER) migrateTerminalGame() else this
-    return terminalState.migrateCountdowns()
-}
-
-/** Restore the countdown invariant throughout an old game's Undo/Redo history. */
-private fun GameState.migrateCountdowns(): GameState {
-    val normalized = if (countdown == null && (phase.isBeforeLivePoint || phase == GamePhase.HALFTIME)) {
-        if (phase.isBeforeLivePoint && pullSkippedForCurrentPoint) {
-            copy(phase = GamePhase.LIVE_POINT)
-        } else {
-            val targetEpoch = approximateLastEventEpoch()
-            val restoredCountdown = if (phase == GamePhase.HALFTIME) {
-                buildHalftimeCountdown(rules.halftimeMinutes, targetEpoch)
-            } else {
-                buildBetweenPointsCountdown(
-                    pullingFromEnd = pullingFromEnd,
-                    sequenceStart = targetEpoch,
-                    kind = if (phase == GamePhase.PRE_GAME) CountdownKind.OPENING_PULL else CountdownKind.BETWEEN_POINTS,
-                    promptTarget = pullPromptTarget,
-                    rules = rules,
-                )
-            }
-            copy(countdown = restoredCountdown.copy(targetEpoch = targetEpoch))
-        }
-    } else {
-        this
-    }
-    return normalized.copy(
-        undoEntry = undoEntry?.let { entry ->
-            entry.copy(previous = entry.previous.migrateCountdowns())
-        },
-        redoEntry = redoEntry?.migrateCountdowns(),
-    )
-}
-
-/** Estimate a legacy countdown deadline from minute-resolution event text without AM/PM. */
-private fun GameState.approximateLastEventEpoch(): Long {
-    val lastEvent = eventLog.lastOrNull() ?: return startEpoch
-    val parsed = EVENT_LOG_TIME_FORMATTER.parse(lastEvent.timeText)
-    val eventTime = LocalTime.of(
-        parsed.get(ChronoField.HOUR_OF_AMPM),
-        parsed.get(ChronoField.MINUTE_OF_HOUR),
-    )
-    val morning = startDate.atTime(eventTime).atZone(timeZone)
-    // Choose the half-day nearest the scheduled start; exact historical timing is not recoverable.
-    return listOf(morning, morning.plusHours(12), morning.plusHours(24))
-        .map { it.toInstant().toEpochMilli() - officialClockOffsetMillis }
-        .minBy { abs(it - startEpoch) }
-}
-
 private fun migrateJsonToCurrent(
     jsonElement: JsonElement,
     version: AppVersion,
@@ -277,39 +179,21 @@ private fun migrateJsonToCurrent(
 ): MigratedJson? {
     val storedVersion = version.persistenceVersion() ?: return null
     val currentVersion = currentPersistenceVersion()
-    if (storedVersion == currentVersion) {
-        return MigratedJson(jsonElement = jsonElement, wasMigrated = false)
+    var stepVersion = storedVersion
+    var migratedJson = jsonElement
+    val gameStateMigrations = mutableListOf<(GameState) -> GameState>()
+    while (stepVersion != currentVersion) {
+        val migration = knownVersionMigrations.firstOrNull { it.sourceVersion == stepVersion } ?: return null
+        migratedJson = migration.converterFor(bucket)?.invoke(migratedJson) ?: migratedJson
+        if (bucket == PersistenceBucket.CURRENT_GAME || bucket == PersistenceBucket.ARCHIVED_GAME) {
+            migration.decodedGame?.let { gameStateMigrations.add(it) }
+        }
+        stepVersion = migration.targetVersion
     }
-    val migratedJson = migrateJsonBetweenVersions(
-        jsonElement = jsonElement,
-        sourceVersion = storedVersion,
-        currentVersion = currentVersion,
-        bucket = bucket,
-    ) ?: return null
     return MigratedJson(
         jsonElement = migratedJson,
-        wasMigrated = true,
-    )
-}
-
-private fun migrateJsonBetweenVersions(
-    jsonElement: JsonElement,
-    sourceVersion: String,
-    currentVersion: String,
-    bucket: PersistenceBucket,
-): JsonElement? {
-    if (sourceVersion == currentVersion) {
-        return jsonElement
-    }
-    val versionMigration = knownVersionMigrations.firstOrNull {
-        it.sourceVersion == sourceVersion
-    } ?: return null
-    val stepJson = versionMigration.converterFor(bucket)?.invoke(jsonElement) ?: jsonElement
-    return migrateJsonBetweenVersions(
-        jsonElement = stepJson,
-        sourceVersion = versionMigration.targetVersion,
-        currentVersion = currentVersion,
-        bucket = bucket,
+        wasMigrated = storedVersion != currentVersion,
+        gameStateMigrations = gameStateMigrations,
     )
 }
 
@@ -328,6 +212,94 @@ internal fun currentPersistenceVersion(
         AppVersion(versionName, versionCode).persistenceVersion()
     ) {
         "Current app version $versionName must start with an M.m version."
+    }
+}
+
+/// Version 1.5 game identities and countdown repairs for older saves.
+private object V1_4ToV1_5 {
+    /// Undo patches inherit the base state's identity; each serialized redo state needs the same ID.
+    fun migrateCurrentGame(jsonElement: JsonElement): JsonElement {
+        return assignSerializedId(jsonElement, UUID.randomUUID().toString())
+    }
+
+    /// Assign one identity throughout the legacy archive and convert its history to patches.
+    fun migrateArchivedGame(jsonElement: JsonElement): JsonElement {
+        val game = appStateJson.decodeFromJsonElement<GameState>(
+            assignId(jsonElement, UUID.randomUUID().toString()),
+        )
+        return appStateJson.encodeToJsonElement(game.toSerializedGameState())
+    }
+
+    /** Restore the countdown invariant throughout an old game's Undo/Redo history. */
+    fun migrateCountdowns(game: GameState): GameState = with(game) {
+        val normalized = if (countdown == null && (phase.isBeforeLivePoint || phase == GamePhase.HALFTIME)) {
+            if (phase.isBeforeLivePoint && pullSkippedForCurrentPoint) {
+                copy(phase = GamePhase.LIVE_POINT)
+            } else {
+                val targetEpoch = approximateLastEventEpoch()
+                val restoredCountdown = if (phase == GamePhase.HALFTIME) {
+                    buildHalftimeCountdown(rules.halftimeMinutes, targetEpoch)
+                } else {
+                    buildBetweenPointsCountdown(
+                        pullingFromEnd = pullingFromEnd,
+                        sequenceStart = targetEpoch,
+                        kind = if (phase == GamePhase.PRE_GAME) CountdownKind.OPENING_PULL else CountdownKind.BETWEEN_POINTS,
+                        promptTarget = pullPromptTarget,
+                        rules = rules,
+                    )
+                }
+                copy(countdown = restoredCountdown.copy(targetEpoch = targetEpoch))
+            }
+        } else {
+            this
+        }
+        normalized.copy(
+            undoEntry = undoEntry?.let { entry ->
+                entry.copy(previous = migrateCountdowns(entry.previous))
+            },
+            redoEntry = redoEntry?.let { migrateCountdowns(it) },
+        )
+    }
+
+    /** Estimate a legacy countdown deadline from minute-resolution event text without AM/PM. */
+    private fun GameState.approximateLastEventEpoch(): Long {
+        val lastEvent = eventLog.lastOrNull() ?: return startEpoch
+        val parsed = EVENT_LOG_TIME_FORMATTER.parse(lastEvent.timeText)
+        val eventTime = LocalTime.of(
+            parsed.get(ChronoField.HOUR_OF_AMPM),
+            parsed.get(ChronoField.MINUTE_OF_HOUR),
+        )
+        val morning = startDate.atTime(eventTime).atZone(timeZone)
+        // Choose the half-day nearest the scheduled start; exact historical timing is not recoverable.
+        return listOf(morning, morning.plusHours(12), morning.plusHours(24))
+            .map { it.toInstant().toEpochMilli() - officialClockOffsetMillis }
+            .minBy { abs(it - startEpoch) }
+    }
+
+    private fun assignSerializedId(element: JsonElement, id: String): JsonElement {
+        if (element is JsonNull) return element
+        return JsonObject(element.jsonObject.mapValues { (key, value) ->
+            when (key) {
+                "state" -> assignId(value, id)
+                "redoEntry" -> assignSerializedId(value, id)
+                else -> value
+            }
+        })
+    }
+
+    private fun assignId(element: JsonElement, id: String): JsonElement {
+        if (element is JsonNull) return element
+        val game = element.jsonObject.mapValues { (key, value) ->
+            when (key) {
+                "undoEntry" -> if (value is JsonNull) value else {
+                    val undo = value.jsonObject
+                    JsonObject(undo + ("previous" to assignId(undo.getValue("previous"), id)))
+                }
+                "redoEntry" -> assignId(value, id)
+                else -> value
+            }
+        }
+        return JsonObject(game + ("gameId" to JsonPrimitive(id)))
     }
 }
 
@@ -361,6 +333,65 @@ private object V1_3ToV1_4 {
 /// Implementation details for converting version 1.2 JSON shapes to version 1.3 shapes.
 private object V1_2ToV1_3 {
     private const val OLD_GRAY_ARGB = 0xFF708090L
+
+    private val legacyHardCapUndoLabels = setOf(
+        "Undo Apply hard cap",
+        "Undo Apply hard cap now",
+    )
+    private val legacyLevelThreeUndoLabels = setOf(
+        HEAT_LEVEL_THREE_UNDO_LABEL,
+        AQI_LEVEL_THREE_UNDO_LABEL,
+    )
+
+    /**
+     * Normalize former terminal undo shapes to the standard End game invariant.
+     *
+     * Older builds completed untied hard-cap games and Level 3 heat/AQI suspensions without a terminal
+     * Game over event. Current games retained action-specific undo labels, Level 3 archives retained
+     * the same labels, and archive pruning removed the hard-cap undo entirely. Completed games now
+     * always expose `Undo End game`, restore the same pre-terminal state, and end their event log
+     * explicitly.
+     */
+    fun migrateTerminalGame(game: GameState): GameState = with(game) {
+        if (phase != GamePhase.GAME_OVER) return this
+        val legacyUndoLabel = undoEntry?.label
+        val gameEndingHardCap = legacyUndoLabel == null ||
+            legacyUndoLabel in legacyHardCapUndoLabels
+        val levelThreeEnd = legacyUndoLabel in legacyLevelThreeUndoLabels
+        if (!gameEndingHardCap && !levelThreeEnd) {
+            return this
+        }
+        val eventTimeText = formatOfficialGameTime(
+            endEpoch!!,
+            EVENT_LOG_TIME_FORMATTER,
+        )
+        val migratedEventLog = eventLog +
+            (if (gameEndingHardCap) {
+                listOf(EventLogEntry(timeText = eventTimeText, type = EventLogType.HARD_CAP))
+            } else {
+                emptyList()
+            }) +
+            EventLogEntry(timeText = eventTimeText, type = EventLogType.GAME_OVER)
+        val terminalUndo = undoEntry?.copy(label = "Undo End game") ?: UndoEntry(
+            label = "Undo End game",
+            previous = copy(
+                endEpoch = null,
+                phase = if (eventLog.last().type == EventLogType.HALFTIME) {
+                    GamePhase.HALFTIME
+                } else {
+                    GamePhase.BETWEEN_POINTS
+                },
+                hardCapApplied = false,
+                pendingCapOffer = CapType.HARD,
+                undoEntry = null,
+                redoEntry = null,
+            ),
+        )
+        copy(
+            eventLog = migratedEventLog,
+            undoEntry = terminalUndo,
+        )
+    }
 
     fun migrateGame(jsonElement: JsonElement): JsonElement {
         if (jsonElement is JsonNull) {
@@ -594,6 +625,7 @@ private object V1_0ToV1_1 {
         val pullingTeam = jsonObject.decodeOptional("pullingTeam", TeamId.TEAM_ONE)
         val pullingFromEnd = jsonObject.decodeOptional("pullingFromEnd", FieldEnd.FAR)
         return GameState(
+            gameId = UUID.randomUUID().toString(),
             startDate = startDate,
             startTime = startTime,
             timeZone = timeZone,

@@ -104,6 +104,46 @@ Next to each entry is a trash can, which lets you delete the game if you no long
 to store it on your device. You can also **Delete all**, which deletes all the games that
 match whatever filters are currently being applied.
 
+Back up archived games
+----------------------
+
+This option lets you save some or all of your archived completed games to disk.
+The games are saved in a zip file, including whatever games you want to include.
+You can use the same filters as are available in the `Archived games` screen.
+You can also manually select or unselect individual games as desired.
+
+To save the backup file, tap **Back up N games** at the bottom of the screen and choose
+a filename and destination in Android's file picker.
+The first time, it will ask you to set a location for the backup folder. The default
+is in your phone's **Documents** folder, but you can choose any place you want.
+UltiObserver will create an **UltiObserver Backups** folder there and remember it as
+the default location for future backups and loads.
+
+The file name will be based on the current date, but you can change it if you want.
+You can also use the Android file navigation to save to Google Drive rather than a folder
+on your phone if you want (if this is enabled for your phone).
+
+Load games from backup
+----------------------
+
+This option lets you load games from backup in case they get corrupted for some reason
+or you accidentally delete them. (Or delete them on purpose and now want them back.)
+
+The Android file browser will start in your default backup folder, but you can navigate
+to other locations if necessary. After selecting the file, it will show you the list
+of games that are stored in that file that are available for recovery.
+
+Games that are not currently on your phone will be listed first, and all will start checked,
+meaning they will all be loaded from the file. You can select any subset of these if you
+do not want to load all of them. Games that are already on your phone (and unchanged from
+the backup version) will be listed separately for reference.
+
+If there are games that are already on your phone, but the phone version differs from the
+saved version, it will give you the option to keep the phone version, restore the backup,
+or keep both versions.
+
+Once you choose which games you want to load, tap **Load N games** to load them into the app.
+
 In-progress games
 -----------------
 

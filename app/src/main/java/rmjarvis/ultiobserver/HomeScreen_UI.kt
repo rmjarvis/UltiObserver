@@ -403,12 +403,12 @@ private fun HomeActions(
 internal fun GameListRow(
     entry: GameListEntry,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
 ) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outline,

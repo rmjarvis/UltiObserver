@@ -6,6 +6,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -60,6 +61,13 @@ class TestSetup : GameDomainTestFixtures() {
         )
         assertFalse(newSetupGame.hasStarted())
         assertEquals(GameRules(), newSetupGame.rules)
+
+        // Creating another setup from the first game's defaults still creates a new identity.
+        val firstSetup = newSetupGameState(1_000L)
+        val next = newSetupGameState(1_000L, defaultsFrom = firstSetup)
+        assertNotEquals(firstSetup.gameId, next.gameId)
+        val edited = firstSetup.copy(tournamentName = "Tournament", startTime = firstSetup.startTime.plusHours(1))
+        assertEquals(firstSetup.gameId, edited.gameId)
 
         // A new setup draft can carry tournament context from the previous game while keeping
         // its own freshly calculated start date and time.

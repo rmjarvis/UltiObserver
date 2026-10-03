@@ -38,6 +38,7 @@ abstract class GameDomainTestFixtures {
         return newSetupGameState(
             now = epochTimestamp(startDate, startTime, ZoneId.systemDefault()),
         ).copy(
+            gameId = "00000000-0000-4000-8000-000000000001",
             startDate = startDate,
             startTime = startTime,
             timeZone = timeZone,

@@ -362,10 +362,10 @@ class TestMigration : GameDomainTestFixtures() {
         }
         assertEquals(
             completedArchive.archivedGames.map { game ->
-                game.copy(undoEntry = null, redoEntry = null)
+                game.copy(gameId = "00000000-0000-4000-8000-000000000001", undoEntry = null, redoEntry = null)
             },
             completedArchiveV1_0_0.archivedGames.map { game ->
-                game.copy(undoEntry = null, redoEntry = null)
+                game.copy(gameId = "00000000-0000-4000-8000-000000000001", undoEntry = null, redoEntry = null)
             },
         )
 
@@ -905,6 +905,19 @@ class TestMigration : GameDomainTestFixtures() {
         fixtureDir(version, scenario).copyRecursively(storeDir, overwrite = true)
         val appState = AppState(FileAppStateStorage(storeDir))
         assertNull(appState.startupRecoveryNotice)
+
+        // Every migrated game has one permanent identity, including all retained history.
+        val games = listOfNotNull(appState.currentGame) + appState.archivedGames
+        games.forEach { game ->
+            assertEquals(game.gameId, java.util.UUID.fromString(game.gameId).toString())
+            assertEquals(game, game.withGameId(game.gameId))
+        }
+        assertEquals(games.size, games.map { it.gameId }.toSet().size)
+
+        // IDs are written during migration and stay the same on subsequent launches.
+        val reloaded = AppState(FileAppStateStorage(storeDir))
+        assertEquals(appState.currentGame, reloaded.currentGame)
+        assertEquals(appState.archivedGames, reloaded.archivedGames)
         return appState
     }
 

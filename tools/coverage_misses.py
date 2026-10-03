@@ -136,6 +136,7 @@ def is_ui_source_file(path: Path) -> bool:
     return (
         name.endswith("_UI.kt")
         or name in {
+            "ArchiveBackupDirectory.kt",
             "MainActivity.kt",
             "MainActivityPreview.kt",
             "OngoingGame.kt",

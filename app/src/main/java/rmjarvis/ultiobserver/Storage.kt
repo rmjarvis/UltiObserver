@@ -167,7 +167,7 @@ internal fun encodeSettings(state: Settings): String {
 
 /// Encode one archived-game file with file-level app version metadata.
 internal fun encodeArchivedGame(game: GameState): String {
-    return encodePersistedBucket(game)
+    return encodePersistedBucket(game.toSerializedGameState())
 }
 
 /// Encode one persistence payload under the standard file envelope.
@@ -203,11 +203,7 @@ private fun decodeCurrentGameJson(
         val migrated = migrateCurrentGameJson(jsonElement, version) ?: return null
         val decoded = decodeCurrentGame(migrated.jsonElement)
         PersistenceDecodeResult(
-            value = if (migrated.wasMigrated) {
-                decoded?.migrateGameState()
-            } else {
-                decoded
-            },
+            value = decoded?.let { migrated.migrateGameState(it) },
             wasMigrated = migrated.wasMigrated,
         )
     } catch (_: RuntimeException) {
@@ -227,13 +223,9 @@ private fun decodeArchivedGameJson(
 ): PersistenceDecodeResult<GameState>? {
     return try {
         val migrated = migrateArchivedGameJson(jsonElement, version) ?: return null
-        val decoded = appStateJson.decodeFromJsonElement<GameState>(migrated.jsonElement)
+        val decoded = appStateJson.decodeFromJsonElement<SerializedGameState>(migrated.jsonElement).restore()
         PersistenceDecodeResult(
-            value = if (migrated.wasMigrated) {
-                decoded.migrateGameState()
-            } else {
-                decoded
-            },
+            value = migrated.migrateGameState(decoded),
             wasMigrated = migrated.wasMigrated,
         )
     } catch (_: RuntimeException) {
@@ -247,12 +239,16 @@ private fun decodeArchivedGameJson(
  * @param rootDir The app-private directory where persistence files live.
  * @param moveFileAtomically File move operation injected so tests can force fallback behavior.
  * @param replaceFile Non-atomic replacement operation injected so tests can observe fallback behavior.
+ * @param moveDirectory Directory move operation injected so tests can verify archive recovery on failure.
  */
 internal class FileAppStateStorage(
     private val rootDir: File,
     // Keep file moves injectable so tests can force platform-specific fallback paths.
     private val moveFileAtomically: (File, File) -> Unit = ::moveFileAtomically,
     private val replaceFile: (File, File) -> Unit = ::replaceFile,
+    private val moveDirectory: (File, File) -> Unit = { source, target ->
+        Files.move(source.toPath(), target.toPath())
+    },
 ) : AppStateStorage {
     private val currentGameStateFile = File(rootDir, "current_game_state.json")
     private val profileFile = File(rootDir, "profile.json")
@@ -422,6 +418,7 @@ internal class FileAppStateStorage(
     /// Load all readable archived games from app-private JSON files.
     override fun loadArchivedGames(): List<GameState> {
         resetAreas.remove(PersistedData.ARCHIVED_GAMES)
+        recoverArchiveDirectory()
         if (!archivedGamesDir.exists()) {
             return emptyList()
         }
@@ -455,13 +452,37 @@ internal class FileAppStateStorage(
      * @param games The archived games to write as numbered JSON files.
      */
     override fun saveArchivedGames(games: List<GameState>) {
-        archivedGamesDir.mkdirs()
-        archivedGamesDir
-            .listFiles { file -> file.isFile && file.extension == "json" }
-            ?.forEach { file -> Files.delete(file.toPath()) }
+        recoverArchiveDirectory()
+        if (archivedGamesDir.isFile && games.isEmpty()) return
+        val pending = File(rootDir, "archived_games.pending")
+        val previous = File(rootDir, "archived_games.previous")
+        pending.deleteRecursively()
+        pending.mkdirs()
         games.forEachIndexed { index, game ->
-            File(archivedGamesDir, "%05d.json".format(index))
+            File(pending, "%05d.json".format(index))
                 .writeAtomically(encodeArchivedGame(game), moveFileAtomically, replaceFile)
+        }
+        if (archivedGamesDir.exists()) {
+            moveDirectory(archivedGamesDir, previous)
+        }
+        try {
+            moveDirectory(pending, archivedGamesDir)
+        } catch (failure: IOException) {
+            recoverArchiveDirectory()
+            throw failure
+        }
+        previous.deleteRecursively()
+    }
+
+    /// Complete or roll back a directory replacement interrupted by process termination.
+    private fun recoverArchiveDirectory() {
+        val previous = File(rootDir, "archived_games.previous")
+        if (previous.exists()) {
+            if (archivedGamesDir.exists()) {
+                previous.deleteRecursively()
+            } else {
+                moveDirectory(previous, archivedGamesDir)
+            }
         }
     }
 }

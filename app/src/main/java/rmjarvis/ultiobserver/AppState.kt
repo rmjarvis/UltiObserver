@@ -970,6 +970,14 @@ internal class AppState(
         persistArchivedGames()
     }
 
+    /** Persist an archive import before publishing the changed collection to the UI. */
+    @Synchronized
+    fun importArchiveBackup(games: List<GameState>, choices: Map<String, ArchiveImportChoice>) {
+        val merged = mergeArchiveBackup(archivedGames, games, choices)
+        appStateStorage.saveArchivedGames(merged)
+        updateState { it.copy(archivedGames = merged) }
+    }
+
     /// Delete all archived/saved games.
     fun deleteAllArchivedGames() {
         updateState {

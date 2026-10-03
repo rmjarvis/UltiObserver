@@ -31,6 +31,7 @@ internal fun UltiObserverApp(
     val context = LocalContext.current
     var showMissingExactAlarmAccessDialog by remember { mutableStateOf(false) }
     var showPreviousCrashDialog by rememberSaveable { mutableStateOf(previousRunCrashed) }
+    var archiveTransfer by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Back returns to setup from the pre-pull preview, otherwise to home.
     BackHandler(
@@ -174,7 +175,19 @@ internal fun UltiObserverApp(
 
         AppScreen.ARCHIVED_GAMES -> {
             val archivedGame = snapshot.viewingArchivedGame
-            if (archivedGame != null) {
+            if (archiveTransfer != null) {
+                ArchiveTransferScreen(
+                    appState = appState,
+                    backup = archiveTransfer == "backup",
+                    onBack = {
+                        archiveTransfer = null
+                    },
+                    onHome = {
+                        archiveTransfer = null
+                        appState.goHome()
+                    },
+                )
+            } else if (archivedGame != null) {
                 val isInProgressArchive = archivedGame.archiveCategory ==
                     ArchivedGameCategory.IN_PROGRESS
                 val archiveSavedInProgressAction: () -> Unit = {
@@ -238,6 +251,13 @@ internal fun UltiObserverApp(
                     }
                 }
                 ArchivedGamesScreen(
+                    onBackup = {
+                        appState.clearArchiveFilterSelections()
+                        archiveTransfer = "backup"
+                    },
+                    onLoadBackup = {
+                        archiveTransfer = "load"
+                    },
                     categoryCounts = archiveCategoryCounts,
                     hasSavedOrArchivedGames = snapshot.archivedGames.isNotEmpty(),
                     selectedCategory = snapshot.selectedArchiveCategory,

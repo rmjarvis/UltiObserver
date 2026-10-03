@@ -3,6 +3,7 @@ package rmjarvis.ultiobserver
 import java.io.File
 import java.io.IOException
 import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -574,6 +575,46 @@ class TestPersistence : GameDomainTestFixtures() {
         assertTrue(store.loadArchivedGames().isEmpty())
         store.saveArchivedGames(emptyList())
         assertTrue(File(storeDir, "archived_games").isFile)
+
+        // Saving a game replaces the invalid archive path with a readable directory.
+        store.saveArchivedGames(listOf(archivedOne))
+        assertTrue(archiveDir.isDirectory)
+        assertEquals(listOf(archivedOne), store.loadArchivedGames())
+    }
+
+    /** Failed or interrupted archive directory replacement recovers the last installed collection. */
+    @Test
+    fun archiveReplacementRecovery() {
+        val directory = temporaryFolder.newFolder()
+        val game = newSetupGameState(1_000L).startGame(OrientationPreference.PORTRAIT)
+            .endGameNow(100_000L).pruneUndoHistory()
+        FileAppStateStorage(directory).saveArchivedGames(listOf(game))
+
+        // Failure installing the pending directory restores the old archive before returning the error.
+        val moveFailure = IOException("Directory move failed")
+        val failingStore = FileAppStateStorage(directory, moveDirectory = { source, target ->
+            if (source.name == "archived_games.pending") throw moveFailure
+            Files.move(source.toPath(), target.toPath())
+        })
+        val failure = assertThrows(IOException::class.java) {
+            failingStore.saveArchivedGames(listOf(game.copy(tournamentName = "Replacement archive")))
+        }
+        assertSame(moveFailure, failure)
+        assertEquals(encodeArchivedGame(game), File(directory, "archived_games/00000.json").readText())
+        assertFalse(File(directory, "archived_games.previous").exists())
+
+        // A process stopped between the two directory moves recovers the previous collection.
+        File(directory, "archived_games").renameTo(File(directory, "archived_games.previous"))
+        assertEquals(listOf(game), FileAppStateStorage(directory).loadArchivedGames())
+        assertTrue(File(directory, "archived_games").isDirectory)
+
+        // A process stopped after installing the new collection leaves only old files to clean up.
+        val previous = File(directory, "archived_games.previous")
+        File(directory, "archived_games").copyRecursively(previous)
+        val updated = game.copy(tournamentName = "Updated archive")
+        File(directory, "archived_games/00000.json").writeText(encodeArchivedGame(updated))
+        assertEquals(listOf(updated), FileAppStateStorage(directory).loadArchivedGames())
+        assertFalse(previous.exists())
     }
 
     /**

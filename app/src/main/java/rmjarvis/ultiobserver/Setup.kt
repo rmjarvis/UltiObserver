@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import java.time.ZoneId
+import java.util.UUID
 import kotlinx.serialization.Serializable
 
 /// Mode describing which setup bucket the setup screen is editing.
@@ -52,6 +53,7 @@ internal fun newSetupGameState(
         officialLocalNow.toLocalDate()
     }
     return GameState(
+        gameId = UUID.randomUUID().toString(),
         startDate = startDate,
         startTime = startTime,
         timeZone = timeZone,
