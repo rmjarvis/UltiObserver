@@ -1879,7 +1879,7 @@ internal fun FieldControlButton(
                 disabledContentColor = Color.DarkGray,
             ),
             border = BorderStroke(1.dp, Color.Black),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
         ) {
             Text(
                 text = label,

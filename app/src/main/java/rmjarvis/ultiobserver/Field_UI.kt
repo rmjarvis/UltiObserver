@@ -56,6 +56,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -65,6 +66,62 @@ private val TopEndZoneShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
 private val BottomEndZoneShape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
 private val LeftEndZoneShape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
 private val RightEndZoneShape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)
+
+/** Share vertical space pressure across all landscape field text, preserving physical padding. */
+@Composable
+internal fun LandscapeFieldTextLayout(
+    metrics: LandscapeFieldLayoutMetrics,
+    content: @Composable (LandscapeFieldLayoutMetrics) -> Unit,
+) {
+    val originalDensity = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    fun textHeight(style: androidx.compose.ui.text.TextStyle): Dp = with(originalDensity) {
+        textMeasurer.measure(AnnotatedString("Goal"), style = style).size.height.toDp()
+    }
+    val titleHeight = textHeight(MaterialTheme.typography.titleLarge.copy(
+        fontSize = metrics.titleFontSize,
+        lineHeight = metrics.titleLineHeight,
+    ))
+    val endLabelHeight = maxOf(
+        textHeight(MaterialTheme.typography.labelMedium),
+        textHeight(MaterialTheme.typography.titleMedium.copy(
+            fontSize = metrics.genderRatioBadgeFontSize,
+            lineHeight = metrics.genderRatioBadgeFontSize,
+        )) + metrics.genderRatioBadgeVerticalPadding * 2f,
+    )
+    val actionTextHeight = textHeight(MaterialTheme.typography.labelLarge.let {
+        it.copy(fontSize = it.fontSize * 1.2f, lineHeight = it.lineHeight * 1.2f)
+    })
+    val fixedHeight = metrics.teamPanelPadding * 2f + metrics.detailGap * 2f +
+        metrics.actionGap * 2f + 8.dp + 8.dp * 3f
+    val textScale = ((metrics.fieldHeight - fixedHeight) /
+        (titleHeight + endLabelHeight + actionTextHeight * 3f)).coerceIn(0f, 1f)
+    val fieldDensity = remember(originalDensity, textScale) {
+        object : Density {
+            override val density = originalDensity.density
+            override val fontScale = originalDensity.fontScale * textScale
+
+            override fun TextUnit.toDp(): Dp = with(originalDensity) {
+                this@toDp.toDp() * textScale
+            }
+
+            override fun Dp.toSp(): TextUnit = with(originalDensity) {
+                (this@toSp / textScale).toSp()
+            }
+        }
+    }
+    val availableRowHeight = (metrics.fieldHeight - fixedHeight -
+        (titleHeight + endLabelHeight) * textScale) / 3f + 8.dp
+    val fittedMetrics = metrics.copy(
+        actionButtonHeight = minOf(
+            maxOf(metrics.actionButtonHeight, actionTextHeight * textScale + 8.dp),
+            availableRowHeight,
+        ),
+    )
+    CompositionLocalProvider(LocalDensity provides fieldDensity) {
+        content(fittedMetrics)
+    }
+}
 
 /**
  * Render the live-field unlock slider.
@@ -477,7 +534,6 @@ internal data class LandscapeFieldLayoutMetrics(
     val detailGap: Dp,
     val actionGap: Dp,
     val actionButtonHeight: Dp,
-    val availableActionGridHeight: Dp,
     val titleFontSize: TextUnit,
     val titleLineHeight: TextUnit,
     val centerPadding: Dp,
@@ -512,9 +568,9 @@ internal data class LandscapeFieldLayoutMetrics(
             ).coerceAtLeast(0f)
             val maximumActionButtonHeight = (
                 availableActionGridHeight -
-                    actionGap.value -
+                    actionGap.value * 2f -
                     actionPanelVerticalPadding.value
-            ).coerceAtLeast(0f).dp / 2f
+            ).coerceAtLeast(0f).dp / 3f
             return LandscapeFieldLayoutMetrics(
                 fieldHeight = fieldHeight,
                 teamPanelPadding = teamPanelPadding,
@@ -525,7 +581,6 @@ internal data class LandscapeFieldLayoutMetrics(
                     preferredActionButtonHeight,
                     maximumActionButtonHeight,
                 ),
-                availableActionGridHeight = availableActionGridHeight.dp,
                 titleFontSize = titleFontSizeValue.sp,
                 titleLineHeight = titleLineHeightValue.sp,
                 centerPadding = (fieldHeight.value * 0.025f).dp.coerceIn(4.dp, 8.dp),
@@ -870,45 +925,18 @@ internal fun LandscapeFieldSketchCard(
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val preferredCenterWidth = maxWidth * 0.72f / 2.72f
-            val preferredActionGridWidth =
-                (maxWidth - preferredCenterWidth) / 2f - metrics.teamPanelPadding * 2f
-            val wideHeight = metrics.actionButtonHeight * 2f + metrics.actionGap + 8.dp
-            val timeoutRowHeight =
-                metrics.actionButtonHeight * 3f + metrics.actionGap * 2f + 8.dp
-            val wideClearance = minOf(
-                preferredActionGridWidth - maxOf(
-                    naturalLeftActionGridWidths.panel,
-                    naturalRightActionGridWidths.panel,
-                ),
-                metrics.availableActionGridHeight - wideHeight,
-            )
-            val timeoutRowClearance = minOf(
-                preferredActionGridWidth - maxOf(
-                    naturalLeftActionGridWidths.timeoutRowPanel,
-                    naturalRightActionGridWidths.timeoutRowPanel,
-                ),
-                metrics.availableActionGridHeight - timeoutRowHeight,
-            )
-            val actionGridLayout = if (
-                timeoutRowClearance > wideClearance &&
-                timeoutRowHeight <= metrics.availableActionGridHeight
-            ) {
-                TeamActionGridLayout.TIMEOUT_ROW
-            } else {
-                TeamActionGridLayout.WIDE
-            }
             val maximumActionGridWidth = (
                 (maxWidth - minimumCenterWidth) / 2f - metrics.teamPanelPadding * 2f
                 ).coerceAtLeast(0.dp)
             val actionGridScale = minOf(
                 naturalLeftActionGridWidths.maximumScaleToFit(
                     maximumActionGridWidth,
-                    actionGridLayout,
+                    TeamActionGridLayout.TIMEOUT_ROW,
                     metrics.actionGap,
                 ),
                 naturalRightActionGridWidths.maximumScaleToFit(
                     maximumActionGridWidth,
-                    actionGridLayout,
+                    TeamActionGridLayout.TIMEOUT_ROW,
                     metrics.actionGap,
                 ),
             )
@@ -921,8 +949,8 @@ internal fun LandscapeFieldSketchCard(
                 metrics.actionGap,
             )
             val requiredTeamWidth = maxOf(
-                leftActionGridWidths.widthFor(actionGridLayout),
-                rightActionGridWidths.widthFor(actionGridLayout),
+                leftActionGridWidths.timeoutRowPanel,
+                rightActionGridWidths.timeoutRowPanel,
             ) + metrics.teamPanelPadding * 2f
             val pressuredCenterWidth =
                 (maxWidth - requiredTeamWidth * 2f).coerceAtLeast(0.dp)
@@ -946,7 +974,6 @@ internal fun LandscapeFieldSketchCard(
                     pullViolationEnabled = state.canRecordPullViolation(leftSlot),
                     pullViolationType = leftPullViolationType,
                     actionGridWidths = leftActionGridWidths,
-                    actionGridLayout = actionGridLayout,
                     fieldEndName = state.fieldEndName(
                         leftEnd,
                         activeGameLayout,
@@ -1023,7 +1050,6 @@ internal fun LandscapeFieldSketchCard(
                     pullViolationEnabled = state.canRecordPullViolation(rightSlot),
                     pullViolationType = rightPullViolationType,
                     actionGridWidths = rightActionGridWidths,
-                    actionGridLayout = actionGridLayout,
                     fieldEndName = state.fieldEndName(
                         rightEnd,
                         activeGameLayout,
@@ -1116,7 +1142,6 @@ private fun LandscapeEndZonePanel(
     pullViolationEnabled: Boolean,
     pullViolationType: PullViolationType,
     actionGridWidths: TeamActionGridWidths,
-    actionGridLayout: TeamActionGridLayout,
     fieldEndName: String,
     metrics: LandscapeFieldLayoutMetrics,
     modifier: Modifier,
@@ -1165,10 +1190,9 @@ private fun LandscapeEndZonePanel(
                 )
             }
             BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                val rows = if (actionGridLayout == TeamActionGridLayout.TIMEOUT_ROW) 3 else 2
                 val fittedActionHeight = minOf(
                     metrics.actionButtonHeight,
-                    ((maxHeight - 8.dp - metrics.actionGap * (rows - 1)) / rows).coerceAtLeast(0.dp),
+                    ((maxHeight - 8.dp - metrics.actionGap * 2f) / 3f).coerceAtLeast(0.dp),
                 )
                 TeamActionGrid(
                     requireLongPress = requireLongPress,
@@ -1182,7 +1206,7 @@ private fun LandscapeEndZonePanel(
                     pullViolationEnabled = pullViolationEnabled,
                     pullViolationType = pullViolationType,
                     widths = actionGridWidths,
-                    layout = actionGridLayout,
+                    layout = TeamActionGridLayout.TIMEOUT_ROW,
                     actionButtonHeight = fittedActionHeight,
                     gap = metrics.actionGap,
                     onGoal = onGoal,
@@ -1581,11 +1605,6 @@ private enum class TeamActionGridLayout {
     TIMEOUT_ROW,
 }
 
-/// Return the complete panel width for one of the landscape action-grid arrangements.
-private fun TeamActionGridWidths.widthFor(layout: TeamActionGridLayout): Dp {
-    return if (layout == TeamActionGridLayout.TIMEOUT_ROW) timeoutRowPanel else panel
-}
-
 /// Return the largest column and font scale that keeps this arrangement within [maximumWidth].
 private fun TeamActionGridWidths.maximumScaleToFit(
     maximumWidth: Dp,
@@ -1660,10 +1679,12 @@ private fun teamActionGridWidths(
         softWrap = false,
     ).size.height
     val availableTextHeight = with(density) {
-        (actionButtonHeight - 4.dp).coerceAtLeast(0.dp).toPx()
+        (actionButtonHeight - 8.dp).coerceAtLeast(0.dp).toPx()
     }
     val heightScale = (availableTextHeight / preferredTextHeight).coerceIn(0f, 1f)
-    val fontSize = preferredTextStyle.fontSize * heightScale
+    val fontSize = with(density) {
+        (preferredTextStyle.fontSize.toPx() * heightScale).toSp()
+    }
     val buttonTextStyle = preferredTextStyle.copy(
         fontSize = fontSize,
         lineHeight = fontSize,
@@ -1751,6 +1772,21 @@ private fun TeamActionGrid(
     onTechnicalFoul: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    val textHeight = textMeasurer.measure(
+        AnnotatedString("Goal"),
+        style = MaterialTheme.typography.labelMedium.copy(
+            fontSize = widths.fontSize,
+            lineHeight = widths.fontSize,
+        ),
+    ).size.height
+    val fittedFontSize = with(density) {
+        val availableHeight = (actionButtonHeight - 8.dp).coerceAtLeast(0.dp).toPx()
+        val scale = (availableHeight / textHeight).coerceIn(0f, 1f)
+        (widths.fontSize.toPx() * scale).toSp()
+    }
+    val fittedWidths = widths.copy(fontSize = fittedFontSize)
     val panelModifier = modifier
         .width(
             if (layout == TeamActionGridLayout.TIMEOUT_ROW) {
@@ -1778,7 +1814,7 @@ private fun TeamActionGrid(
                 timeViolationEnabled = timeViolationEnabled,
                 pullViolationEnabled = pullViolationEnabled,
                 pullViolationType = pullViolationType,
-                widths = widths,
+                widths = fittedWidths,
                 actionButtonHeight = actionButtonHeight,
                 gap = gap,
                 onGoal = onGoal,
@@ -1792,7 +1828,7 @@ private fun TeamActionGrid(
                 label = "Timeout ($timeoutsRemaining)",
                 fullWidth = true,
                 height = actionButtonHeight,
-                fontSize = widths.fontSize,
+                fontSize = fittedFontSize,
                 enabled = timeoutButtonEnabled,
                 containerColor = TimeoutButtonColor,
                 contentColor = Color.Black,
@@ -1814,7 +1850,7 @@ private fun TeamActionGrid(
                 timeViolationEnabled = timeViolationEnabled,
                 pullViolationEnabled = pullViolationEnabled,
                 pullViolationType = pullViolationType,
-                widths = widths,
+                widths = fittedWidths,
                 actionButtonHeight = actionButtonHeight,
                 gap = gap,
                 onGoal = onGoal,
@@ -1828,7 +1864,7 @@ private fun TeamActionGrid(
                 label = "TO ($timeoutsRemaining)",
                 width = widths.timeout,
                 height = actionButtonHeight * 2f + gap,
-                fontSize = widths.fontSize,
+                fontSize = fittedFontSize,
                 enabled = timeoutButtonEnabled,
                 containerColor = TimeoutButtonColor,
                 contentColor = Color.Black,

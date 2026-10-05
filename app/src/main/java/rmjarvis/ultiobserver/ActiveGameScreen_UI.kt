@@ -1284,90 +1284,92 @@ private fun LandscapeActiveGameContent(
             )
         }
 
-        LandscapeFieldSketchCard(
-            requireLongPress = requireLongPress,
-            state = state,
-            leftDisplayedEnd = leftDisplayedEnd,
-            activeGameLayout = activeGameLayout,
-            showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
-            genderRatioBadgeColor = genderRatioBadgeColor,
-            genderRatioChooserColors = GenderRatioChooserColors(
-                men = Color(settings.genderRatioBadgeColorArgb(GenderRatio.FOUR_MEN_THREE_WOMEN)),
-                women = Color(settings.genderRatioBadgeColorArgb(GenderRatio.FOUR_WOMEN_THREE_MEN)),
-            ),
-            interactionsEnabled = !locked,
-            timeoutEnabled = state.canRequestTimeout(now),
-            metrics = metrics.field,
-            centerButtonFontSize = metrics.centerButtonFontSize,
-            centerContent = {
-                if (!locked && canReportOffenseSet) {
-                    CenterActionButton(
-                        requireLongPress = requireLongPress,
-                        label = "Offense is set",
-                        minHeight = metrics.centerButtonMinHeight,
-                        fontSize = metrics.centerButtonFontSize,
-                        tag = "live-offense-set",
-                        onClick = {
-                            onStateChange(
-                                state.reportOffenseSet(System.currentTimeMillis())
-                            )
-                        },
-                    )
-                } else if (!locked && canStartPoint) {
-                    CenterActionButton(
-                        requireLongPress = requireLongPress,
-                        label = "Start point",
-                        minHeight = metrics.centerButtonMinHeight,
-                        fontSize = metrics.centerButtonFontSize,
-                        onClick = {
-                            if (settings.automaticallyLockLivePoint) {
-                                onLockedChange(true)
-                            }
-                            onStateChange(
-                                state.beginLivePoint(System.currentTimeMillis())
-                            )
-                        },
-                    )
-                } else if (
-                    !locked &&
-                    state.phase == GamePhase.LIVE_POINT &&
-                    state.countdown != null
-                ) {
-                    CenterActionButton(
-                        requireLongPress = requireLongPress,
-                        label = "Continue point",
-                        minHeight = metrics.centerButtonMinHeight,
-                        fontSize = metrics.centerButtonFontSize,
-                        onClick = {
-                            if (settings.automaticallyLockLivePoint) {
-                                onLockedChange(true)
-                            }
-                            onStateChange(state.continueLivePoint())
-                        },
-                    )
-                }
-            },
-            centerOverlayContent = {
-                if (locked) {
-                    FieldUnlockControl(
-                        onUnlock = {
-                            onLockedChange(false)
-                        },
-                        modifier = Modifier.widthIn(max = 320.dp),
-                    )
-                }
-            },
-            onLock = {
-                onLockedChange(true)
-            },
-            onGoal = onGoal,
-            onTimeout = onTimeout,
-            onTimeViolation = onTimeViolation,
-            onPullViolation = onPullViolation,
-            onCards = onCards,
-            onTechnicalFoul = onTechnicalFoul,
-            onTeamInfo = onTeamInfo,
-        )
+        LandscapeFieldTextLayout(metrics.field) { fieldMetrics ->
+            LandscapeFieldSketchCard(
+                requireLongPress = requireLongPress,
+                state = state,
+                leftDisplayedEnd = leftDisplayedEnd,
+                activeGameLayout = activeGameLayout,
+                showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
+                genderRatioBadgeColor = genderRatioBadgeColor,
+                genderRatioChooserColors = GenderRatioChooserColors(
+                    men = Color(settings.genderRatioBadgeColorArgb(GenderRatio.FOUR_MEN_THREE_WOMEN)),
+                    women = Color(settings.genderRatioBadgeColorArgb(GenderRatio.FOUR_WOMEN_THREE_MEN)),
+                ),
+                interactionsEnabled = !locked,
+                timeoutEnabled = state.canRequestTimeout(now),
+                metrics = fieldMetrics,
+                centerButtonFontSize = metrics.centerButtonFontSize,
+                centerContent = {
+                    if (!locked && canReportOffenseSet) {
+                        CenterActionButton(
+                            requireLongPress = requireLongPress,
+                            label = "Offense is set",
+                            minHeight = metrics.centerButtonMinHeight,
+                            fontSize = metrics.centerButtonFontSize,
+                            tag = "live-offense-set",
+                            onClick = {
+                                onStateChange(
+                                    state.reportOffenseSet(System.currentTimeMillis())
+                                )
+                            },
+                        )
+                    } else if (!locked && canStartPoint) {
+                        CenterActionButton(
+                            requireLongPress = requireLongPress,
+                            label = "Start point",
+                            minHeight = metrics.centerButtonMinHeight,
+                            fontSize = metrics.centerButtonFontSize,
+                            onClick = {
+                                if (settings.automaticallyLockLivePoint) {
+                                    onLockedChange(true)
+                                }
+                                onStateChange(
+                                    state.beginLivePoint(System.currentTimeMillis())
+                                )
+                            },
+                        )
+                    } else if (
+                        !locked &&
+                        state.phase == GamePhase.LIVE_POINT &&
+                        state.countdown != null
+                    ) {
+                        CenterActionButton(
+                            requireLongPress = requireLongPress,
+                            label = "Continue point",
+                            minHeight = metrics.centerButtonMinHeight,
+                            fontSize = metrics.centerButtonFontSize,
+                            onClick = {
+                                if (settings.automaticallyLockLivePoint) {
+                                    onLockedChange(true)
+                                }
+                                onStateChange(state.continueLivePoint())
+                            },
+                        )
+                    }
+                },
+                centerOverlayContent = {
+                    if (locked) {
+                        FieldUnlockControl(
+                            onUnlock = {
+                                onLockedChange(false)
+                            },
+                            modifier = Modifier.widthIn(max = 320.dp),
+                        )
+                    }
+                },
+                onLock = {
+                    onLockedChange(true)
+                },
+                onGoal = onGoal,
+                onTimeout = onTimeout,
+                onTimeViolation = onTimeViolation,
+                onPullViolation = onPullViolation,
+                onCards = onCards,
+                onTechnicalFoul = onTechnicalFoul,
+                onTeamInfo = onTeamInfo,
+            )
+        }
 
         Row(
             modifier = Modifier
