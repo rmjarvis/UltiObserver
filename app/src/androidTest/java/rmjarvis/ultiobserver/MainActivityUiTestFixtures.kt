@@ -2,7 +2,16 @@ package rmjarvis.ultiobserver
 
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.os.Build
+import android.os.SystemClock
 import android.util.Log
+import android.view.WindowInsets
+import android.view.WindowInsetsAnimation
+import androidx.core.view.SoftwareKeyboardControllerCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.compose.ui.platform.ViewRootForTest
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -193,8 +202,7 @@ abstract class MainActivityUiTestFixtures {
     protected fun replaceSetupTeamName(fieldLabel: String, teamName: String) {
         composeRule.onNodeWithTag("setup-$fieldLabel-name")
             .performScrollTo()
-            .performTextReplacement(teamName)
-        composeRule.onNodeWithTag("setup-$fieldLabel-name").performImeAction()
+            .replaceTextAndConfirm(teamName)
     }
 
     /**
@@ -390,8 +398,7 @@ abstract class MainActivityUiTestFixtures {
      * @param jersey The jersey number text to enter.
      */
     protected fun enterPriorCardJersey(jersey: String) {
-        composeRule.onNodeWithTag("setup-prior-card-jersey").performTextReplacement(jersey)
-        composeRule.onNodeWithTag("setup-prior-card-jersey").performImeAction()
+        composeRule.onNodeWithTag("setup-prior-card-jersey").replaceTextAndConfirm(jersey)
     }
 
     /**
@@ -400,8 +407,7 @@ abstract class MainActivityUiTestFixtures {
      * @param playerName The player name text to enter.
      */
     protected fun enterPriorCardName(playerName: String) {
-        composeRule.onNodeWithTag("setup-prior-card-name").performTextReplacement(playerName)
-        composeRule.onNodeWithTag("setup-prior-card-name").performImeAction()
+        composeRule.onNodeWithTag("setup-prior-card-name").replaceTextAndConfirm(playerName)
     }
 
     /// Return the setup display identity for a prior-card holder.
@@ -513,6 +519,23 @@ abstract class MainActivityUiTestFixtures {
         }
 
         var shouldUseExplicitControl = !shouldUsePlatformBackDismissalCoverage()
+
+        // The pressDialogBack action is not always reliable. We don't really know why yet.
+        // So this traces the dismiss attempt with extra diagnostics to help us hopefully
+        // figure out what is going on here when it fails to work.
+        // replaceTextAndConfirm() may have fixed the keyboard timing problem, but keep these logs
+        // so a similar failure can be diagnosed if it recurs.
+        fun traceDismiss(stage: String) {
+            if (android.os.Build.VERSION.SDK_INT < 30) return
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val windows = android.view.inspector.WindowInspector.getGlobalWindowViews().map { view ->
+                    "${view.javaClass.simpleName}: focus=${view.hasWindowFocus()} " +
+                        "ime=${view.rootWindowInsets?.isVisible(android.view.WindowInsets.Type.ime())}"
+                }
+                Log.i("DismissTrace", "${tag ?: text}: $stage windows=$windows")
+            }
+        }
+
         if (!shouldUseExplicitControl) {
             if (tag != null) {
                 waitForTag(tag)
@@ -520,7 +543,9 @@ abstract class MainActivityUiTestFixtures {
                 waitForText(text!!)
             }
             try {
+                traceDismiss("before Back")
                 pressDialogBack()
+                traceDismiss("after Back")
             } catch (failure: RuntimeException) {
                 // Espresso can occasionally select an app root that has lost window focus before
                 // sending Back. Use this dialog's explicit control rather than retrying that root.
@@ -528,6 +553,7 @@ abstract class MainActivityUiTestFixtures {
                     throw failure
                 }
                 shouldUseExplicitControl = true
+                traceDismiss("focus exception; using button")
             }
         }
         if (shouldUseExplicitControl) {
@@ -546,6 +572,7 @@ abstract class MainActivityUiTestFixtures {
                 if (shouldUseExplicitControl || !explicitControlIsPresent()) {
                     throw failure
                 }
+                traceDismiss("return timed out; using button")
                 clickExplicitControl()
                 this.waitForText(waitForText)
             }
@@ -1038,8 +1065,7 @@ abstract class MainActivityUiTestFixtures {
      * @param playerNumber The player number text to enter.
      */
     protected fun enterCardPlayerNumber(playerNumber: String) {
-        composeRule.onNodeWithTag("card-player-number").performTextReplacement(playerNumber)
-        composeRule.onNodeWithTag("card-player-number").performImeAction()
+        composeRule.onNodeWithTag("card-player-number").replaceTextAndConfirm(playerNumber)
     }
 
     /**
@@ -1212,6 +1238,71 @@ abstract class MainActivityUiTestFixtures {
             activity.onBackPressedDispatcher.onBackPressed()
         }
         composeRule.waitForIdle()
+    }
+
+    /**
+     * Tap the field, replace its text, confirm once, and leave the keyboard closed.
+     * The keyboard need not open. Wait for a quiet half-second after hiding, including any
+     * closing animation, to catch a queued opening request arriving after dismissal.
+     */
+    protected fun SemanticsNodeInteraction.replaceTextAndConfirm(text: String) {
+        // Use this field's window, including when a dialog has replaced the activity's focus.
+        val root = (fetchSemanticsNode().root as ViewRootForTest).view.rootView
+        val keyboard = SoftwareKeyboardControllerCompat(root)
+        val keyboardAnimations = mutableSetOf<WindowInsetsAnimation>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            composeRule.runOnIdle {
+                // Observe the window root; Compose's callbacks remain on its descendant views.
+                root.setWindowInsetsAnimationCallback(
+                    object : WindowInsetsAnimation.Callback(DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
+                        override fun onPrepare(animation: WindowInsetsAnimation) {
+                            if (animation.typeMask and WindowInsets.Type.ime() != 0) {
+                                keyboardAnimations.add(animation)
+                            }
+                        }
+
+                        override fun onProgress(
+                            insets: WindowInsets,
+                            runningAnimations: MutableList<WindowInsetsAnimation>,
+                        ): WindowInsets = insets
+
+                        override fun onEnd(animation: WindowInsetsAnimation) {
+                            keyboardAnimations.remove(animation)
+                        }
+                    },
+                )
+            }
+        }
+        try {
+            performClick()
+            performTextReplacement(text)
+            performImeAction()
+            composeRule.runOnIdle { keyboard.hide() }
+            var hiddenSince = SystemClock.uptimeMillis()
+            catchAndDiagnoseFailure {
+                composeRule.waitUntil(timeoutMillis = 10_000L) {
+                    composeRule.runOnIdle {
+                        val visible = ViewCompat.getRootWindowInsets(root)!!
+                            .isVisible(WindowInsetsCompat.Type.ime())
+                        if (visible || keyboardAnimations.isNotEmpty()) {
+                            hiddenSince = SystemClock.uptimeMillis()
+                            if (visible) {
+                                keyboard.hide()
+                            }
+                            false
+                        } else {
+                            SystemClock.uptimeMillis() - hiddenSince >= 500L
+                        }
+                    }
+                }
+            }
+        } finally {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                composeRule.runOnIdle {
+                    root.setWindowInsetsAnimationCallback(null)
+                }
+            }
+        }
     }
 
     /**

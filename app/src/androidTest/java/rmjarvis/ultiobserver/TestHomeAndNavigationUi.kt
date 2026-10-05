@@ -32,7 +32,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.percentOffset
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
@@ -645,8 +644,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         replaceSetupTeamName("Team 1", setupTeamOne)
         replaceSetupTeamName("Team 2", setupTeamTwo)
         openGameInformationSetupEditor()
-        composeRule.onNodeWithTag("setup-field-name").performTextReplacement(setupField)
-        composeRule.onNodeWithTag("setup-field-name").performImeAction()
+        composeRule.onNodeWithTag("setup-field-name").replaceTextAndConfirm(setupField)
         closeSetupEditor()
         composeRule.onNodeWithText("Save as a draft").performClick()
         waitForText("Start new game")

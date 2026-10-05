@@ -11,7 +11,6 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -99,8 +98,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
 
         // Name-only entries are valid for a player without a number.
-        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Name Only Handler")
-        composeRule.onNodeWithTag("card-player-name").performImeAction()
+        composeRule.onNodeWithTag("card-player-name").replaceTextAndConfirm("Name Only Handler")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Yellow card on Name Only Handler.", substring = true)
 
@@ -194,8 +192,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Reason").performClick()
         waitForText("Yellow card reason")
         composeRule.onNodeWithText("Other").performScrollTo().performClick()
-        composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Discarded reason")
-        composeRule.onNodeWithTag("card-other-reason").performImeAction()
+        composeRule.onNodeWithTag("card-other-reason").performScrollTo()
+            .replaceTextAndConfirm("Discarded reason")
         composeRule.onAllNodesWithText("Back").onLast().performClick()
         waitForText("Yellow card")
         composeRule.onNodeWithText("Reason").assertIsDisplayed()
@@ -204,8 +202,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Reason").performClick()
         waitForText("Yellow card reason")
         composeRule.onNodeWithText("Other").performScrollTo().performClick()
-        composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Temporary reason")
-        composeRule.onNodeWithTag("card-other-reason").performImeAction()
+        composeRule.onNodeWithTag("card-other-reason").performScrollTo()
+            .replaceTextAndConfirm("Temporary reason")
         composeRule.onNodeWithText("Dangerous play").performScrollTo().performClick()
         composeRule.onNodeWithText("Other").performScrollTo().performClick()
         assertEquals(
@@ -221,8 +219,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Temporary reason").performClick()
         waitForText("Yellow card reason")
         composeRule.onNodeWithText("Other").performScrollTo().performClick()
-        composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Sideline language")
-        composeRule.onNodeWithTag("card-other-reason").performImeAction()
+        composeRule.onNodeWithTag("card-other-reason").performScrollTo()
+            .replaceTextAndConfirm("Sideline language")
         composeRule.onNodeWithTag("card-reason-details").performTextReplacement("after warning")
         composeRule.onNodeWithText("Set").performClick()
         composeRule.onNodeWithText("Sideline language: after warning").assertIsDisplayed()
@@ -406,8 +404,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         tapCardDialogAction(TeamId.TEAM_TWO, "Yellow")
         waitForText("Yellow card")
         enterCardPlayerNumber("6")
-        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Bob Cutter")
-        composeRule.onNodeWithTag("card-player-name").performImeAction()
+        composeRule.onNodeWithTag("card-player-name").replaceTextAndConfirm("Bob Cutter")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
         waitForText(
@@ -648,8 +645,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Edit yellow card")
 
         // Editing an existing card to no player identity is rejected and leaves the editor open.
-        composeRule.onNodeWithTag("card-player-number").performTextReplacement("")
-        composeRule.onNodeWithTag("card-player-number").performImeAction()
+        composeRule.onNodeWithTag("card-player-number").replaceTextAndConfirm("")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Enter a player number or name before recording this card.")
         dismissDialog(text = "OK", waitForText = "Edit yellow card")
@@ -777,8 +773,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             .performClick()
         waitForText("Add red card")
         enterCardPlayerNumber("21")
-        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Different Handler")
-        composeRule.onNodeWithTag("card-player-name").performImeAction()
+        composeRule.onNodeWithTag("card-player-name").replaceTextAndConfirm("Different Handler")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
         dismissDialog(tag = "same-number-warning-cancel", waitForText = "Add red card")
@@ -887,8 +882,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
                 .config[SemanticsProperties.EditableText]
                 .text,
         )
-        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Different Cutter")
-        composeRule.onNodeWithTag("card-player-name").performImeAction()
+        composeRule.onNodeWithTag("card-player-name").replaceTextAndConfirm("Different Cutter")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
         dismissDialog(tag = "same-number-warning-cancel", waitForText = "Red card")

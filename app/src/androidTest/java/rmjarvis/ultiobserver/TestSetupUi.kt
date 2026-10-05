@@ -16,7 +16,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.percentOffset
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
@@ -47,8 +46,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         }
         openNewGameSetup()
         openStartingPullSetupEditor()
-        composeRule.onNodeWithTag("setup-near-end-name").performTextReplacement("Road")
-        composeRule.onNodeWithTag("setup-near-end-name").performImeAction()
+        composeRule.onNodeWithTag("setup-near-end-name").replaceTextAndConfirm("Road")
         composeRule.onNodeWithTag("setup-watch-left-end-NEAR")
             .performScrollTo().assertTextEquals("Road | Far end").performClick()
         composeRule.onNodeWithTag("setup-watch-left-end-FAR")
@@ -382,8 +380,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Cancel is the explicit discard path for this editor.
         openStartingPullSetupEditor()
         composeRule.onNodeWithTag("setup-near-end-name")
-            .performTextReplacement("Canceled end")
-        composeRule.onNodeWithTag("setup-near-end-name").performImeAction()
+            .replaceTextAndConfirm("Canceled end")
         composeRule.onNodeWithText("Cancel").performClick()
         composeRule.onAllNodesWithText("Canceled end").assertCountEquals(0)
         waitForText("Field ends are called: $initialEndSummary")
@@ -391,8 +388,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Dismissal follows Done so accidental outside taps keep entered setup edits.
         openStartingPullSetupEditor()
         composeRule.onNodeWithTag("setup-far-end-name")
-            .performTextReplacement("River")
-        composeRule.onNodeWithTag("setup-far-end-name").performImeAction()
+            .replaceTextAndConfirm("River")
         dismissDialog(text = "Done", waitForText = "Field ends are called: $riverEndSummary")
 
         // Dismissal also follows Done when no text field has focus.
@@ -752,8 +748,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Optional tournament, division, level, context, and observer fields should persist.
         openGameInformationSetupEditor()
         composeRule.onNodeWithTag("setup-tournament-name")
-            .performTextReplacement("College Nationals")
-        composeRule.onNodeWithTag("setup-tournament-name").performImeAction()
+            .performScrollTo()
+            .replaceTextAndConfirm("College Nationals")
         composeRule.onNodeWithTag("setup-game-division-${GameDivision.OPEN.name}")
             .performScrollTo()
             .performClick()
@@ -764,8 +760,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             .performScrollTo()
             .performClick()
         composeRule.onNodeWithTag("setup-game-level-other-text")
-            .performTextReplacement("Community showcase")
-        composeRule.onNodeWithTag("setup-game-level-other-text").performImeAction()
+            .performScrollTo()
+            .replaceTextAndConfirm("Community showcase")
         composeRule.onNodeWithTag("setup-game-level-other")
             .performScrollTo()
             .performClick()
@@ -789,8 +785,9 @@ class TestSetupUi : MainActivityUiTestFixtures() {
 
         composeRule.onNodeWithTag("setup-game-level-other-text")
             .performTextReplacement("Community showcase")
-        composeRule.onNodeWithTag("setup-game-context").performTextReplacement("Semifinals")
-        composeRule.onNodeWithTag("setup-game-context").performImeAction()
+        composeRule.onNodeWithTag("setup-game-context")
+            .performScrollTo()
+            .replaceTextAndConfirm("Semifinals")
 
         // Observer rows can add another row, but only the last blank row can be removed.
         composeRule.onAllNodesWithTag("setup-remove-observer-0").assertCountEquals(0)
@@ -802,25 +799,27 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("setup-remove-observer-0").assertCountEquals(0)
         composeRule.onAllNodesWithTag("setup-observer-1").assertCountEquals(0)
         assertSingleSetupAddObserver()
-        composeRule.onNodeWithTag("setup-observer-0").performTextReplacement("Mike")
-        composeRule.onNodeWithTag("setup-observer-0").performImeAction()
+        composeRule.onNodeWithTag("setup-observer-0")
+            .performScrollTo()
+            .replaceTextAndConfirm("Mike")
         composeRule.onNodeWithTag("setup-add-observer")
             .performScrollTo()
             .performClick()
         assertSingleSetupAddObserver()
-        composeRule.onNodeWithTag("setup-observer-1").performTextReplacement("Gary")
-        composeRule.onNodeWithTag("setup-observer-1").performImeAction()
+        composeRule.onNodeWithTag("setup-observer-1")
+            .performScrollTo()
+            .replaceTextAndConfirm("Gary")
         composeRule.onNodeWithTag("setup-add-observer")
             .performScrollTo()
             .performClick()
         composeRule.onNodeWithTag("setup-observer-2")
             .performScrollTo()
-            .performTextReplacement("Bill")
-        composeRule.onNodeWithTag("setup-observer-2").performImeAction()
+            .replaceTextAndConfirm("Bill")
         composeRule.onAllNodesWithTag("setup-remove-observer-2").assertCountEquals(0)
         assertSingleSetupAddObserver()
-        composeRule.onNodeWithTag("setup-field-name").performTextReplacement("Field 7")
-        composeRule.onNodeWithTag("setup-field-name").performImeAction()
+        composeRule.onNodeWithTag("setup-field-name")
+            .performScrollTo()
+            .replaceTextAndConfirm("Field 7")
         closeSetupEditor()
 
         // The setup screen should show the populated game-information summary.
@@ -844,8 +843,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Dismissal follows Done so text-entry setup edits survive accidental outside taps.
         openGameInformationSetupEditor()
         composeRule.onNodeWithTag("setup-tournament-name")
-            .performTextReplacement("Dismissed Tournament")
-        composeRule.onNodeWithTag("setup-tournament-name").performImeAction()
+            .performScrollTo()
+            .replaceTextAndConfirm("Dismissed Tournament")
         dismissDialog(
             text = "Done",
             waitForText = "Dismissed Tournament",
