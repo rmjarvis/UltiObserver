@@ -7,6 +7,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import java.io.File
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -30,6 +31,17 @@ internal annotation class RequiresPairedWear
  */
 @RequiresPairedWear
 class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
+    /** Keep both apps alive until both partners have finished their checks. */
+    @After
+    fun waitForPartnerToFinish() {
+        File(composeRule.activity.filesDir, "paired-test-finished").createNewFile()
+        catchAndDiagnoseFailure {
+            composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
+                File(composeRule.activity.filesDir, "paired-test-release").exists()
+            }
+        }
+    }
+
     /** Host the test of scoring and undoing goals from the watch. */
     @Test
     fun goalAndUndo() {

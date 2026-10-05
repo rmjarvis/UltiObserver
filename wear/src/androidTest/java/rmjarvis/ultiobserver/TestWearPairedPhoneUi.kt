@@ -55,6 +55,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertFalse
 import org.junit.Before
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestName
@@ -78,6 +79,17 @@ class TestWearPairedPhoneUi {
 
     @get:Rule
     val testName = TestName()
+
+    /** Keep both apps alive until both partners have finished their checks. */
+    @After
+    fun waitForPartnerToFinish() {
+        File(composeRule.activity.filesDir, "paired-test-finished").createNewFile()
+        catchAndDiagnoseFailure(composeRule) {
+            composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
+                File(composeRule.activity.filesDir, "paired-test-release").exists()
+            }
+        }
+    }
 
     /** Allow notification requests except in the shortcut narrative, which exercises denial. */
     @Before

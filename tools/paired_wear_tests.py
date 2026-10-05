@@ -10,6 +10,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from threading import Event
 import time
 
 
@@ -248,19 +249,21 @@ def paired_phone_instrumentation_command(
     )
 
 
-def clear_ready_file(adb: Path, phone_serial: str, root: Path) -> None:
-    """Remove the prior narrative marker from the phone app's private storage."""
+def clear_test_markers(adb: Path, serial: str, root: Path) -> None:
+    """Remove the prior narrative's start and finish markers."""
 
     run(
         adb_command(
             adb,
-            phone_serial,
+            serial,
             "shell",
             "run-as",
             PACKAGE_NAME,
             "rm",
             "-f",
             READY_FILE,
+            "files/paired-test-finished",
+            "files/paired-test-release",
         ),
         root,
     )
@@ -369,7 +372,8 @@ def run_narrative(
         (pair.watch_serial, watch_remote),
     ):
         run(adb_command(adb, serial, "shell", "rm", "-f", remote), root)
-    clear_ready_file(adb, pair.phone_serial, root)
+    clear_test_markers(adb, pair.phone_serial, root)
+    clear_test_markers(adb, pair.watch_serial, root)
 
     # Exercise the shortcut's first notification-permission request independently of earlier tests.
     if narrative == "ongoingGame":
@@ -392,23 +396,27 @@ def run_narrative(
     try:
         wait_until_phone_ready(adb, pair, narrative, phone_process, root)
         with ThreadPoolExecutor(max_workers=1) as executor:
-            if narrative == "connectionRecovery":
-                recovery = executor.submit(coordinate_recovery, adb, pair, root)
-            watch_result = run(
-                instrumentation_command(
-                    adb,
-                    pair.watch_serial,
-                    f"{PAIRED_TEST_CLASS}#{narrative}",
-                    watch_remote,
-                    WATCH_TEST_RUNNER,
-                ),
-                root,
-                capture=True,
-                check=False,
+            watch_finished = Event()
+            coordination = executor.submit(
+                coordinate_narrative, adb, pair, narrative, root, watch_finished,
             )
-            if narrative == "connectionRecovery":
-                recovery.result()
-        assert_instrumentation_passed("Watch", watch_result.stdout, watch_result.returncode)
+            try:
+                watch_result = run(
+                    instrumentation_command(
+                        adb,
+                        pair.watch_serial,
+                        f"{PAIRED_TEST_CLASS}#{narrative}",
+                        watch_remote,
+                        WATCH_TEST_RUNNER,
+                    ),
+                    root,
+                    capture=True,
+                    check=False,
+                )
+            finally:
+                watch_finished.set()
+            assert_instrumentation_passed("Watch", watch_result.stdout, watch_result.returncode)
+            coordination.result()
         phone_output, _ = phone_process.communicate(timeout=30.0)
         assert_instrumentation_passed("Phone", phone_output, phone_process.returncode)
     except Exception:
@@ -444,6 +452,32 @@ def run_narrative(
             destination.unlink()
     pull_coverage(adb, pair.phone_serial, phone_remote, phone_destination, root)
     pull_coverage(adb, pair.watch_serial, watch_remote, watch_destination, root)
+
+
+def coordinate_narrative(
+    adb: Path, pair: EmulatorPair, narrative: str, root: Path, watch_finished: Event,
+) -> None:
+    """Release teardown only after both partners finish, including recovery's intermediate barriers."""
+
+    if narrative == "connectionRecovery":
+        coordinate_recovery(adb, pair, root)
+    pending = {pair.phone_serial, pair.watch_serial}
+    while pending and not watch_finished.is_set():
+        for serial in tuple(pending):
+            result = subprocess.run(
+                adb_command(adb, serial, "shell", "run-as", PACKAGE_NAME,
+                            "test", "-f", "files/paired-test-finished"),
+                cwd=root, capture_output=True, check=False,
+            )
+            if result.returncode == 0:
+                pending.remove(serial)
+        if pending:
+            watch_finished.wait(0.25)
+    if pending:
+        raise RuntimeError(f"{narrative} ended before both partners reached teardown.")
+    for serial in (pair.phone_serial, pair.watch_serial):
+        run(adb_command(adb, serial, "shell", "run-as", PACKAGE_NAME,
+                        "touch", "files/paired-test-release"), root)
 
 
 def coordinate_recovery(adb: Path, pair: EmulatorPair, root: Path) -> None:
