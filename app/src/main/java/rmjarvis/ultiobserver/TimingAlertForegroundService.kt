@@ -125,6 +125,9 @@ class TimingAlertForegroundService : Service() {
     /// Build the Android platform callbacks used by the service controller.
     private fun androidTimingAlertServicePlatform(): TimingAlertServicePlatform {
         return object : TimingAlertServicePlatform {
+            override val vibrationsMuted: Boolean
+                get() = (application as UltiObserverApplication).soundOutputs.state.value.vibrationsMuted
+
             override fun startForeground() {
                 startTimingAlertForeground()
             }
@@ -374,6 +377,9 @@ class TimingAlertForegroundService : Service() {
  * or haptic hardware.
  */
 internal interface TimingAlertServicePlatform {
+    /** Current global vibration mute, read when deciding whether a watch cue should alert. */
+    val vibrationsMuted: Boolean
+
     /// Put the Android service into foreground mode with its notification.
     fun startForeground()
 
@@ -619,7 +625,7 @@ internal class TimingAlertForegroundServiceController(
         val snapshot = timingAlertSnapshot ?: return
         val scoreLine = snapshot.watchScoreLine ?: return
         val alert = snapshot.watchConnectionMode == WatchConnectionMode.ALERTING &&
-            cue.watchAlertEnabled
+            cue.watchAlertEnabled && !platform.vibrationsMuted
         val countdownSeconds = cue.countdownSeconds
         if (countdownSeconds == null) {
             platform.postWatchCueNotification(

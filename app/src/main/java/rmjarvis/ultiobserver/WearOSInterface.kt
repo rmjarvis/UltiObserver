@@ -48,6 +48,7 @@ internal fun handleWearRequest(
     appState: AppState,
     snapshotTagger: WearSnapshotTagger,
     now: Long,
+    vibrationsMuted: Boolean,
 ): WearGameActionResponse? {
     val requestedAction = WearRequestAction.fromPath(requestedActionPath) ?: return null
     var applied = false
@@ -223,7 +224,7 @@ internal fun handleWearRequest(
             )
         }
     }
-    val responseSnapshot = appState.state.value.toWearSnapshot(snapshotTagger, now)
+    val responseSnapshot = appState.state.value.toWearSnapshot(snapshotTagger, now, vibrationsMuted)
     return WearGameActionResponse(
         applied = applied,
         snapshot = responseSnapshot,
@@ -505,10 +506,15 @@ private fun AppStateSnapshot.gameOnWatch(stateToken: String): GameState? {
 internal fun AppStateSnapshot.toWearSnapshot(
     snapshotTagger: WearSnapshotTagger,
     now: Long,
+    vibrationsMuted: Boolean,
 ): WearStateSnapshot {
     return snapshotTagger.tag(buildWearStateSnapshot(
         game = currentGame,
-        settings = settings,
+        settings = if (vibrationsMuted) {
+            settings.withTimingAlerts(settings.timingAlerts.copy(vibrateOnWatch = false))
+        } else {
+            settings
+        },
         now = now,
         actionsAvailable = viewingActiveGameScreen,
         activeCardEntry = activeCardEntry,

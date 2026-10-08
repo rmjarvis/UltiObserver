@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WatchLater
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -113,6 +115,8 @@ internal fun HomeScreen(
     onStartNewGame: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenOfficialClock: () -> Unit,
+    onOpenSoundOutput: () -> Unit,
+    soundMuted: Boolean,
     officialClockAdjusted: Boolean,
     onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -310,29 +314,39 @@ internal fun HomeScreen(
                 }
             }
 
-            IconButton(
-                icon = Icons.Outlined.Info,
-                contentDescription = "About",
-                tag = "home-about",
-                onClick = onOpenAbout,
+            Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(pagePadding)
-            )
-            IconButton(
-                icon = Icons.Filled.WatchLater,
-                contentDescription = if (officialClockAdjusted) {
-                    "Official clock adjusted"
-                } else {
-                    "Official clock"
-                },
-                iconColor = if (officialClockAdjusted) ResetColor else null,
-                tag = "home-official-clock",
-                onClick = onOpenOfficialClock,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
                     .padding(pagePadding),
-            )
+            ) {
+                IconButton(
+                    icon = Icons.Outlined.Info,
+                    contentDescription = "About",
+                    tag = "home-about",
+                    onClick = onOpenAbout,
+                )
+                IconButton(
+                    icon = Icons.Filled.WatchLater,
+                    contentDescription = if (officialClockAdjusted) {
+                        "Official clock adjusted"
+                    } else {
+                        "Official clock"
+                    },
+                    iconColor = if (officialClockAdjusted) ResetColor else null,
+                    tag = "home-official-clock",
+                    onClick = onOpenOfficialClock,
+                )
+                IconButton(
+                    icon = if (soundMuted) {
+                        Icons.AutoMirrored.Filled.VolumeOff
+                    } else {
+                        Icons.AutoMirrored.Filled.VolumeUp
+                    },
+                    contentDescription = if (soundMuted) "Sound output, muted" else "Sound output",
+                    tag = "home-sound-output",
+                    onClick = onOpenSoundOutput,
+                )
+            }
         }
     }
 }

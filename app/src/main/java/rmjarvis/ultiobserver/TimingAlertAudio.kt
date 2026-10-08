@@ -2,8 +2,11 @@ package rmjarvis.ultiobserver
 
 import android.content.Context
 import android.media.AudioAttributes
-import android.media.SoundPool
+import android.media.AudioFormat
+import android.media.AudioTrack
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.VibrationAttributes
 import android.os.Vibrator
@@ -20,7 +23,9 @@ internal class TimingAlertPlayer internal constructor(
     private val loadSound: (TimingAlertSoundPlayer, TimingAlertSoundClip) -> Int,
 ) {
     constructor(context: Context) : this(
-        soundPlayer = AndroidTimingAlertSoundPlayer(),
+        soundPlayer = AndroidTimingAlertSoundPlayer(
+            (context.applicationContext as UltiObserverApplication).soundOutputs,
+        ),
         loadSound = { soundPlayer, clip -> soundPlayer.load(context, clip.rawResourceId(), 1) },
     )
 
@@ -59,12 +64,12 @@ internal class TimingAlertPlayer internal constructor(
     }
 
     /**
-     * Play a timing alert sound at the requested SoundPool priority.
+     * Play a timing alert sound at the requested playback priority.
      *
      * @param sound The sound family to play.
      * @param repeatCount The number of repeats encoded in the clip to play.
-     * @param volume The requested playback volume, clamped to the SoundPool range.
-     * @param priority SoundPool stream priority for this play.
+     * @param volume The requested playback volume, clamped to 0–1.
+     * @param priority Playback priority; higher-priority cues can interrupt previews.
      */
     fun play(
         sound: TimingAlertSound,
@@ -94,7 +99,7 @@ internal class TimingAlertPlayer internal constructor(
      * Play a sound clip that has already finished loading.
      *
      * @param clip The loaded sound clip to play.
-     * @param playSettings The clamped playback volume and SoundPool stream priority.
+     * @param playSettings The clamped playback volume and playback priority.
      */
     private fun playLoaded(clip: TimingAlertSoundClip, playSettings: PlaySettings) {
         val soundId = soundIds[clip]!!
@@ -144,34 +149,33 @@ private fun timingAlertSoundClips(): List<TimingAlertSoundClip> {
     }
 }
 
-/// Abstraction over SoundPool operations so timing alert audio can be tested without Android audio
-/// hardware.
+/** Sound-loading and playback interface for testing timing alerts without Android audio hardware. */
 internal interface TimingAlertSoundPlayer {
     /**
      * Register a listener for sound-load completion.
      *
-     * @param listener Callback receiving SoundPool sample id and load status.
+     * @param listener Callback receiving the loaded sound id and status (zero means success).
      */
     fun setOnLoadCompleteListener(listener: (sampleId: Int, status: Int) -> Unit)
 
     /**
      * Load one raw sound resource.
      *
-     * @param context Android context used by SoundPool.
+     * @param context Android context used to read the raw resource.
      * @param resId Raw resource id to load.
-     * @param priority SoundPool load priority.
+     * @param priority Load priority; unused by the Android backend.
      */
     fun load(context: Context, resId: Int, priority: Int): Int
 
     /**
      * Play one loaded sound id.
      *
-     * @param soundId Loaded sound id returned by SoundPool.
-     * @param leftVolume Left channel volume.
-     * @param rightVolume Right channel volume.
-     * @param priority SoundPool playback priority.
-     * @param loop SoundPool loop count.
-     * @param rate SoundPool playback rate.
+     * @param soundId Sound id returned by [load].
+     * @param leftVolume Playback volume for the Android backend's mono clips.
+     * @param rightVolume Right channel volume; unused by the Android mono backend.
+     * @param priority Playback priority; a lower-priority request cannot interrupt an active cue.
+     * @param loop Loop count; callers use zero because repeats are encoded in the clip.
+     * @param rate Playback rate multiplier; 1 means normal speed.
      */
     fun play(
         soundId: Int,
@@ -183,50 +187,54 @@ internal interface TimingAlertSoundPlayer {
     )
 }
 
-/// Android SoundPool adapter for the TimingAlertSoundPlayer interface.
-internal class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
-    private val soundPool = SoundPool.Builder()
-        .setMaxStreams(1)
-        .setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-        )
-        .build()
+/**
+ * AudioTrack playback with output selection for bundled mono, 44.1 kHz, 16-bit PCM WAV cues.
+ *
+ * @param outputs Device discovery and routing for the currently playing cue.
+ * @param createTrack Creates a track loaded with the supplied PCM samples. The single-argument
+ * constructor supplies Android audio tracks; tests supply mocks to verify interruption priorities
+ * and muting without depending on real playback timing.
+ */
+internal class AndroidTimingAlertSoundPlayer(
+    private val outputs: SoundOutputManager,
+    private val createTrack: (ByteArray) -> AudioTrack,
+) : TimingAlertSoundPlayer {
+    constructor(outputs: SoundOutputManager) : this(outputs, { pcm ->
+        AudioTrack.Builder()
+            .setAudioAttributes(timingSoundAudioAttributes())
+            .setAudioFormat(AudioFormat.Builder()
+                .setSampleRate(44_100)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .build())
+            .setTransferMode(AudioTrack.MODE_STATIC)
+            .setBufferSizeInBytes(pcm.size)
+            .build().also { loaded ->
+                loaded.write(pcm, 0, pcm.size)
+            }
+    })
 
-    /**
-     * Register the Android SoundPool load-complete listener.
-     *
-     * @param listener Callback receiving loaded sample id and status.
-     */
+    private val handler = Handler(Looper.getMainLooper())
+    private lateinit var loadListener: (Int, Int) -> Unit
+    private val samples = mutableMapOf<Int, ByteArray>()
+    private val tracks = mutableMapOf<Int, AudioTrack>()
+    private var activeTrack: AudioTrack? = null
+    private var activePriority = TIMING_ALERT_PREVIEW_PRIORITY
+    private var activeFrames = 0
+
     override fun setOnLoadCompleteListener(listener: (sampleId: Int, status: Int) -> Unit) {
-        soundPool.setOnLoadCompleteListener { _, sampleId, status ->
-            listener(sampleId, status)
-        }
+        loadListener = listener
     }
 
-    /**
-     * Load one Android raw sound resource into SoundPool.
-     *
-     * @param context Android context used to resolve the raw resource.
-     * @param resId Raw resource id to load.
-     * @param priority SoundPool load priority.
-     */
     override fun load(context: Context, resId: Int, priority: Int): Int {
-        return soundPool.load(context, resId, priority)
+        // These app-owned WAV resources have a 44-byte header; their format is checked in tests.
+        samples[resId] = context.resources.openRawResource(resId).use { stream ->
+            stream.readBytes().let { it.copyOfRange(44, it.size) }
+        }
+        handler.post { loadListener(resId, 0) }
+        return resId
     }
 
-    /**
-     * Play one loaded SoundPool sound.
-     *
-     * @param soundId Loaded SoundPool sound id.
-     * @param leftVolume Left channel volume.
-     * @param rightVolume Right channel volume.
-     * @param priority SoundPool playback priority.
-     * @param loop SoundPool loop count.
-     * @param rate SoundPool playback rate.
-     */
     override fun play(
         soundId: Int,
         leftVolume: Float,
@@ -235,12 +243,55 @@ internal class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
         loop: Int,
         rate: Float,
     ) {
-        soundPool.play(soundId, leftVolume, rightVolume, priority, loop, rate)
+        handler.post {
+            if (outputs.state.value.muted) return@post
+            val previous = activeTrack
+            if (previous != null && previous.playState == AudioTrack.PLAYSTATE_PLAYING &&
+                previous.playbackHeadPosition < activeFrames && priority < activePriority
+            ) return@post
+
+            previous?.stop()
+            val pcm = samples.getValue(soundId)
+            val track = tracks.getOrPut(soundId) {
+                createTrack(pcm).also { loaded ->
+                    loaded.setPlaybackPositionUpdateListener(
+                        object : AudioTrack.OnPlaybackPositionUpdateListener {
+                            override fun onMarkerReached(completed: AudioTrack) {
+                                // A queued completion can outlive an interruption or replay.
+                                if (completed == activeTrack &&
+                                    completed.playbackHeadPosition >= activeFrames
+                                ) {
+                                    completed.stop()
+                                    activeTrack = null
+                                    outputs.detach()
+                                }
+                            }
+
+                            // Coverage: Unused but required.
+                            // Android requires this method, but we never enable periodic playback
+                            // notifications or call it ourselves; only the completion marker is used.
+                            override fun onPeriodicNotification(track: AudioTrack) = Unit
+                        },
+                        handler,
+                    )
+                }
+            }
+            track.reloadStaticData()
+            track.setVolume(leftVolume)
+            track.setPlaybackRate((44_100 * rate).toInt())
+            activeFrames = pcm.size / 2
+            track.setLoopPoints(0, activeFrames, loop)
+            track.notificationMarkerPosition = activeFrames
+            activeTrack = track
+            activePriority = priority
+            outputs.attach(track)
+            track.play()
+        }
     }
 }
 
 private val timingAlertRawResources = mapOf(
-    // Repeated cues are pre-rendered raw resources so playback uses one SoundPool call at runtime.
+    // Repeated cues are pre-rendered raw resources so each sequence plays as one audio clip.
     // CC0 excerpts from Wikimedia Commons: Clicker_sound.ogg.
     TimingAlertSound.TICK to listOf(
         R.raw.timing_tick,

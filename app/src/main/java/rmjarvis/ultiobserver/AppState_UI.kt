@@ -51,6 +51,26 @@ internal fun UltiObserverApp(
     // No else branch: every AppScreen value is handled.
     when (snapshot.screen) {
         AppScreen.HOME -> {
+            var showSoundOutput by rememberSaveable { mutableStateOf(false) }
+            val application = context.applicationContext as UltiObserverApplication
+            val soundOutput by application.soundOutputs.state.collectAsState()
+            if (showSoundOutput) {
+                SoundOutputDialog(
+                    manager = application.soundOutputs,
+                    onTestSound = {
+                        application.timingAlertPlayer.play(
+                            sound = TimingAlertSound.BEEP,
+                            repeatCount = 1,
+                            volume = snapshot.settings.timingAlerts.soundVolume,
+                            priority = TIMING_ALERT_PREVIEW_PRIORITY,
+                        )
+                    },
+                    onDismiss = {
+                        showSoundOutput = false
+                    },
+                )
+            }
+
             val currentState = snapshot.currentGame
             val currentGame: GameListEntry?
             val completedGamePendingArchive: GameListEntry?
@@ -84,7 +104,11 @@ internal fun UltiObserverApp(
                 onOpenOfficialClock = {
                     appState.openOfficialClock()
                 },
+                onOpenSoundOutput = {
+                    showSoundOutput = true
+                },
                 officialClockAdjusted = snapshot.settings.officialClockOffsetMillis != 0L,
+                soundMuted = soundOutput.muted,
                 onOpenProfile = {
                     appState.openProfile()
                 },

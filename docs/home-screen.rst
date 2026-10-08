@@ -53,7 +53,7 @@ This page shows the currently installed version of UltiObserver and provides lin
 Official Clock
 --------------
 
-In the upper-right corner of the home screen, there is a clock icon. Click on this to
+Below the About icon on the left side of the home screen, there is a clock icon. Click on this to
 go to the **Official clock** page.
 
 This page lets you synchronize UltiObserver with a tournament's official clock being used
@@ -67,3 +67,35 @@ minute differs from the tournament clock, use **+1 min** or **-1 min** to correc
 When UltiObserver is using an adjusted clock, the clock icon on the home screen turns red
 to remind you that the app is not in sync with your phone's clock.
 Tap **Reset to phone time** to go back to using your phone's own clock for the timing.
+
+Sound Output
+------------
+
+The speaker icon below the clock on the left opens a **Sound output** dialog to change
+where the app sends any timing cue sounds.
+The app normally just uses your phone's default audio output, which is usually
+fine, but if you have multiple Bluetooth devices connected (e.g. a watch and an ear bud),
+you might want to change it.
+
+**None** turns all sounds off. This doesn't change your setting related to
+your preferred timing cue notifications. It just overrides that to mute the app when you
+don't want the sounds for whatever reason.
+When this option is selected, the Home icon changes to a crossed-out speaker to remind you
+why you aren't getting any audio output.
+
+**Android default** uses the default audio output according to your phone's settings.
+This is the default app behavior.
+
+**Phone speaker** uses your phone's speaker, rather than any Bluetooth or other connected
+audio devices.
+
+Below these options, you should see a list of any other audio output options currently
+available on your phone. Select one of these to switch to that audio device.
+If you select this, and then the audio device later disconnects, the app will revert back
+to **Android default** until you change it again.
+
+If you select **None**, you will also have an option to **Also mute vibrations?**. Setting this
+to **Yes** will mute all sounds and haptic feedback from UltiObserver.
+
+To check the audio connection, you can press **Test sound**. This plays a single beep
+so you can confirm that your selected output device is working as intended.

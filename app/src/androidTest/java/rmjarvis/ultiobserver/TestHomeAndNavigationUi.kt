@@ -1,5 +1,9 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.onNodeWithContentDescription
+
 import android.Manifest
 import android.os.Build
 import android.app.Activity
@@ -8,6 +12,10 @@ import android.content.pm.PackageManager
 import android.content.Intent
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.SharedPreferences
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
@@ -51,6 +59,7 @@ import java.time.LocalTime
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -911,6 +920,103 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Start new game")
     }
 
+    /** Choose and test sound outputs from Home, including during a current game. */
+    @Test
+    fun soundOutput() {
+        val application = composeRule.activity.application as UltiObserverApplication
+        composeRule.runOnIdle {
+            application.soundOutputs.select(null)
+            application.soundOutputs.setAlsoMuteVibrations(false)
+        }
+
+        // Home shows connected outputs and starts with Android's automatic routing selected.
+        composeRule.onNodeWithTag("home-sound-output").performClick()
+        composeRule.onNodeWithTag("sound-output-automatic").assertIsSelected()
+        composeRule.onNodeWithText("Phone speaker").performClick().assertIsSelected()
+        composeRule.onNodeWithText("Test sound").performScrollTo().performClick()
+        composeRule.waitUntil(5_000) {
+            application.soundOutputs.state.value.lastPlayedOn != null
+        }
+        dismissDialog("Close", waitForText = "Start new game")
+
+        // Reopening retains the explicit choice; the observer can return to Automatic.
+        composeRule.onNodeWithTag("home-sound-output").performClick()
+        composeRule.onNodeWithText("Phone speaker").assertIsSelected()
+        composeRule.onNodeWithTag("sound-output-automatic").performClick().assertIsSelected()
+        dismissDialog("Close", waitForText = "Start new game")
+
+        // None hides the dialog's test sound and optionally mutes vibrations as well.
+        composeRule.onNodeWithTag("home-sound-output").performClick()
+        composeRule.onNodeWithTag("sound-output-none").performClick().assertIsSelected()
+        composeRule.onNodeWithText("Test sound").assertDoesNotExist()
+        composeRule.onNodeWithText("Play a test sound to check your audio setting:")
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag("sound-output-mute-vibrations")
+            .performScrollTo().assertIsOff().performClick().assertIsOn()
+        dismissDialog("Close", waitForText = "Start new game")
+
+        // Settings keeps previews visible but disabled, with a note explaining each mute.
+        composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithText("Sounds on").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-test-vibration")
+            .performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithText("All sounds and vibrations are currently muted.").assertExists()
+        composeRule.onNodeWithText(application.appState.settings.timingAlerts.vibrationTestDescription)
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag("settings-open-timing-cue-settings")
+            .performScrollTo().performClick()
+        TimingAlertSound.entries.forEach { sound ->
+            composeRule.onNodeWithTag("settings-sound-preview-${sound.name}").assertIsNotEnabled()
+        }
+        composeRule.onNodeWithText("All sounds are currently muted.").assertExists()
+        tapTopBarHome()
+
+        // Returning to an audio output restores tests while retaining the vibration preference.
+        composeRule.onNodeWithContentDescription("Sound output, muted").performClick()
+        composeRule.onNodeWithTag("sound-output-none").assertIsSelected()
+        composeRule.onNodeWithTag("sound-output-mute-vibrations").assertIsOn()
+        composeRule.onNodeWithTag("sound-output-automatic").performClick()
+        composeRule.onNodeWithText("Test sound").performScrollTo().assertIsEnabled()
+        dismissDialog("Close", waitForText = "Start new game")
+
+        composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-open-timing-cue-settings")
+            .performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-sound-preview-TICK").assertIsEnabled()
+        composeRule.onNodeWithText("All sounds are currently muted.").assertDoesNotExist()
+        tapTopBarHome()
+
+        // The observer can turn vibrations back on while keeping all sounds muted.
+        composeRule.onNodeWithTag("home-sound-output").performClick()
+        composeRule.onNodeWithTag("sound-output-none").performClick()
+        composeRule.onNodeWithTag("sound-output-mute-vibrations")
+            .performScrollTo().assertIsOn().performClick().assertIsOff()
+        dismissDialog("Close", waitForText = "Start new game")
+        composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-test-vibration").performScrollTo()
+        composeRule.onNodeWithText("All sounds and vibrations are currently muted.").assertDoesNotExist()
+        composeRule.onNodeWithText(application.appState.settings.timingAlerts.vibrationTestDescription)
+            .assertExists()
+        tapTopBarHome()
+        composeRule.onNodeWithTag("home-sound-output").performClick()
+        composeRule.onNodeWithTag("sound-output-automatic").performClick()
+        dismissDialog("Close", waitForText = "Start new game")
+
+        // An ongoing game does not hide the Home control or get altered by changing output.
+        startLiveGameProgrammatically()
+        composeRule.onAllNodesWithTag("home-sound-output").assertCountEquals(0)
+        tapTopBarHome()
+        waitForText("Current game")
+        val currentGame = composeRule.activity.appState.currentGame
+        composeRule.onNodeWithTag("home-sound-output").performClick()
+        composeRule.onNodeWithText("Phone speaker").performClick()
+        composeRule.onNodeWithTag("sound-output-automatic").performClick()
+        dismissDialog("Close", waitForText = "Current game")
+        composeRule.runOnIdle {
+            assertEquals(currentGame, composeRule.activity.appState.currentGame)
+        }
+    }
+
     /**
      * Test official-clock synchronization and its persistent Home status indicator.
      */
@@ -1222,6 +1328,56 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             .performClick()
         composeRule.onNodeWithTag("settings-4m-3w-badge-color")
             .assertTextEquals("Custom")
+    }
+
+    /** A rejected output selection explains the fallback and clears when another choice is made. */
+    @Test
+    @SdkSuppress(minSdkVersion = 28)
+    fun soundOutputUnavailable() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val preferences = context.getSharedPreferences("test_sound_output_dialog", Context.MODE_PRIVATE)
+        preferences.edit().clear().commit()
+        val speaker = mock(AudioDeviceInfo::class.java)
+        doReturn(1).`when`(speaker).id
+        doReturn(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER).`when`(speaker).type
+        doReturn("").`when`(speaker).address
+        doReturn("Phone").`when`(speaker).productName
+        val audioManager = mock(AudioManager::class.java)
+        doReturn(arrayOf(speaker)).`when`(audioManager).getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        val audioContext = object : ContextWrapper(context) {
+            override fun getSystemService(name: String): Any? =
+                if (name == Context.AUDIO_SERVICE) audioManager else super.getSystemService(name)
+
+            override fun getSharedPreferences(name: String, mode: Int): SharedPreferences = preferences
+        }
+        val outputs = SoundOutputManager(audioContext)
+        val rejectingTrack = mock(AudioTrack::class.java)
+        doReturn(true).`when`(rejectingTrack).setPreferredDevice(null)
+        doReturn(false).`when`(rejectingTrack).setPreferredDevice(speaker)
+        try {
+            // Render with a platform stand-in because a real device cannot reliably reject routing.
+            composeRule.activityRule.scenario.onActivity { activity ->
+                outputs.attach(rejectingTrack)
+                activity.setContent {
+                    UltiObserverTheme(dynamicColor = false) {
+                        SoundOutputDialog(outputs, onTestSound = {}, onDismiss = {})
+                    }
+                }
+            }
+            composeRule.onNodeWithText("Phone speaker").performScrollTo().performClick()
+            val error = "Selecting Phone speaker failed. Reverting to Android default."
+            composeRule.onNodeWithText(error).performScrollTo().assertIsDisplayed()
+            composeRule.onNodeWithText("Android default").assertIsSelected()
+            assertNull(outputs.state.value.selectedKey)
+
+            // A subsequent choice clears the old failure instead of leaving a stale warning.
+            composeRule.onNodeWithText("None").performScrollTo().performClick()
+            composeRule.onAllNodesWithText(error).assertCountEquals(0)
+            composeRule.onNodeWithText("Sounds are muted.").assertIsDisplayed()
+        } finally {
+            composeRule.runOnIdle { outputs.detach() }
+            preferences.edit().clear().commit()
+        }
     }
 
     /**

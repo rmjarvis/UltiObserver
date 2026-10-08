@@ -21,6 +21,7 @@ internal class WearPhoneCoordinator(
     private val publish: (WearStateUpdate) -> Unit,
     private val publishOngoingGame: (WearOngoingGameStatus) -> Unit,
     private val clock: () -> Long,
+    private val vibrationsMuted: () -> Boolean,
 ) {
     private val snapshotTagger = WearSnapshotTagger()
     private var handlingWatchRequest = false
@@ -42,7 +43,7 @@ internal class WearPhoneCoordinator(
                 updated.settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS
             if (watchChanged && wearEnabled && !handlingWatchRequest) {
                 publishUpdate(WearStateUpdate(
-                    updated.toWearSnapshot(snapshotTagger, clock()), latestAcknowledgement,
+                    updated.toWearSnapshot(snapshotTagger, clock(), vibrationsMuted()), latestAcknowledgement,
                 ))
             }
         }
@@ -53,7 +54,7 @@ internal class WearPhoneCoordinator(
         val state = appState.state.value
         if (state.settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS) {
             publishUpdate(WearStateUpdate(
-                state.toWearSnapshot(snapshotTagger, clock()), latestAcknowledgement,
+                state.toWearSnapshot(snapshotTagger, clock(), vibrationsMuted()), latestAcknowledgement,
             ))
         } else {
             updateOngoingGameStatus(hasCurrentGame = false)
@@ -77,7 +78,7 @@ internal class WearPhoneCoordinator(
         }
         latestAcknowledgement = WearStartupAcknowledgement(request.requestId)
         publishUpdate(WearStateUpdate(
-            state.toWearSnapshot(snapshotTagger, now), latestAcknowledgement,
+            state.toWearSnapshot(snapshotTagger, now, vibrationsMuted()), latestAcknowledgement,
         ))
         response
     }
@@ -91,6 +92,7 @@ internal class WearPhoneCoordinator(
             try {
                 val response = handleWearRequest(
                     requestedActionPath, request.arguments, appState, snapshotTagger, now,
+                    vibrationsMuted(),
                 ) ?: return@synchronized
                 latestAcknowledgement = WearCommandAcknowledgement(
                     requestId = request.requestId,

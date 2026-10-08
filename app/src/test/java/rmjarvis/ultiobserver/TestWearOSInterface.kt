@@ -54,6 +54,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
                 publish = { publications.getOrPut(appState) { mutableListOf() }.add(it) },
                 publishOngoingGame = { shortcutPublications.getOrPut(appState) { mutableListOf() }.add(it) },
                 clock = { 0L },
+                vibrationsMuted = { false },
             )
         }
     }
@@ -513,6 +514,39 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             timingAlerts = watchSettings.timingAlerts.copy(vibrateOnWatch = false),
         ), now).activeGame!!.countdown!!
         assertTrue(phoneVibrations.cues.all { it.vibration == null })
+
+        // Global muting republishes countdown text without vibration patterns, including startup.
+        val mutedAppState = activeWearState(watchSettings, activeGame)
+        val muteUpdates = mutableListOf<WearStateUpdate>()
+        var vibrationsMuted = false
+        val muteCoordinator = WearPhoneCoordinator(
+            appState = mutedAppState,
+            publish = { muteUpdates.add(it) },
+            publishOngoingGame = {},
+            clock = { now },
+            vibrationsMuted = { vibrationsMuted },
+        )
+        muteCoordinator.publishCurrentState()
+        val audible = muteUpdates.last().snapshot
+        assertTrue(audible.activeGame!!.countdown!!.cues.any { it.vibration != null })
+        vibrationsMuted = true
+        muteCoordinator.publishCurrentState()
+        val quiet = muteUpdates.last().snapshot
+        assertTrue(quiet.sequenceNumber > audible.sequenceNumber)
+        assertEquals(watchCountdown.cues.map { it.copy(vibration = null) },
+            quiet.activeGame!!.countdown!!.cues)
+        muteCoordinator.startup(WearStartupRequest("muted-startup"), now)
+        assertTrue(muteUpdates.last().snapshot.activeGame!!.countdown!!.cues
+            .all { it.vibration == null })
+
+        // Game changes retain muting; unmuting restores patterns without changing saved settings.
+        mutedAppState.updateCurrentGame(activeGame.copy(teamOne = activeGame.teamOne.copy(name = "Muted team")))
+        assertTrue(muteUpdates.last().snapshot.activeGame!!.countdown!!.cues
+            .all { it.vibration == null })
+        vibrationsMuted = false
+        muteCoordinator.publishCurrentState()
+        assertEquals(watchCountdown.cues, muteUpdates.last().snapshot.activeGame!!.countdown!!.cues)
+        assertEquals(watchSettings, mutedAppState.settings)
 
         // Setup has no active watch game.
         assertEquals(
@@ -2658,6 +2692,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             appState, publish = { updates.add(it) },
             publishOngoingGame = { shortcutPublications.getOrPut(appState) { mutableListOf() }.add(it) },
             clock = { now },
+            vibrationsMuted = { false },
         )
         coordinators.getValue(appState).startup(WearStartupRequest("startup"), now)
         assertEquals(WearStartupAcknowledgement("startup"), updates.single().acknowledgement)

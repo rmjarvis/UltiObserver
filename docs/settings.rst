@@ -63,6 +63,8 @@ Sound/vibration settings for individual cues
     or vibration should be used).
 
     The top of this page also has test buttons so you can hear each of the sounds.
+    When sounds are muted, these buttons are disabled.
+    To unmute, go to the `Sound Output` screen on Home.
 
     See `Timing Cues` for more details about the cues.
 
@@ -72,6 +74,8 @@ Sound volume
 Vibration length
     This changes how long the vibration action lasts. There is a **Test** button so you can
     experience how the currently set length will feel when triggered.
+    When sounds and vibrations are muted, this button is disabled.
+    To unmute, go to the `Sound Output` screen on Home.
 
 Watch connection
     The app can send notifications for the timing cues, which can be picked up by a smart

@@ -1,6 +1,12 @@
 package rmjarvis.ultiobserver
 
 import android.app.Application
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /**
  * Process-wide owner of state and Android resources shared by UltiObserver components.
@@ -10,6 +16,22 @@ import android.app.Application
  * and the foreground service to avoid overlapping SoundPool creation and release operations.
  */
 class UltiObserverApplication : Application() {
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    internal val soundOutputs by lazy { SoundOutputManager(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        // Reconcile a remembered output even before the first sound or dialog is used.
+        soundOutputs.refresh()
+        applicationScope.launch {
+            // Keep the watch's vibration behavior consistent with the global mute option.
+            // Coverage: completion not expected
+            soundOutputs.state.map { it.vibrationsMuted }.distinctUntilChanged().collect {
+                wearCoordinator.publishCurrentState()
+            }
+        }
+    }
+
     internal val appState by lazy {
         AppState(FileAppStateStorage(filesDir))
     }
@@ -21,6 +43,7 @@ class UltiObserverApplication : Application() {
             publish = { update -> publisher.publish(update) },
             publishOngoingGame = { status -> publisher.publishOngoingGame(status) },
             clock = { System.currentTimeMillis() },
+            vibrationsMuted = { soundOutputs.state.value.vibrationsMuted },
         )
     }
 
@@ -32,11 +55,13 @@ class UltiObserverApplication : Application() {
 
     /** Deliver a complete vibration pattern to the currently selected vibration destination. */
     internal suspend fun vibrateTimingCue(pattern: VibrationPattern) {
-        deliverTimingVibration(
-            preferences = appState.settings.timingAlerts,
-            pattern = pattern,
-            vibrateOnWatch = { wearVibrationSender.vibrate(it) },
-            vibrateOnPhone = { performTimingCueHaptic(it) },
-        )
+        if (!soundOutputs.state.value.vibrationsMuted) {
+            deliverTimingVibration(
+                preferences = appState.settings.timingAlerts,
+                pattern = pattern,
+                vibrateOnWatch = { wearVibrationSender.vibrate(it) },
+                vibrateOnPhone = { performTimingCueHaptic(it) },
+            )
+        }
     }
 }

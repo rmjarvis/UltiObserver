@@ -3,11 +3,18 @@ package rmjarvis.ultiobserver
 import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.app.Notification
+import android.app.Instrumentation
 import android.app.NotificationManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
+import android.media.AudioDeviceCallback
+import android.media.AudioManager
+import android.media.AudioRouting
+import android.media.AudioTrack
+import android.content.SharedPreferences
 import android.os.Build
 import android.os.VibrationAttributes
 import android.os.VibrationEffect
@@ -39,6 +46,10 @@ import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.times
+import org.mockito.Mockito.doAnswer
+import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.clearInvocations
 import androidx.core.content.ContextCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -373,6 +384,37 @@ class TestTimingAlerts {
             assertTrue(platform.performedHaptics.isEmpty())
         } finally {
             controller.release()
+        }
+
+        // Global vibration muting makes Alerting notifications silent without hiding their text.
+        val mutedPlatform = FakeTimingAlertServicePlatform(now = 1_000L)
+        mutedPlatform.vibrationsMuted = true
+        val mutedController = newController(mutedPlatform, scheduleCheckMillis = 100_000L)
+        try {
+            val laterCue = watchOnlyTenCue.copy(targetEpoch = 30_000L)
+            val mutedSnapshot = snapshot.copy(countdownCues = listOf(watchOnlyTenCue, laterCue))
+            mutedController.handleTimingAlertUpdate(mutedSnapshot)
+            mutedController.playTimingAlerts(
+                listOf(watchOnlyTenCue), mutedSnapshot, mutedPlatform.sharedPlayer,
+            )
+            assertEquals(
+                PostedWatchNotification(
+                    content = watchNotificationContent(scoreLine, laterCue.watchText),
+                    alert = false,
+                ),
+                mutedPlatform.watchStatusNotifications.last(),
+            )
+
+            // Unmuting restores alerts on the next cue without changing the connection mode.
+            mutedPlatform.vibrationsMuted = false
+            mutedController.playTimingAlerts(
+                listOf(laterCue), mutedSnapshot, mutedPlatform.sharedPlayer,
+            )
+            assertEquals(true, mutedPlatform.watchStatusNotifications.last().alert)
+            assertEquals(WatchConnectionMode.ALERTING,
+                mutedController.timingAlertSnapshot!!.watchConnectionMode)
+        } finally {
+            mutedController.release()
         }
 
         // Silent watch mode suppresses the watch alert even when the individual cue is enabled.
@@ -746,6 +788,367 @@ class TestTimingAlerts {
             assertEquals(playerRequestsBeforeSecondAlarm, platform.playerRequests)
         } finally {
             controller.release()
+        }
+    }
+
+    /** Test device discovery, persistence, active routing, and fallback through Android APIs. */
+    @Test
+    fun androidSoundOutput() {
+        // Real device discovery is available on every supported Android version.
+        val application = context.applicationContext as UltiObserverApplication
+        application.soundOutputs.refresh()
+        assertTrue(application.soundOutputs.state.value.outputs.any { it.name == "Phone speaker" })
+
+        // Mockito's Android mock maker requires Android 9 or later.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+
+        // Model a phone and Bluetooth earbud without requiring physical audio hardware.
+        val speaker = mock(AudioDeviceInfo::class.java)
+        doReturn(1).`when`(speaker).id
+        doReturn(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER).`when`(speaker).type
+        doReturn("").`when`(speaker).address
+        doReturn("Phone").`when`(speaker).productName
+        val earbud = mock(AudioDeviceInfo::class.java)
+        doReturn(2).`when`(earbud).id
+        doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP).`when`(earbud).type
+        doReturn("earbud-address").`when`(earbud).address
+        doReturn("Earbud").`when`(earbud).productName
+        val audioManager = mock(AudioManager::class.java)
+        doReturn(arrayOf(speaker, earbud)).`when`(audioManager)
+            .getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            doReturn(listOf(earbud)).`when`(audioManager)
+                .getAudioDevicesForAttributes(any(AudioAttributes::class.java))
+        }
+        val preferences = context.getSharedPreferences("test_sound_output", Context.MODE_PRIVATE)
+        preferences.edit().clear().commit()
+        val audioContext = object : ContextWrapper(context) {
+            override fun getSystemService(name: String): Any? {
+                return if (name == Context.AUDIO_SERVICE) audioManager else super.getSystemService(name)
+            }
+
+            override fun getSharedPreferences(name: String, mode: Int): SharedPreferences = preferences
+        }
+        val outputs = SoundOutputManager(audioContext)
+        assertEquals(listOf("Phone speaker", "Earbud"), outputs.state.value.outputs.map { it.name })
+        val earbudKey = outputs.state.value.outputs.single { it.name == "Earbud" }.key
+        outputs.select(earbudKey)
+        assertEquals(earbudKey, SoundOutputManager(audioContext).state.value.selectedKey)
+
+        // Playback receives the preference and reports the actual route, including after it ends.
+        val track = mock(AudioTrack::class.java)
+        doReturn(true).`when`(track).setPreferredDevice(earbud)
+        doReturn(true).`when`(track).setPreferredDevice(null)
+        doReturn(AudioTrack.PLAYSTATE_PLAYING).`when`(track).playState
+        doReturn(earbud).`when`(track).routedDevice
+        if (Build.VERSION.SDK_INT >= 36) doReturn(listOf(earbud)).`when`(track).routedDevices
+        outputs.attach(track)
+        verify(track).setPreferredDevice(earbud)
+        assertEquals("Earbud", outputs.state.value.playingOn)
+        outputs.detach()
+        assertNull(outputs.state.value.playingOn)
+        assertEquals("Earbud", outputs.state.value.lastPlayedOn)
+
+        // Disconnecting while idle also forgets the selection, without needing an active track.
+        doReturn(arrayOf(speaker)).`when`(audioManager).getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        outputs.refresh()
+        assertNull(outputs.state.value.selectedKey)
+        assertNull(preferences.getString("selected", null))
+        doReturn(arrayOf(speaker, earbud)).`when`(audioManager)
+            .getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        outputs.refresh()
+        outputs.select(earbudKey)
+
+        // A disconnect notification clears the preference and resets the active track to Android.
+        outputs.attach(track)
+        val callbacks = ArgumentCaptor.forClass(AudioDeviceCallback::class.java)
+        verify(audioManager, org.mockito.Mockito.times(2))
+            .registerAudioDeviceCallback(callbacks.capture(), any(android.os.Handler::class.java))
+        doReturn(arrayOf(speaker)).`when`(audioManager).getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        callbacks.allValues.first().onAudioDevicesRemoved(arrayOf(earbud))
+        assertNull(outputs.state.value.selectedKey)
+        assertNull(preferences.getString("selected", null))
+        verify(track).setPreferredDevice(null)
+
+        // Reconnecting leaves Automatic selected; an explicit platform rejection also falls back.
+        doReturn(arrayOf(speaker, earbud)).`when`(audioManager)
+            .getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        callbacks.allValues.first().onAudioDevicesAdded(arrayOf(earbud))
+        assertNull(outputs.state.value.selectedKey)
+
+        // Android default does not report a device-selection failure.
+        doReturn(false).`when`(track).setPreferredDevice(null)
+        outputs.select(null)
+        assertNull(outputs.state.value.selectionError)
+        doReturn(true).`when`(track).setPreferredDevice(null)
+
+        // Rejecting an explicit device names that device and returns to Android default.
+        doReturn(false).`when`(track).setPreferredDevice(earbud)
+        outputs.select(earbudKey)
+        assertNull(outputs.state.value.selectedKey)
+        assertEquals("Selecting Earbud failed. Reverting to Android default.",
+            outputs.state.value.selectionError)
+
+        // Muting stops the current cue immediately and remains selected after discovery refresh.
+        outputs.select(SOUND_OUTPUT_NONE)
+        verify(track).stop()
+        outputs.refresh()
+        assertTrue(outputs.state.value.muted)
+        assertNull(outputs.state.value.playingOn)
+        assertTrue(SoundOutputManager(audioContext).state.value.muted)
+        outputs.setAlsoMuteVibrations(true)
+        assertTrue(SoundOutputManager(audioContext).state.value.vibrationsMuted)
+        outputs.select(null)
+        assertFalse(outputs.state.value.vibrationsMuted)
+        outputs.select(SOUND_OUTPUT_NONE)
+        assertTrue(outputs.state.value.vibrationsMuted)
+        outputs.setAlsoMuteVibrations(false)
+        assertFalse(SoundOutputManager(audioContext).state.value.vibrationsMuted)
+        outputs.detach()
+
+        // Wired outputs use familiar names; call-only and safe-speaker endpoints aren't choices.
+        val headphones = mock(AudioDeviceInfo::class.java)
+        doReturn(3).`when`(headphones).id
+        doReturn(AudioDeviceInfo.TYPE_WIRED_HEADPHONES).`when`(headphones).type
+        doReturn("").`when`(headphones).address
+        doReturn("Analog output").`when`(headphones).productName
+        val headset = mock(AudioDeviceInfo::class.java)
+        doReturn(4).`when`(headset).id
+        doReturn(AudioDeviceInfo.TYPE_WIRED_HEADSET).`when`(headset).type
+        doReturn("").`when`(headset).address
+        doReturn("Analog headset").`when`(headset).productName
+        val earpiece = mock(AudioDeviceInfo::class.java)
+        doReturn(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE).`when`(earpiece).type
+        val safeSpeaker = mock(AudioDeviceInfo::class.java)
+        doReturn(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE).`when`(safeSpeaker).type
+        doReturn(arrayOf(speaker, headphones, headset, earpiece, safeSpeaker)).`when`(audioManager)
+            .getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        outputs.select(null)
+        assertEquals(listOf("Phone speaker", "Wired headphones", "Wired headset"),
+            outputs.state.value.outputs.map { it.name })
+        assertNull(outputs.state.value.selectionError)
+
+        // Routing callbacks report the safe speaker as the phone speaker, without changing choice.
+        val routedTrack = mock(AudioTrack::class.java)
+        doReturn(true).`when`(routedTrack).setPreferredDevice(null)
+        doReturn(AudioTrack.PLAYSTATE_PLAYING).`when`(routedTrack).playState
+        doReturn(safeSpeaker).`when`(routedTrack).routedDevice
+        if (Build.VERSION.SDK_INT >= 36) doReturn(listOf(safeSpeaker)).`when`(routedTrack).routedDevices
+        outputs.attach(routedTrack)
+        val routingCallbacks = ArgumentCaptor.forClass(AudioRouting.OnRoutingChangedListener::class.java)
+        verify(routedTrack).addOnRoutingChangedListener(
+            routingCallbacks.capture(), any(android.os.Handler::class.java),
+        )
+        assertEquals("Phone speaker", outputs.state.value.playingOn)
+        doReturn(headphones).`when`(routedTrack).routedDevice
+        if (Build.VERSION.SDK_INT >= 36) doReturn(listOf(headphones)).`when`(routedTrack).routedDevices
+        routingCallbacks.value.onRoutingChanged(routedTrack)
+        assertEquals("Wired headphones", outputs.state.value.playingOn)
+        assertNull(outputs.state.value.selectedKey)
+
+        // Android may temporarily report no route during a transition; retain the last known route.
+        doReturn(null).`when`(routedTrack).routedDevice
+        if (Build.VERSION.SDK_INT >= 36) doReturn(emptyList<AudioDeviceInfo>()).`when`(routedTrack).routedDevices
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            doReturn(emptyList<AudioDeviceInfo>()).`when`(audioManager)
+                .getAudioDevicesForAttributes(any(AudioAttributes::class.java))
+        }
+        routingCallbacks.value.onRoutingChanged(routedTrack)
+        assertNull(outputs.state.value.playingOn)
+        assertNull(outputs.state.value.automaticOutput)
+        assertEquals("Wired headphones", outputs.state.value.lastPlayedOn)
+
+        // Replacing a track transfers routing notifications to the new playback instance.
+        outputs.attach(track)
+        verify(routedTrack).removeOnRoutingChangedListener(routingCallbacks.value)
+        assertEquals("Earbud", outputs.state.value.playingOn)
+        outputs.attach(routedTrack)
+
+        // An attached track that has stopped no longer reports active playback.
+        doReturn(AudioTrack.PLAYSTATE_STOPPED).`when`(routedTrack).playState
+        outputs.refresh()
+        assertNull(outputs.state.value.playingOn)
+        outputs.detach()
+        preferences.edit().clear().commit()
+    }
+
+    /** Sound previews yield to real cues, and muting suppresses direct delivery requests. */
+    @Test
+    fun soundPlaybackPriorityAndMute() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        val application = context.applicationContext as UltiObserverApplication
+        val outputs = application.soundOutputs
+        val original = outputs.state.value
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val previewTrack = mock(AudioTrack::class.java)
+        val cueTrack = mock(AudioTrack::class.java)
+        for (track in listOf(previewTrack, cueTrack)) {
+            doReturn(true).`when`(track).setPreferredDevice(null)
+            doReturn(AudioTrack.PLAYSTATE_STOPPED).`when`(track).playState
+            doAnswer {
+                doReturn(AudioTrack.PLAYSTATE_PLAYING).`when`(track).playState
+                null
+            }.`when`(track).play()
+            doAnswer {
+                doReturn(AudioTrack.PLAYSTATE_STOPPED).`when`(track).playState
+                null
+            }.`when`(track).stop()
+        }
+        val tracks = ArrayDeque(listOf(previewTrack, cueTrack))
+        val frameCounts = mutableListOf<Int>()
+        val backend = AndroidTimingAlertSoundPlayer(outputs) { pcm ->
+            frameCounts.add(pcm.size / 2)
+            tracks.removeFirst()
+        }
+        backend.setOnLoadCompleteListener { _, _ -> }
+        val preview = backend.load(context, TimingAlertSoundClip(TimingAlertSound.TICK, 1).rawResourceId(), 1)
+        val cue = backend.load(context, TimingAlertSoundClip(TimingAlertSound.DING, 1).rawResourceId(), 1)
+        fun play(soundId: Int, priority: Int) {
+            backend.play(soundId, 0.05f, 0.05f, priority, 0, 1f)
+            instrumentation.waitForIdleSync()
+        }
+        try {
+            instrumentation.runOnMainSync { outputs.select(null) }
+
+            // A real cue interrupts a preview, but another preview cannot interrupt that cue.
+            play(preview, TIMING_ALERT_PREVIEW_PRIORITY)
+            verify(previewTrack).play()
+            play(cue, TIMING_ALERT_CUE_PRIORITY)
+            verify(previewTrack).stop()
+            verify(cueTrack).play()
+            play(preview, TIMING_ALERT_PREVIEW_PRIORITY)
+            verify(previewTrack).play()
+            verify(cueTrack, never()).stop()
+
+            // A completion queued by the interrupted preview cannot stop the current cue.
+            val previewCallbacks = ArgumentCaptor.forClass(AudioTrack.OnPlaybackPositionUpdateListener::class.java)
+            verify(previewTrack).setPlaybackPositionUpdateListener(
+                previewCallbacks.capture(), any(android.os.Handler::class.java),
+            )
+            instrumentation.runOnMainSync { previewCallbacks.value.onMarkerReached(previewTrack) }
+            verify(cueTrack, never()).stop()
+            verify(previewTrack).stop()
+            assertEquals(AudioTrack.PLAYSTATE_PLAYING, cueTrack.playState)
+
+            // An equally important cue can replace the current cue and reuse its loaded track.
+            play(cue, TIMING_ALERT_CUE_PRIORITY)
+            verify(cueTrack).stop()
+            verify(cueTrack, times(2)).play()
+            assertTrue(tracks.isEmpty())
+
+            // A delayed marker from the same clip's previous play cannot end its fresh replay.
+            val cueCallbacks = ArgumentCaptor.forClass(AudioTrack.OnPlaybackPositionUpdateListener::class.java)
+            verify(cueTrack).setPlaybackPositionUpdateListener(
+                cueCallbacks.capture(), any(android.os.Handler::class.java),
+            )
+            instrumentation.runOnMainSync { cueCallbacks.value.onMarkerReached(cueTrack) }
+            verify(cueTrack).stop()
+            assertEquals(AudioTrack.PLAYSTATE_PLAYING, cueTrack.playState)
+
+            // Once a cue has stopped, it no longer blocks previews.
+            doReturn(AudioTrack.PLAYSTATE_STOPPED).`when`(cueTrack).playState
+            play(preview, TIMING_ALERT_PREVIEW_PRIORITY)
+            verify(previewTrack, times(2)).play()
+
+            // None stops playback and suppresses even direct requests from the timing service.
+            instrumentation.runOnMainSync {
+                outputs.setAlsoMuteVibrations(true)
+                outputs.select(SOUND_OUTPUT_NONE)
+            }
+            play(cue, TIMING_ALERT_CUE_PRIORITY)
+            verify(cueTrack, times(2)).play()
+            assertNull(outputs.state.value.playingOn)
+            assertTrue(outputs.state.value.vibrationsMuted)
+
+            // Selecting Android default permits subsequent cues without resetting cue preferences.
+            instrumentation.runOnMainSync { outputs.select(null) }
+            play(cue, TIMING_ALERT_CUE_PRIORITY)
+            verify(cueTrack, times(3)).play()
+
+            // A completed cue permits a preview even before its completion callback is delivered.
+            doReturn(frameCounts[1]).`when`(cueTrack).playbackHeadPosition
+            play(preview, TIMING_ALERT_PREVIEW_PRIORITY)
+            verify(previewTrack, times(3)).play()
+            clearInvocations(previewTrack, cueTrack)
+            instrumentation.runOnMainSync { cueCallbacks.value.onMarkerReached(cueTrack) }
+            verifyNoInteractions(previewTrack, cueTrack)
+            assertEquals(AudioTrack.PLAYSTATE_PLAYING, previewTrack.playState)
+
+            // The current clip's own completion stops playback and detaches its route listener.
+            doReturn(frameCounts[0]).`when`(previewTrack).playbackHeadPosition
+            instrumentation.runOnMainSync { previewCallbacks.value.onMarkerReached(previewTrack) }
+            assertEquals(AudioTrack.PLAYSTATE_STOPPED, previewTrack.playState)
+            assertNull(outputs.state.value.playingOn)
+        } finally {
+            instrumentation.runOnMainSync {
+                outputs.detach()
+                outputs.select(original.selectedKey)
+                outputs.setAlsoMuteVibrations(original.alsoMuteVibrations)
+            }
+        }
+    }
+
+    /** The application suppresses vibration delivery only while None also mutes vibrations. */
+    @Test
+    fun vibrationMute() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        val vibrator = mock(Vibrator::class.java)
+        doReturn(true).`when`(vibrator).hasVibrator()
+        val manager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            mock(VibratorManager::class.java).also {
+                doReturn(vibrator).`when`(it).defaultVibrator
+            }
+        } else {
+            null
+        }
+        val preferences = context.getSharedPreferences("test_vibration_mute", Context.MODE_PRIVATE)
+        preferences.edit().clear().commit()
+        val storage = java.nio.file.Files.createTempDirectory(context.cacheDir.toPath(), "vibration-mute").toFile()
+        val vibrationContext = object : ContextWrapper(context) {
+            override fun getSystemService(name: String): Any? = when (name) {
+                Context.VIBRATOR_SERVICE -> vibrator
+                Context.VIBRATOR_MANAGER_SERVICE -> manager
+                else -> super.getSystemService(name)
+            }
+
+            override fun getFilesDir() = storage
+            override fun getSharedPreferences(name: String, mode: Int): SharedPreferences = preferences
+        }
+        val application = Instrumentation.newApplication(UltiObserverApplication::class.java, vibrationContext)
+            as UltiObserverApplication
+        val outputs = application.soundOutputs
+        val pattern = VibrationPattern(1L, 1, 0L)
+        try {
+            // Even a direct delivery request cannot reach the vibrator while both are muted.
+            outputs.select(SOUND_OUTPUT_NONE)
+            outputs.setAlsoMuteVibrations(true)
+            val cuePreferences = application.appState.settings.timingAlerts
+            runBlocking { application.vibrateTimingCue(pattern) }
+            verifyNoInteractions(vibrator)
+            assertEquals(cuePreferences, application.appState.settings.timingAlerts)
+
+            // None with the vibration override off still permits the ordinary vibration request.
+            outputs.setAlsoMuteVibrations(false)
+            runBlocking { application.vibrateTimingCue(pattern) }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                verify(vibrator).vibrate(any(VibrationEffect::class.java), any(VibrationAttributes::class.java))
+            } else {
+                verify(vibrator).vibrate(any(VibrationEffect::class.java), any(AudioAttributes::class.java))
+            }
+
+            // Leaving None restores delivery even while the remembered override remains Yes.
+            outputs.setAlsoMuteVibrations(true)
+            outputs.select(null)
+            runBlocking { application.vibrateTimingCue(pattern) }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                verify(vibrator, times(2)).vibrate(any(VibrationEffect::class.java), any(VibrationAttributes::class.java))
+            } else {
+                verify(vibrator, times(2)).vibrate(any(VibrationEffect::class.java), any(AudioAttributes::class.java))
+            }
+            assertEquals(cuePreferences, application.appState.settings.timingAlerts)
+        } finally {
+            preferences.edit().clear().commit()
+            storage.deleteRecursively()
         }
     }
 
@@ -1294,6 +1697,7 @@ class TestTimingAlerts {
 private class FakeTimingAlertServicePlatform(
     var now: Long,
 ) : TimingAlertServicePlatform {
+    override var vibrationsMuted = false
     val soundPlayer = FakeTimingAlertSoundPlayer()
     val sharedPlayer = TimingAlertPlayer(
         soundPlayer = soundPlayer,

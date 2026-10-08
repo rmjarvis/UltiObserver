@@ -141,6 +141,7 @@ def is_ui_source_file(path: Path) -> bool:
             "MainActivityPreview.kt",
             "OngoingGame.kt",
             "GameStateManager.kt",
+            "SoundOutputManager.kt",
             "TimingAlertAudio.kt",
             "TimingAlertForegroundService.kt",
             "UiComponents.kt",
@@ -1241,7 +1242,7 @@ def launched_effect_scaffold_reason(
     counters: LineCounters,
 ) -> str | None:
     """
-    Return a reason for `LaunchedEffect` coroutine state-machine scaffolding.
+    Return a reason for `LaunchedEffect` coroutine and lambda-cache scaffolding.
 
     A `LaunchedEffect` body is compiled as a `SuspendLambda`.  Even when the effect
     body itself is ordinary straight-line UI behavior, Kotlin emits a coroutine state
@@ -1272,6 +1273,11 @@ def launched_effect_scaffold_reason(
     profile when its instructions are covered but its generated branches remain missed.
     Multiple guards can independently have either profile in one aggregate report.
 
+    Compose also caches the effect lambda and checks whether its captured objects have
+    changed. A single captured manager produces the inspected residual profile
+    `(mi=1, mb=3, cb=3)` on the opener, with the effect body fully covered. Accept that
+    profile for one generated guard, without broadening the multiple-guard combinations.
+
     This recognizer is intentionally narrower than "anything named LaunchedEffect":
     it only accepts the line that opens the lambda body, verifies that line belongs to
     a `LaunchedEffect` call, requires one of the observed generated-scaffold counter
@@ -1295,6 +1301,8 @@ def launched_effect_scaffold_reason(
         )
         for missed_guard_count in range(generated_guard_count + 1)
     }
+    if generated_guard_count == 1 and counters.covered_branches == 3:
+        generated_guard_profiles.add((1, 3))
     if observed_profile not in generated_guard_profiles:
         return None
     if counters.covered_instructions == 0 or counters.covered_branches == 0:

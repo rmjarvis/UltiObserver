@@ -1,6 +1,9 @@
 package rmjarvis.ultiobserver
 
 import android.content.Context
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.time.Duration
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
@@ -938,6 +941,30 @@ class TestTimingCues : GameDomainTestFixtures() {
             .dueTimingAlerts(halfCapTime)
             .map { cue -> cue.id }
         assertEquals(listOf(TimingCueId.OFFENSE_SET_LIMIT), dueAlertsWithoutCap)
+    }
+
+    /** Verify the bundled PCM format consumed directly by the routable audio backend. */
+    @Test
+    fun bundledSoundFormat() {
+        // All cue assets use the same canonical WAV layout, including their pre-rendered repeats.
+        val sounds = File("src/main/res/raw").listFiles()!!.filter { it.extension == "wav" }
+        assertEquals(12, sounds.size)
+        sounds.forEach { file ->
+            val bytes = file.readBytes()
+            val header = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+            assertEquals(file.name, "RIFF", String(bytes, 0, 4, Charsets.US_ASCII))
+            assertEquals(bytes.size - 8, header.getInt(4))
+            assertEquals("WAVEfmt ", String(bytes, 8, 8, Charsets.US_ASCII))
+            assertEquals(16, header.getInt(16))
+            assertEquals(1, header.getShort(20).toInt())
+            assertEquals(1, header.getShort(22).toInt())
+            assertEquals(44_100, header.getInt(24))
+            assertEquals(88_200, header.getInt(28))
+            assertEquals(2, header.getShort(32).toInt())
+            assertEquals(16, header.getShort(34).toInt())
+            assertEquals("data", String(bytes, 36, 4, Charsets.US_ASCII))
+            assertEquals(bytes.size - 44, header.getInt(40))
+        }
     }
 
     /// Return fake SoundPool ids for every timing-alert sound clip.

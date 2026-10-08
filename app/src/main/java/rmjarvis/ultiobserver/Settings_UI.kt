@@ -24,6 +24,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,6 +75,8 @@ internal fun SettingsScreen(
     val hasTimingCueHaptics = context.hasTimingCueHaptics() ||
         settings.timingAlerts.usesWatchVibration()
     val vibrationScope = rememberCoroutineScope()
+    val soundOutput by (context.applicationContext as UltiObserverApplication)
+        .soundOutputs.state.collectAsState()
     val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
     var colorTarget by remember { mutableStateOf<GenderRatioBadgeColorTarget?>(null) }
     var customColorTarget by remember { mutableStateOf<GenderRatioBadgeColorTarget?>(null) }
@@ -130,6 +133,7 @@ internal fun SettingsScreen(
 
             TimingAlertSoundControls(
                 timingAlertPreferences = settings.timingAlerts,
+                soundOutput = soundOutput,
                 onSoundVolumeChange = {
                     onSettingsChange(
                         settings.withTimingAlerts(settings.timingAlerts.withSoundVolume(it))
@@ -552,7 +556,7 @@ private fun SettingsSwitchWithNote(
  * @param testTag The test tag attached to the switch and value text.
  */
 @Composable
-private fun SettingsSwitchRow(
+internal fun SettingsSwitchRow(
     label: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
@@ -607,6 +611,8 @@ internal fun TimingCueSettingsScreen(
         settings.timingAlerts.usesWatchVibration()
     val timingAlertPlayer =
         (context.applicationContext as UltiObserverApplication).timingAlertPlayer
+    val soundOutput by (context.applicationContext as UltiObserverApplication)
+        .soundOutputs.state.collectAsState()
 
     Scaffold(
         topBar = {
@@ -643,7 +649,9 @@ internal fun TimingCueSettingsScreen(
             SoundPreviewRow(
                 title = "Sound previews",
                 sounds = TimingAlertSound.entries,
-                note = settings.timingAlerts.soundPreviewNote(hasTimingCueHaptics),
+                note = soundOutput.soundMuteNote ?:
+                    settings.timingAlerts.soundPreviewNote(hasTimingCueHaptics),
+                enabled = !soundOutput.muted,
                 onPreview = { sound ->
                     timingAlertPlayer.play(
                         sound = sound,
@@ -766,6 +774,7 @@ private fun TimingAlertGlobalModeSelector(
 @Composable
 private fun TimingAlertSoundControls(
     timingAlertPreferences: TimingAlertPreferences,
+    soundOutput: SoundOutputState,
     onSoundVolumeChange: (Float) -> Unit,
     onVibrationDurationChange: (Long) -> Unit,
     onVibrateWithSoundsChange: (Boolean) -> Unit,
@@ -856,7 +865,7 @@ private fun TimingAlertSoundControls(
                 ) {
                     MenuButton(
                         label = "Test",
-                        enabled = hasTimingCueHaptics,
+                        enabled = hasTimingCueHaptics && !soundOutput.vibrationsMuted,
                         fullWidth = false,
                         tag = "settings-test-vibration",
                         colors = neutralOutlinedButtonColors(
@@ -868,7 +877,8 @@ private fun TimingAlertSoundControls(
                         },
                     )
                     Text(
-                        text = timingAlertPreferences.vibrationTestDescription,
+                        text = soundOutput.vibrationMuteNote ?:
+                            timingAlertPreferences.vibrationTestDescription,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.weight(1f),
                     )
@@ -983,6 +993,7 @@ private fun SoundPreviewRow(
     title: String,
     sounds: List<TimingAlertSound>,
     note: String?,
+    enabled: Boolean,
     onPreview: (TimingAlertSound) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -998,6 +1009,7 @@ private fun SoundPreviewRow(
             sounds.forEach { sound ->
                 MenuButton(
                     label = sound.label,
+                    enabled = enabled,
                     tag = "settings-sound-preview-${sound.name}",
                     fullWidth = false,
                     colors = neutralOutlinedButtonColors(
