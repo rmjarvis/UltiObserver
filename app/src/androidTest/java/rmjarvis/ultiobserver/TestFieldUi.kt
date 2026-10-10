@@ -48,7 +48,10 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         try {
             // With Android auto-rotate enabled, the active-game screen follows real device
             // rotations while retaining the portrait Near/Far field-end layout.
-            setSystemAutoRotate(true)
+            setSystemAutoRotate(
+                enabled = true,
+                expectedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            )
             setAutoRotateOrientationPreference()
             setAutomaticallyLockLivePoint(true)
             startLiveGameProgrammatically()
@@ -104,7 +107,10 @@ class TestFieldUi : MainActivityUiTestFixtures() {
             )
 
             // Disabling Android auto-rotate fixes the currently rendered orientation.
-            setSystemAutoRotate(false)
+            setSystemAutoRotate(
+                enabled = false,
+                expectedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            )
             assertEquals(
                 ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
                 composeRule.activity.requestedOrientation,
@@ -122,7 +128,10 @@ class TestFieldUi : MainActivityUiTestFixtures() {
             assertLiveScreen()
 
             // Re-enabling Android auto-rotate releases the fixed orientation.
-            setSystemAutoRotate(true)
+            setSystemAutoRotate(
+                enabled = true,
+                expectedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER,
+            )
             assertEquals(
                 ActivityInfo.SCREEN_ORIENTATION_FULL_USER,
                 composeRule.activity.requestedOrientation,
@@ -137,7 +146,10 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         } finally {
             try {
                 clearCurrentGameProgrammatically()
-                setSystemAutoRotate(originalAutoRotate)
+                setSystemAutoRotate(
+                    enabled = originalAutoRotate,
+                    expectedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+                )
                 setScreenOrientation(originalScreenOrientation)
             } finally {
                 uiAutomation.dropShellPermissionIdentity()
@@ -478,8 +490,8 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         ) == 1
     }
 
-    /// Change Android's sensor-driven rotation setting and wait for its observer callback.
-    private fun setSystemAutoRotate(enabled: Boolean) {
+    /// Change Android's sensor-driven rotation setting.
+    private fun setSystemAutoRotate(enabled: Boolean, expectedOrientation: Int) {
         composeRule.activityRule.scenario.onActivity { activity ->
             assertTrue(
                 Settings.System.putInt(
@@ -489,7 +501,13 @@ class TestFieldUi : MainActivityUiTestFixtures() {
                 )
             )
         }
-        composeRule.waitForIdle()
+        catchAndDiagnoseFailure {
+            composeRule.waitUntil(10_000L) {
+                composeRule.runOnIdle {
+                    composeRule.activity.requestedOrientation == expectedOrientation
+                }
+            }
+        }
     }
 
     /// Return the current coarse device orientation used by Espresso Device.
