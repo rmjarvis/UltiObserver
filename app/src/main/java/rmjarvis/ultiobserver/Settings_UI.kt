@@ -74,7 +74,8 @@ private enum class GenderRatioBadgeColorTarget(
 
 @Composable
 private fun SettingsCategorySection(
-    category: SettingsCategory,
+    title: String,
+    tag: String,
     expanded: Boolean,
     onClick: () -> Unit,
     content: @Composable () -> Unit,
@@ -87,14 +88,14 @@ private fun SettingsCategorySection(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag("settings-category-${category.name}")
+                .testTag(tag)
                 .background(SecondaryColor)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = category.title,
+                text = title,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
@@ -105,7 +106,7 @@ private fun SettingsCategorySection(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight
                 },
                 contentDescription = if (expanded) "Expanded" else "Collapsed",
-                modifier = Modifier.size(24.dp).testTag("settings-category-${category.name}-arrow"),
+                modifier = Modifier.size(24.dp).testTag("$tag-arrow"),
                 tint = OnSecondaryColor,
             )
         }
@@ -175,7 +176,8 @@ internal fun SettingsScreen(
         ) {
             SettingsCategory.entries.forEach { category ->
                 SettingsCategorySection(
-                    category = category,
+                    title = category.title,
+                    tag = "settings-category-${category.name}",
                     expanded = selectedCategory == category,
                     onClick = {
                         onCategorySelected(if (selectedCategory == category) null else category)
@@ -736,6 +738,8 @@ internal fun TimingCueSettingsScreen(
     val soundOutput by (context.applicationContext as UltiObserverApplication)
         .soundOutputs.state.collectAsState()
 
+    var expandedSection by remember { mutableStateOf<TimingCueSection?>(timingCueSections.first()) }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -784,50 +788,53 @@ internal fun TimingCueSettingsScreen(
                 },
             )
 
+            HorizontalDivider()
+            MenuButton(
+                label = TimingAlertPreferences.RESET_CUES_LABEL,
+                tag = "settings-reset-timing-cue-defaults",
+                colors = resetButtonColors(),
+                borderColor = null,
+                onClick = {
+                    onSettingsChange(
+                        settings.withTimingAlerts(settings.timingAlerts.withDefaultCueSettings())
+                    )
+                },
+            )
+
             timingCueSections.forEach { section ->
-                HorizontalDivider()
-                if (section == timingCueSections.first()) {
-                    MenuButton(
-                        label = TimingAlertPreferences.RESET_CUES_LABEL,
-                        tag = "settings-reset-timing-cue-defaults",
-                        colors = resetButtonColors(),
-                        borderColor = null,
-                        onClick = {
-                            onSettingsChange(
-                                settings.withTimingAlerts(settings.timingAlerts.withDefaultCueSettings())
-                            )
-                        },
-                    )
-                }
-                Text(
-                    text = section.title,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                if (section.isDefenseCheckCountdownSection() && !settings.showDefenseCountdowns) {
-                    Text(
-                        text =
-                            Settings.DEFENSE_COUNTDOWN_DISABLED_NOTE,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                section.cues.forEach { cueId ->
-                    TimingCueSettingRow(
-                        cueId = cueId,
-                        mode = settings.timingAlerts.settingsModeFor(cueId),
-                        repeatCount = settings.timingAlerts.repeatCountFor(cueId),
-                        onModeChange = { mode ->
-                            onSettingsChange(
-                                settings.withTimingAlerts(settings.timingAlerts.withCueMode(cueId, mode))
-                            )
-                        },
-                        onRepeatCountChange = { repeatCount ->
-                            onSettingsChange(
-                                settings.withTimingAlerts(
-                                    settings.timingAlerts.withCueRepeatCount(cueId, repeatCount)
+                SettingsCategorySection(
+                    title = section.title,
+                    tag = "settings-cue-category-${section.cues.first().name}",
+                    expanded = expandedSection == section,
+                    onClick = {
+                        expandedSection = if (expandedSection == section) null else section
+                    },
+                ) {
+                    if (section.isDefenseCheckCountdownSection() && !settings.showDefenseCountdowns) {
+                        Text(
+                            text = Settings.DEFENSE_COUNTDOWN_DISABLED_NOTE,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    section.cues.forEach { cueId ->
+                        TimingCueSettingRow(
+                            cueId = cueId,
+                            mode = settings.timingAlerts.settingsModeFor(cueId),
+                            repeatCount = settings.timingAlerts.repeatCountFor(cueId),
+                            onModeChange = { mode ->
+                                onSettingsChange(
+                                    settings.withTimingAlerts(settings.timingAlerts.withCueMode(cueId, mode))
                                 )
-                            )
-                        },
-                    )
+                            },
+                            onRepeatCountChange = { repeatCount ->
+                                onSettingsChange(
+                                    settings.withTimingAlerts(
+                                        settings.timingAlerts.withCueRepeatCount(cueId, repeatCount)
+                                    )
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }

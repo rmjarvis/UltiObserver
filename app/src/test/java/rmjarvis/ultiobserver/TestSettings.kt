@@ -212,6 +212,63 @@ class TestSettings {
                 defaultPreferences.repeatCountFor(cueId),
             )
         }
+
+        // Individual cue sections keep each countdown's cues together and in their display order.
+        assertEquals(
+            listOf(
+                "Before pull - offense", "Before pull - defense", "Timeout / misconduct",
+                "Defense countdown", "Timeout between points", "Before game", "Halftime", "Caps",
+            ),
+            timingCueSections.map { it.title },
+        )
+        assertEquals(
+            listOf(
+                listOf(
+                    TimingCueId.RECEIVING_TWENTY_FOR_HAND,
+                    TimingCueId.RECEIVING_TEN_FOR_HAND,
+                    TimingCueId.RECEIVING_GIVE_HAND,
+                ),
+                listOf(
+                    TimingCueId.PULLING_TWENTY_TO_PULL,
+                    TimingCueId.PULLING_TEN_TO_PULL,
+                    TimingCueId.PULLING_TIME_VIOLATION,
+                ),
+                listOf(
+                    TimingCueId.TIMEOUT_CLEAR_FIELD,
+                    TimingCueId.OFFENSE_TWENTY,
+                    TimingCueId.OFFENSE_TEN,
+                    TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE,
+                    TimingCueId.OFFENSE_SET_LIMIT,
+                ),
+                listOf(
+                    TimingCueId.DEFENSE_TWENTY,
+                    TimingCueId.DEFENSE_TEN,
+                    TimingCueId.DEFENSE_CHECK_LIMIT,
+                ),
+                listOf(
+                    TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
+                    TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
+                ),
+                listOf(
+                    TimingCueId.PRE_GAME_FIVE_MINUTES,
+                    TimingCueId.PRE_GAME_THREE_MINUTES,
+                    TimingCueId.PRE_GAME_ONE_MINUTE,
+                ),
+                listOf(
+                    TimingCueId.HALFTIME_FIVE_MINUTES,
+                    TimingCueId.HALFTIME_TWO_MINUTES,
+                    TimingCueId.HALFTIME_OVER,
+                ),
+                listOf(TimingCueId.HALF_CAP, TimingCueId.SOFT_CAP, TimingCueId.HARD_CAP),
+            ),
+            timingCueSections.map { it.cues },
+        )
+
+        // Only the optional defense countdown section needs the disabled-countdown note.
+        assertEquals(
+            listOf("Defense countdown"),
+            timingCueSections.filter { it.isDefenseCheckCountdownSection() }.map { it.title },
+        )
     }
 
     /**
@@ -561,6 +618,8 @@ class TestSettings {
         // Sound and global-mode labels match the settings screen.
         assertEquals("Tick", TimingAlertSound.TICK.label)
         assertEquals("Sounds on", TimingAlertGlobalMode.SOUNDS_ON.label)
+        assertEquals(listOf("Off", "Vibrate", "Tick", "Beep", "Knock", "Ding"),
+            TimingAlertMode.entries.map { it.settingsLabel() })
         assertEquals(
             listOf("None", "Notifications", "Wear OS app"),
             WatchConnectionMode.entries.map { mode -> mode.label },

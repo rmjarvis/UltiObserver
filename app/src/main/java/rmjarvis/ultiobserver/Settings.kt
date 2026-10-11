@@ -904,9 +904,9 @@ internal data class Settings(
         const val ABBA_SEQUENCE_QUESTION = "Show ABBA gender ratio as M1/M2/W1/W2?"
 
         const val DEFENSE_COUNTDOWN_DISABLED_NOTE =
-            "Note — defensive check countdowns are not currently enabled. " +
-            "If you want these cues, enable defensive check countdowns " +
-            "on the previous page."
+            "Note — defense countdowns are not currently enabled. " +
+            "If you want these cues, enable defense countdowns " +
+            "in the Countdowns settings."
 
         /**
          * Decode persisted settings state for a known storage version.
@@ -952,7 +952,7 @@ internal fun TimingAlertPreferences.soundPreviewNote(hasTimingCueHaptics: Boolea
     }
     return (
         "Note — sounds are currently not enabled.$vibrateInsteadSentence " +
-        "If you want sounds, enable them on the previous page."
+        "If you want sounds, enable them in the Sound and vibrations settings."
     )
 }
 
@@ -1043,7 +1043,7 @@ internal val timingCueSections = listOf(
         ),
     ),
     TimingCueSection(
-        title = "Defense check countdown",
+        title = "Defense countdown",
         cues = listOf(
             TimingCueId.DEFENSE_TWENTY,
             TimingCueId.DEFENSE_TEN,

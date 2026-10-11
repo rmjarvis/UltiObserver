@@ -140,8 +140,8 @@ The center of the field sometimes shows a button to transition the game to the n
 **Continue point** will end a timeout and go back to live play.
 These normally happen automatically when the countdown finishes, but you can turn off that
 feature in the `Settings` if you want.
-When defensive countdowns are enabled, **Offense is set** indicates that the offense is set,
-which starts the defensive countdown.
+When defense countdowns are enabled, **Offense is set** indicates that the offense is set,
+which starts the defense countdown.
 
 Caps
 ----

@@ -21,9 +21,9 @@ duration, which defaults to 70 seconds for USAU.
 
 For timeouts during live play, the countdown will include cues for when to tell the sideline
 players to clear the field and when to announce 20 and 10 seconds remaining for the offense
-to get set. If you have defensive countdowns enabled in the settings
+to get set. If you have defense countdowns enabled in the settings
 (see :ref:`settings`), then
-after the offense is set, it will show the defensive countdown with cues for 20 and 10 seconds
+after the offense is set, it will show the defense countdown with cues for 20 and 10 seconds
 for the defense to check the disc in.
 
 For timeouts between points, the pull countdown will merely add the timeout duration to the

@@ -1232,9 +1232,12 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo()
             .performClick()
-        waitForText("Defense check countdown")
+        waitForText("Defense countdown")
+        composeRule.onNodeWithTag("settings-cue-category-DEFENSE_TWENTY")
+            .performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-DEFENSE_TWENTY-VIBRATE").assertExists()
         composeRule.onAllNodesWithText(
-            "Note — these cues are not currently enabled.",
+            "Note — defense countdowns are not currently enabled.",
             substring = true,
         )
             .assertCountEquals(0)
@@ -1691,11 +1694,31 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             .performScrollTo()
             .performClick()
         waitForText("Cue sound settings")
-        composeRule.onNodeWithTag("settings-DEFENSE_TWENTY-VIBRATE").performScrollTo()
-        waitForText("Note — defensive check countdowns are not currently enabled.", substring = true)
+
+        // Before pull - offense starts open, and its arrow can close it before the heading reopens it.
+        composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-NONE").assertIsSelected()
+        composeRule.onAllNodesWithTag("settings-DEFENSE_TWENTY-VIBRATE").assertCountEquals(0)
+        composeRule.onNodeWithTag(
+            "settings-cue-category-RECEIVING_TWENTY_FOR_HAND-arrow",
+            useUnmergedTree = true,
+        ).performScrollTo().performTouchInput { click() }
+        composeRule.onAllNodesWithTag("settings-RECEIVING_TWENTY_FOR_HAND-NONE")
+            .assertCountEquals(0)
+        composeRule.onNodeWithTag("settings-cue-category-RECEIVING_TWENTY_FOR_HAND")
+            .performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-NONE").assertIsSelected()
+
+        // Opening defense check closes offense and reveals the disabled-countdown explanation.
+        composeRule.onNodeWithTag("settings-cue-category-DEFENSE_TWENTY")
+            .performScrollTo().performClick()
+        composeRule.onAllNodesWithTag("settings-RECEIVING_TWENTY_FOR_HAND-NONE")
+            .assertCountEquals(0)
+        waitForText("Note — defense countdowns are not currently enabled.", substring = true)
 
         // Cue settings should show disabled-sound context, support default reset, and
         // persist per-cue edits.
+        composeRule.onNodeWithTag("settings-cue-category-RECEIVING_TWENTY_FOR_HAND")
+            .performScrollTo().performClick()
         waitForText("Reset all to defaults")
         if (hasTimingCueHaptics) {
             waitForText(
@@ -1712,6 +1735,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-reset-timing-cue-defaults").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-TICK").assertIsSelected()
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-REPEAT_2").assertIsSelected()
+        composeRule.onNodeWithTag("settings-cue-category-TIMEOUT_CLEAR_FIELD")
+            .performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-OFFENSE_TWENTY-NONE").performScrollTo().performClick()
 
         // Back returns from cue settings to the main Settings screen.
@@ -1794,6 +1819,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-sound-preview-TICK").performClick()
         waitForText("x2")
         waitForText("x3")
+        composeRule.onNodeWithTag("settings-cue-category-HALF_CAP")
+            .performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").assertIsSelected()
         composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").performClick()
