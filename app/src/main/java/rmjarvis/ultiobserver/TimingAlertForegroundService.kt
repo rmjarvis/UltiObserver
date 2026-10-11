@@ -596,10 +596,10 @@ internal class TimingAlertForegroundServiceController(
         // more than one cue if Android wakes the service after multiple scheduled instants.
         cues.forEach { cue ->
             removeTimingAlertServiceCue(cue)
-            deliverWatchCue(cue)
+            val watchAlert = deliverWatchCue(cue)
             if (cue.alertMode == TimingAlertMode.VIBRATE) {
                 // Don't vibrate on phone if the watch is doing the vibration.
-                if (!cue.scheduledWatchVibration) {
+                if (!cue.scheduledWatchVibration && !watchAlert) {
                     platform.performHaptic(VibrationPattern(
                         snapshot.vibrationDurationMillis, cue.repeatCount, TIMING_ALERT_REPEAT_HAPTIC_GAP_MS,
                     ))
@@ -611,7 +611,7 @@ internal class TimingAlertForegroundServiceController(
                     volume = snapshot.soundVolume,
                     priority = TIMING_ALERT_CUE_PRIORITY,
                 )
-                if (snapshot.vibrateWithSounds && !cue.scheduledWatchVibration) {
+                if (snapshot.vibrateWithSounds && !cue.scheduledWatchVibration && !watchAlert) {
                     platform.performHaptic(VibrationPattern(
                         snapshot.vibrationDurationMillis, 1, gapMillis = 0L,
                     ))
@@ -620,10 +620,10 @@ internal class TimingAlertForegroundServiceController(
         }
     }
 
-    /** Update watch-visible state after one scheduled countdown or cap cue fires. */
-    private fun deliverWatchCue(cue: TimingAlertServiceCue) {
-        val snapshot = timingAlertSnapshot ?: return
-        val scoreLine = snapshot.watchScoreLine ?: return
+    /** Update watch-visible state and return whether the notification takes over the vibration. */
+    private fun deliverWatchCue(cue: TimingAlertServiceCue): Boolean {
+        val snapshot = timingAlertSnapshot ?: return false
+        val scoreLine = snapshot.watchScoreLine ?: return false
         val alert = snapshot.alertWatchNotifications &&
             cue.watchAlertEnabled && !platform.vibrationsMuted
         val countdownSeconds = cue.countdownSeconds
@@ -645,6 +645,7 @@ internal class TimingAlertForegroundServiceController(
             platform.postWatchStatusNotification(content, alert)
             lastWatchStatusContent = content
         }
+        return alert
     }
 
     /** Apply a new app snapshot to the current dismissible watch-status notification. */
@@ -764,7 +765,7 @@ internal data class TimingAlertServiceSnapshot(
  * @param repeatCount Number of repeated sounds or haptic pulses to deliver.
  * @param countdownSeconds Nominal countdown value for this cue, or null for a cap cue.
  * @param watchText Wording shown as the next watch cue.
- * @param watchAlertEnabled Whether the individual cue setting is not Off.
+ * @param watchAlertEnabled Whether the notification alert choice enables this individual cue.
  */
 @Serializable
 internal data class TimingAlertServiceCue(
@@ -801,7 +802,8 @@ internal fun GameState.timingAlertSnapshot(
         countdownCues = countdownCues,
         capCues = upcomingCapTimingCues(now).timingAlertServiceCues(timingAlertPreferences),
         watchConnectionMode = timingAlertPreferences.watchConnectionMode,
-        alertWatchNotifications = timingAlertPreferences.alertWatchNotifications,
+        alertWatchNotifications =
+            timingAlertPreferences.watchNotificationAlertMode != WatchNotificationAlertMode.NONE,
         watchScoreLine = if (watchEnabled) watchNotificationScoreLine(settings) else null,
     )
 }
@@ -841,8 +843,7 @@ internal fun List<TimingCueDisplay>.timingAlertServiceCues(
                 repeatCount = timingAlertPreferences.repeatCountFor(cue.id),
                 countdownSeconds = countdownSeconds,
                 watchText = cue.message,
-                watchAlertEnabled = timingAlertPreferences.settingsModeFor(cue.id) !=
-                    TimingAlertMode.NONE,
+                watchAlertEnabled = timingAlertPreferences.alertsCueOnWatch(cue.id),
                 scheduledWatchVibration = countdownCues && timingAlertPreferences.usesWatchVibration(),
             )
         }

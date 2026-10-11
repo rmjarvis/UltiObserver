@@ -67,16 +67,33 @@ What kind of watch connection do you want to use?
 
 Notifications settings
 """"""""""""""""""""""
-When **Notifications** is selected, you can choose whether you want them to be
-alerting or not.
+When **Notifications** is selected, you can choose when you want them to trigger
+vibrations on the watch.
 
-Alerting notifications?
-    With this on, UltiObserver will send what are known as "alerting" notifications.
+Which cues should trigger vibration on the watch?
+    UltiObserver can send the notifications either as "alerting" or "silent".
     Depending on your watch settings, alerting notifications will typically
     vibrate on the watch. UltiObserver will time the notifications to correspond to when a
-    timing cue is due, so the watch will prompt you to say the next timing cue to the players.
-    The watch and its companion app ultimately control whether an alert
-    vibrates the watch, and may also control whether the phone alerts at the same time.
+    timing cue is due, so the vibration will prompt you to announce the next timing cue to
+    the players.
+
+    There are three options for which cues should be alerting notifications:
+
+    * **None** only sends silent notifications, so the watch will not vibrate.
+      This is useful when you are getting sound cues through an earbud
+      but still want the score (and possibly gender ratio) to show up on your watch.
+    * **Vibration cues only** sends alerting notifications whenever the timing cue is set
+      to cause a vibration. This includes timing cues that are individually set to **Vibrate**,
+      as well as sound cues when **Also vibrate on cues that use sound?** is enabled, or
+      if sound cues are converted to vibration by **Vibration only**. See `Sound and vibration`
+      for details about these options.
+    * **All enabled cues** sends alerting notifications for all cues that are not individually
+      set to **Off**.
+
+    The watch and its companion app ultimately control whether an alerting notification
+    vibrates the watch, and may also control whether the phone vibrates at the same time.
+    Normally alerting notifications vibrate on the watch, rather than the phone.
+    And silent notifications leave any vibrations on the phone.
 
     .. admonition:: Important
 
@@ -87,9 +104,6 @@ Alerting notifications?
         yourself in your phone's settings. Go to Settings -- Notifications -- Notification cooldown,
         and switch *Use notification cooldown* to Off.
 
-    With this off, the notifications will still be sent, but they will be silent, so the
-    watch will not vibrate. This is useful when you are getting sound cues through an earbud
-    but still want the score (and possibly gender ratio) to show up on your watch.
 
 Wear OS app settings
 """"""""""""""""""""
@@ -113,7 +127,7 @@ Team display on watch
       display in the :ref:`Field And Starting Pull` section of the setup screen.
 
 Vibrate on watch
-    The default behavior is to let any timing cues set to vibration do that on the watch,
+    The default behavior is to let any timing cues that cause vibration do that on the watch,
     rather than the phone. If you'd rather keep the vibration action on the phone, you can
     switch this to **No**. In either case, if the watch is temporarily unavailable the
     vibration will happen on the phone.

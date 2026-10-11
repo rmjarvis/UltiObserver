@@ -219,11 +219,16 @@ internal fun currentPersistenceVersion(
 private object V1_4ToV1_5 {
     fun migrateSettings(jsonElement: JsonElement): JsonElement {
         val settings = jsonElement.jsonObject
-        val timingAlerts = (settings["timingAlerts"] ?: return jsonElement).jsonObject.toMutableMap()
-        val mode = timingAlerts["watchConnectionMode"]?.jsonPrimitive?.content
+        val timingAlerts = settings.getValue("timingAlerts").jsonObject.toMutableMap()
+        val mode = timingAlerts.getValue("watchConnectionMode").jsonPrimitive.content
         if (mode == "SILENT" || mode == "ALERTING") {
             timingAlerts["watchConnectionMode"] = JsonPrimitive(WatchConnectionMode.NOTIFICATIONS.name)
-            timingAlerts["alertWatchNotifications"] = JsonPrimitive(mode == "ALERTING")
+            val alertMode = if (mode == "ALERTING") {
+                WatchNotificationAlertMode.ALL
+            } else {
+                WatchNotificationAlertMode.NONE
+            }
+            timingAlerts["watchNotificationAlertMode"] = JsonPrimitive(alertMode.name)
             return JsonObject(settings + ("timingAlerts" to JsonObject(timingAlerts)))
         }
         return jsonElement

@@ -158,11 +158,29 @@ class TestTimingAlerts {
             preferences.copy(
                 globalMode = TimingAlertGlobalMode.OFF,
                 watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+                watchNotificationAlertMode = WatchNotificationAlertMode.ALL,
             )
         )
         assertEquals(listOf(TimingCueId.HALF_CAP), watchCuePayloads.map { it.id })
         assertEquals(TimingAlertMode.NONE, watchCuePayloads.first().alertMode)
         assertTrue(watchCuePayloads.first().watchAlertEnabled)
+
+        // Vibration-only notification alerts include sounds converted to vibration by the global
+        // mode. Both cues remain in the payload for watch text updates.
+        val selectiveWatchCues = listOf(
+            timingCueDisplay(TimingCueId.HALF_CAP, 1_000L),
+            timingCueDisplay(TimingCueId.HARD_CAP, 2_000L),
+        ).timingAlertServiceCues(
+            preferences.copy(
+                globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
+                watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+                watchNotificationAlertMode = WatchNotificationAlertMode.VIBRATION_ONLY,
+                cueModes = preferences.cueModes + (TimingCueId.HARD_CAP to TimingAlertMode.VIBRATE),
+            )
+        )
+        assertEquals(listOf(TimingAlertMode.VIBRATE, TimingAlertMode.VIBRATE),
+            selectiveWatchCues.map { it.alertMode })
+        assertEquals(listOf(true, true), selectiveWatchCues.map { it.watchAlertEnabled })
 
         // The global alert mode can also silence cues.  When timing alerts are globally off, even
         // cues with a sound setting are omitted from the service payload.
@@ -316,6 +334,7 @@ class TestTimingAlerts {
         val watchPreferences = TimingAlertPreferences(
             globalMode = TimingAlertGlobalMode.OFF,
             watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+            watchNotificationAlertMode = WatchNotificationAlertMode.ALL,
             cueModes = mapOf(
                 TimingCueId.OFFENSE_TEN to TimingAlertMode.BEEP,
                 TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE to TimingAlertMode.NONE,
@@ -436,6 +455,76 @@ class TestTimingAlerts {
             assertEquals(false, silentModePlatform.watchStatusNotifications.last().alert)
         } finally {
             silentModeController.release()
+        }
+
+        // Vibration-only notification alerts still advance sound-cue text silently, then alert
+        // for a cue set to vibration when sounds are enabled without accompanying vibration.
+        val selectivePreferences = watchPreferences.copy(
+            globalMode = TimingAlertGlobalMode.SOUNDS_ON,
+            watchNotificationAlertMode = WatchNotificationAlertMode.VIBRATION_ONLY,
+            cueModes = watchPreferences.cueModes +
+                (TimingCueId.OFFENSE_SET_LIMIT to TimingAlertMode.VIBRATE),
+        )
+        val selectiveCues = listOf(
+            timingCueDisplay(TimingCueId.OFFENSE_TEN, 10_000L).copy(
+                countdownTime = java.time.Duration.ofSeconds(10),
+            ),
+            timingCueDisplay(TimingCueId.OFFENSE_SET_LIMIT, 20_000L),
+        ).timingAlertServiceCues(selectivePreferences, countdownCues = true)
+        val selectivePlatform = FakeTimingAlertServicePlatform(now = 1_000L)
+        selectivePlatform.soundPlayer.completeLoad(timingAlertSoundIds().getValue(
+            TimingAlertSoundClip(
+                selectiveCues.first().alertMode.toTimingAlertSound(), selectiveCues.first().repeatCount,
+            ),
+        ))
+        val selectiveController = newController(selectivePlatform, scheduleCheckMillis = 100_000L)
+        try {
+            val selectiveSnapshot = serviceSnapshot(
+                countdownCues = selectiveCues,
+                watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+                watchScoreLine = scoreLine,
+            )
+            selectiveController.handleTimingAlertUpdate(selectiveSnapshot)
+            selectiveController.playTimingAlerts(
+                listOf(selectiveCues.first()), selectiveSnapshot, selectivePlatform.sharedPlayer,
+            )
+            assertEquals(PostedWatchNotification(
+                content = watchNotificationContent(scoreLine, selectiveCues.last().watchText),
+                alert = false,
+            ), selectivePlatform.watchStatusNotifications.last())
+            selectiveController.playTimingAlerts(
+                listOf(selectiveCues.last()), selectiveSnapshot, selectivePlatform.sharedPlayer,
+            )
+            assertEquals(true, selectivePlatform.watchStatusNotifications.last().alert)
+            assertTrue(selectivePlatform.performedHaptics.isEmpty())
+            assertEquals(1, selectivePlatform.soundPlayer.playedSounds.size)
+
+            // Also vibrate sends the sound cue's vibration to the watch, preserving phone sound.
+            val pairedCues = selectiveCues.map { it.copy(watchAlertEnabled = true) }
+            val pairedSnapshot = selectiveSnapshot.copy(
+                vibrateWithSounds = true,
+                countdownCues = pairedCues,
+            )
+            selectiveController.handleTimingAlertUpdate(pairedSnapshot)
+            selectiveController.playTimingAlerts(
+                listOf(pairedCues.first()), pairedSnapshot, selectivePlatform.sharedPlayer,
+            )
+            assertEquals(true, selectivePlatform.watchStatusNotifications.last().alert)
+            assertTrue(selectivePlatform.performedHaptics.isEmpty())
+            assertEquals(2, selectivePlatform.soundPlayer.playedSounds.size)
+
+            // Silent notifications keep the same cue vibration on the phone.
+            val phoneSnapshot = pairedSnapshot.copy(alertWatchNotifications = false)
+            selectiveController.handleTimingAlertUpdate(phoneSnapshot)
+            selectiveController.playTimingAlerts(
+                listOf(pairedCues.first()), phoneSnapshot, selectivePlatform.sharedPlayer,
+            )
+            assertEquals(false, selectivePlatform.watchStatusNotifications.last().alert)
+            assertEquals(listOf(VibrationPattern(
+                phoneSnapshot.vibrationDurationMillis, 1, gapMillis = 0L,
+            )), selectivePlatform.performedHaptics)
+        } finally {
+            selectiveController.release()
         }
 
         // A Neither pull countdown posts only the score and schedules no watch updates.
@@ -1314,7 +1403,7 @@ class TestTimingAlerts {
                     timingAlerts = TimingAlertPreferences(
                         globalMode = TimingAlertGlobalMode.SOUNDS_ON,
                         watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
-                        alertWatchNotifications = false,
+                        watchNotificationAlertMode = WatchNotificationAlertMode.NONE,
                     ),
                 ),
             )
@@ -1409,7 +1498,7 @@ class TestTimingAlerts {
                         timingAlerts = TimingAlertPreferences(
                             globalMode = TimingAlertGlobalMode.OFF,
                             watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
-                            alertWatchNotifications = false,
+                            watchNotificationAlertMode = WatchNotificationAlertMode.NONE,
                         ),
                     ),
                 ),

@@ -1621,12 +1621,15 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             ).assertCountEquals(0)
         }
         composeRule.onNodeWithTag("settings-watch-connection-NOTIFICATIONS").performClick()
-        composeRule.onNodeWithTag("settings-alert-watch-notifications").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-watch-notification-alerts-VIBRATION_ONLY").assertIsSelected()
+        composeRule.onNodeWithTag("settings-watch-notification-alerts-NONE")
+            .performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            !composeRule.activity.appState.settings.timingAlerts.alertWatchNotifications
+            composeRule.activity.appState.settings.timingAlerts.watchNotificationAlertMode ==
+                WatchNotificationAlertMode.NONE
         }
         waitForText(
-            "No alerts will be triggered in connection with the notification.",
+            "All notifications will be silent.",
             substring = true,
         )
         waitForText("Warning:", substring = true)
@@ -1636,12 +1639,27 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             substring = true,
         ).assertCountEquals(0)
         composeRule.onNodeWithTag("settings-watch-connection-OFF").performScrollTo().performClick()
-        composeRule.onNodeWithTag("settings-alert-watch-notifications").assertDoesNotExist()
+        composeRule.onNodeWithTag("settings-watch-notification-alerts-NONE").assertDoesNotExist()
         composeRule.onNodeWithTag("settings-watch-connection-NOTIFICATIONS").performClick()
-        composeRule.onNodeWithTag("settings-alert-watch-notifications").assertIsOff()
-        composeRule.onNodeWithTag("settings-alert-watch-notifications").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-watch-notification-alerts-NONE").assertIsSelected()
+
+        // Vibration-only notification alerts explain routing and the watch's vibration settings.
+        composeRule.onNodeWithTag("settings-watch-notification-alerts-VIBRATION_ONLY")
+            .performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appState.settings.timingAlerts.alertWatchNotifications
+            composeRule.activity.appState.settings.timingAlerts.watchNotificationAlertMode ==
+                WatchNotificationAlertMode.VIBRATION_ONLY
+        }
+        composeRule.onNodeWithTag("settings-watch-notification-alerts-VIBRATION_ONLY").assertIsSelected()
+        waitForText("Cues that cause vibration will send it to the watch instead of the phone.",
+            substring = true)
+        waitForText("Check your watch's settings if you aren't getting vibrations on the watch.",
+            substring = true)
+        composeRule.onNodeWithTag("settings-watch-notification-alerts-ALL")
+            .performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity.appState.settings.timingAlerts.watchNotificationAlertMode ==
+                WatchNotificationAlertMode.ALL
         }
         waitForText(
             "Cues whose individual setting is not Off will trigger an alert",

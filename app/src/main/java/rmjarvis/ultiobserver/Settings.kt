@@ -8,6 +8,18 @@ import kotlinx.serialization.json.decodeFromJsonElement
 internal const val DEFAULT_NEW_COUNTDOWN_ADVANCE_SECONDS = 3
 internal const val MAX_NEW_COUNTDOWN_ADVANCE_SECONDS = 10
 
+/** A settings explanation fragment with semantic emphasis for the UI to render. */
+internal data class SettingsTextSpan(val text: String, val bold: Boolean)
+
+/** Categories displayed by the portrait settings accordion. */
+internal enum class SettingsCategory(val title: String) {
+    GUIDANCE("Rule guidance"),
+    WATCH("Watch connection"),
+    TIMING("Sound and vibration"),
+    GAME_SCREEN("Active game screen"),
+    MIXED("Mixed options"),
+}
+
 /** Protection used for touch actions on the phone's active-game screen. */
 @Serializable
 internal enum class AccidentalTouchProtection(val label: String, val description: String) {
@@ -24,7 +36,11 @@ internal enum class AccidentalTouchProtection(val label: String, val description
     LONG_PRESS(
         "Long press",
         "Press and hold controls on the active game screen. Use normal taps in dialogs.",
-    ),
+    );
+
+    companion object {
+        const val SETTING_TITLE = "Accidental touch protection"
+    }
 }
 
 /// Per-cue alert choice before the global alert mode is applied.
@@ -46,6 +62,18 @@ enum class TimingAlertMode {
             DING -> TimingAlertSound.DING
             NONE, VIBRATE -> error("$this is not a sound timing alert mode.")
         }
+    }
+}
+
+/// Return the compact settings label for a timing-alert mode.
+internal fun TimingAlertMode.settingsLabel(): String {
+    return when (this) {
+        TimingAlertMode.NONE -> "Off"
+        TimingAlertMode.VIBRATE -> "Vibrate"
+        TimingAlertMode.TICK -> "Tick"
+        TimingAlertMode.BEEP -> "Beep"
+        TimingAlertMode.KNOCK -> "Knock"
+        TimingAlertMode.DING -> "Ding"
     }
 }
 
@@ -75,6 +103,11 @@ enum class TimingAlertGlobalMode(
     OFF("Off"),
     VIBRATION_ONLY("Vibration only"),
     SOUNDS_ON("Sounds on"),
+    ;
+
+    companion object {
+        const val QUESTION = "Use sounds and vibration for timing cues?"
+    }
 }
 
 /** How UltiObserver communicates timing and game state to a watch. */
@@ -105,6 +138,8 @@ enum class WatchConnectionMode(
     }
 
     companion object {
+        const val QUESTION = "What kind of watch connection do you want to use?"
+
         const val NOTIFICATION_PERMISSION_NOTE =
             "Phone notifications must be enabled for watch notifications to work. " +
             "Selecting Notifications will open the Android settings " +
@@ -133,6 +168,77 @@ enum class WatchConnectionMode(
 
         const val UNAVAILABLE_WEAR_DESCRIPTION =
             "Pair a Wear OS watch with this phone before using this setting."
+
+        internal val notificationCooldownNotice = listOf(
+            SettingsTextSpan("Important: ", bold = true),
+            SettingsTextSpan(NOTIFICATION_COOLDOWN_WARNING, bold = false),
+        )
+    }
+}
+
+/** Build the selected watch connection's explanation, including applicable notes and emphasis. */
+internal fun WatchConnectionMode.settingsDescription(
+    notificationsEnabled: Boolean,
+    wearWatchAvailable: Boolean?,
+    vibrateOnWatch: Boolean,
+): List<SettingsTextSpan> = buildList {
+    add(SettingsTextSpan(description, bold = false))
+    when (this@settingsDescription) {
+        WatchConnectionMode.OFF -> {
+            if (!notificationsEnabled) {
+                add(SettingsTextSpan("\n\n", bold = false))
+                add(SettingsTextSpan("Note: ", bold = true))
+                add(SettingsTextSpan(WatchConnectionMode.NOTIFICATION_PERMISSION_NOTE, bold = false))
+            }
+        }
+        WatchConnectionMode.NOTIFICATIONS -> {
+            add(SettingsTextSpan("\n\n", bold = false))
+            add(SettingsTextSpan("Warning: ", bold = true))
+            add(SettingsTextSpan(WatchConnectionMode.NOTIFICATION_SHARING_WARNING, bold = false))
+        }
+        WatchConnectionMode.WEAR_OS -> {
+            if (wearWatchAvailable == true) {
+                add(SettingsTextSpan(" ", bold = false))
+                add(SettingsTextSpan(WatchConnectionMode.CONNECTED_WEAR_DESCRIPTION, bold = false))
+                if (vibrateOnWatch) {
+                    add(SettingsTextSpan(WatchConnectionMode.WATCH_VIBRATION_DESCRIPTION, bold = false))
+                }
+            } else if (wearWatchAvailable == false) {
+                add(SettingsTextSpan("\n\n", bold = false))
+                add(SettingsTextSpan(WatchConnectionMode.UNAVAILABLE_WEAR_TITLE, bold = true))
+                add(SettingsTextSpan(WatchConnectionMode.UNAVAILABLE_WEAR_DESCRIPTION, bold = false))
+            }
+        }
+    }
+}
+
+/** Which mirrored timing cue notifications should request a watch alert. */
+@Serializable
+enum class WatchNotificationAlertMode(val label: String) {
+    NONE("None"),
+    VIBRATION_ONLY("Vibration cues only"),
+    ALL("All enabled cues");
+
+    val description: String
+        get() = when (this) {
+            NONE -> "All notifications will be silent. The watch will not vibrate for any timing cues."
+            VIBRATION_ONLY ->
+                "Cues that cause vibration will send it to the watch instead of the phone. " +
+                ALERT_NOTE +
+                " Cues without vibration will update the notification silently."
+            ALL ->
+                "Cues whose individual setting is not Off will trigger an alert, " +
+                "causing a vibration if enabled on the watch. " +
+                ALERT_NOTE
+        }
+
+    companion object {
+        const val QUESTION = "Which cues should trigger vibration on the watch?"
+
+        private const val ALERT_NOTE =
+            "This is dependent on your watch's vibration settings, " +
+            "which UltiObserver cannot verify. " +
+            "Check your watch's settings if you aren't getting vibrations on the watch."
     }
 }
 
@@ -144,7 +250,7 @@ enum class WatchConnectionMode(
  * @param vibrationDurationMillis Vibration length for vibration alerts.
  * @param vibrateWithSounds Whether sound alerts should also vibrate.
  * @param watchConnectionMode How UltiObserver communicates with a watch.
- * @param alertWatchNotifications Whether mirrored timing notifications should request an alert.
+ * @param watchNotificationAlertMode Which mirrored timing notifications should request an alert.
  * @param cueModes Per-cue alert mode overrides.
  * @param cueRepeatCounts Per-cue sound/vibration repeat counts.
  */
@@ -155,19 +261,14 @@ data class TimingAlertPreferences(
     val vibrationDurationMillis: Long = DEFAULT_TIMING_CUE_VIBRATION_MS,
     val vibrateWithSounds: Boolean = false,
     val watchConnectionMode: WatchConnectionMode = WatchConnectionMode.OFF,
-    val alertWatchNotifications: Boolean = true,
+    val watchNotificationAlertMode: WatchNotificationAlertMode = WatchNotificationAlertMode.VIBRATION_ONLY,
     val vibrateOnWatch: Boolean = true,
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
     val cueRepeatCounts: Map<TimingCueId, Int> = defaultTimingCueRepeatCounts(),
 ) {
-    /// Explanation shown below the alerting-notifications setting.
-    val alertWatchNotificationsDescription: String
-        get() = if (alertWatchNotifications) {
-            "Cues whose individual setting is not Off will trigger an alert, " +
-            "causing a vibration if enabled on the watch."
-        } else {
-            "No alerts will be triggered in connection with the notification."
-        }
+    /// Label beside the sound-volume control.
+    val soundVolumeLabel: String
+        get() = "Sound volume ${(soundVolume * 100).toInt()}%"
 
     /// Explanation shown below the vibrateOnWatch setting.
     val vibrateOnWatchDescription: String
@@ -241,6 +342,18 @@ data class TimingAlertPreferences(
     fun sendsCueToWatch(cueId: TimingCueId, countdownSeconds: Int?): Boolean {
         return watchConnectionMode.usesNotifications() &&
             (countdownSeconds == 0 || settingsModeFor(cueId) != TimingAlertMode.NONE)
+    }
+
+    /** Whether this cue should request an alert on the mirrored notification. */
+    fun alertsCueOnWatch(cueId: TimingCueId): Boolean {
+        return when (watchNotificationAlertMode) {
+            WatchNotificationAlertMode.NONE -> false
+            WatchNotificationAlertMode.VIBRATION_ONLY -> {
+                val mode = alertModeFor(cueId)
+                mode == TimingAlertMode.VIBRATE || (mode != TimingAlertMode.NONE && vibrateWithSounds)
+            }
+            WatchNotificationAlertMode.ALL -> settingsModeFor(cueId) != TimingAlertMode.NONE
+        }
     }
 
     /**
@@ -321,6 +434,17 @@ data class TimingAlertPreferences(
             cueModes = defaultTimingCueModes(),
             cueRepeatCounts = defaultTimingCueRepeatCounts(),
         )
+    }
+
+    companion object {
+        const val CUE_SETTINGS_TITLE = "Cue sound settings"
+        const val SAVE_AND_RETURN_HOME_LABEL = "Save and return home"
+        const val SOUND_PREVIEWS_TITLE = "Sound previews"
+        const val RESET_CUES_LABEL = "Reset all to defaults"
+        const val VIBRATE_ON_WATCH_QUESTION = "Vibrate on watch?"
+        const val VIBRATE_WITH_SOUNDS_QUESTION = "Also vibrate on cues that use sound?"
+        const val INDIVIDUAL_CUES_LABEL = "Sound/vibration settings for individual cues"
+        const val VIBRATION_LENGTH_LABEL = "Vibration length"
     }
 }
 
@@ -425,6 +549,10 @@ internal enum class RuleGuidanceMode(
     /// Report whether popup copy should use the concise presentation.
     fun usesBriefGuidance(): Boolean = this != FULL
 
+    companion object {
+        const val QUESTION = "How much rule guidance should appear during games?"
+    }
+
     /**
      * Choose how one live-game guidance popup should be presented.
      *
@@ -475,7 +603,11 @@ internal enum class OrientationPreference(
         "Follow the phone's orientation if Android's auto-rotate is enabled. " +
         "Otherwise, it will use the current phone orientation when the active " +
         "game screen opens each time.",
-    ),
+    );
+
+    companion object {
+        const val QUESTION = "How should the active game screen be oriented?"
+    }
 }
 
 /// Portrait or landscape orientation currently used to display the active-game screen.
@@ -560,7 +692,11 @@ internal enum class WatchOrientation(val label: String, val description: String)
         "Keep field ends fixed on the watch game screen as teams change ends. " +
         "In Landscape mode, match the phone display orientation. " +
         "In Portrait or Auto-rotate, choose the orientation in game setup.",
-    ),
+    );
+
+    companion object {
+        const val SETTING_TITLE = "Team display on watch"
+    }
 }
 
 /**
@@ -598,6 +734,10 @@ internal data class Settings(
     val officialClockOffsetMillis: Long = 0L,
     val timingAlerts: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
+    /// Label beside the new-countdown advance control.
+    val newCountdownAdvanceLabel: String
+        get() = "Seconds already elapsed: $newCountdownAdvanceSeconds"
+
     /// Explanation shown below the requireWatchLongPress setting.
     val requireWatchLongPressDescription: String
         get() = if (requireWatchLongPress) {
@@ -754,6 +894,14 @@ internal data class Settings(
     }
 
     companion object {
+        const val TITLE = "Settings"
+        const val SAVE_AND_RETURN_LABEL = "Save and return"
+        const val WATCH_LONG_PRESSES_QUESTION = "Require long presses?"
+        const val AUTO_START_LIVE_PLAY_QUESTION = "Automatically start live play?"
+        const val SHOW_DEFENSE_COUNTDOWNS_QUESTION = "Show defense countdowns?"
+        const val ADVANCE_COUNTDOWNS_QUESTION = "Automatically advance countdowns by a few seconds?"
+        const val ABBA_SEQUENCE_QUESTION = "Show ABBA gender ratio as M1/M2/W1/W2?"
+
         const val DEFENSE_COUNTDOWN_DISABLED_NOTE =
             "Note — defensive check countdowns are not currently enabled. " +
             "If you want these cues, enable defensive check countdowns " +
@@ -783,6 +931,12 @@ internal data class Settings(
     }
 }
 
+
+/// Label the settings control for this ratio's indicator color.
+internal fun GenderRatio.badgeColorSettingLabel(): String = when (this) {
+    GenderRatio.FOUR_MEN_THREE_WOMEN -> "Set 4M/3W indicator color"
+    GenderRatio.FOUR_WOMEN_THREE_MEN -> "Set 4W/3M indicator color"
+}
 
 /// Return the explanatory note to show beside sound previews under the current global mode.
 internal fun TimingAlertPreferences.soundPreviewNote(hasTimingCueHaptics: Boolean): String? {
@@ -839,3 +993,91 @@ internal fun TimingAlertPreferences.watchCountdownVibration(id: TimingCueId): Vi
         else -> null
     }
 }
+
+/**
+ * Timing cues grouped into one settings section.
+ *
+ * @param title The section title shown in settings.
+ * @param cues The cue ids displayed in this section.
+ */
+internal data class TimingCueSection(
+    val title: String,
+    val cues: List<TimingCueId>,
+)
+
+/// Return whether this section configures the optional defense-check countdown cues.
+internal fun TimingCueSection.isDefenseCheckCountdownSection(): Boolean {
+    return cues == listOf(
+        TimingCueId.DEFENSE_TWENTY,
+        TimingCueId.DEFENSE_TEN,
+        TimingCueId.DEFENSE_CHECK_LIMIT,
+    )
+}
+
+internal val timingCueSections = listOf(
+    TimingCueSection(
+        title = "Before pull - offense",
+        cues = listOf(
+            TimingCueId.RECEIVING_TWENTY_FOR_HAND,
+            TimingCueId.RECEIVING_TEN_FOR_HAND,
+            TimingCueId.RECEIVING_GIVE_HAND,
+        ),
+    ),
+    TimingCueSection(
+        title = "Before pull - defense",
+        cues = listOf(
+            TimingCueId.PULLING_TWENTY_TO_PULL,
+            TimingCueId.PULLING_TEN_TO_PULL,
+            TimingCueId.PULLING_TIME_VIOLATION,
+        ),
+    ),
+    TimingCueSection(
+        title = "Timeout / misconduct",
+        cues = listOf(
+            TimingCueId.TIMEOUT_CLEAR_FIELD,
+            TimingCueId.OFFENSE_TWENTY,
+            TimingCueId.OFFENSE_TEN,
+            TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE,
+            TimingCueId.OFFENSE_SET_LIMIT,
+        ),
+    ),
+    TimingCueSection(
+        title = "Defense check countdown",
+        cues = listOf(
+            TimingCueId.DEFENSE_TWENTY,
+            TimingCueId.DEFENSE_TEN,
+            TimingCueId.DEFENSE_CHECK_LIMIT,
+        ),
+    ),
+    TimingCueSection(
+        title = "Timeout between points",
+        cues = listOf(
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
+        ),
+    ),
+    TimingCueSection(
+        title = "Before game",
+        cues = listOf(
+            TimingCueId.PRE_GAME_FIVE_MINUTES,
+            TimingCueId.PRE_GAME_THREE_MINUTES,
+            TimingCueId.PRE_GAME_ONE_MINUTE,
+        ),
+    ),
+    TimingCueSection(
+        title = "Halftime",
+        cues = listOf(
+            TimingCueId.HALFTIME_FIVE_MINUTES,
+            TimingCueId.HALFTIME_TWO_MINUTES,
+            TimingCueId.HALFTIME_OVER,
+        ),
+    ),
+    TimingCueSection(
+        title = "Caps",
+        cues = listOf(
+            TimingCueId.HALF_CAP,
+            TimingCueId.SOFT_CAP,
+            TimingCueId.HARD_CAP,
+        ),
+    ),
+)

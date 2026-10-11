@@ -782,7 +782,7 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(1, active.archivedGames.size)
         assertProfileAndSettings(active, v1_1FixtureProfile(), v1_3FixtureSettings("active-game"))
         assertEquals(WatchConnectionMode.NOTIFICATIONS, active.settings.timingAlerts.watchConnectionMode)
-        assertFalse(active.settings.timingAlerts.alertWatchNotifications)
+        assertEquals(WatchNotificationAlertMode.NONE, active.settings.timingAlerts.watchNotificationAlertMode)
 
         // A completed current game retains its End game action and preceding pull countdown.
         val completed = loadMigratedFixture("v1.4", "complete-current-game")
@@ -793,7 +793,7 @@ class TestMigration : GameDomainTestFixtures() {
             completed, v1_1FixtureProfile(), v1_4CompletedGameSettings(),
         )
         assertEquals(WatchConnectionMode.NOTIFICATIONS, completed.settings.timingAlerts.watchConnectionMode)
-        assertTrue(completed.settings.timingAlerts.alertWatchNotifications)
+        assertEquals(WatchNotificationAlertMode.ALL, completed.settings.timingAlerts.watchNotificationAlertMode)
 
         // Archived games retain their completed state and receive usable Undo End game states.
         val archived = loadMigratedFixture("v1.4", "completed-archive")
@@ -1038,6 +1038,7 @@ class TestMigration : GameDomainTestFixtures() {
         val settings = v1_3FixtureSettings("complete-current-game")
         return settings.copy(timingAlerts = settings.timingAlerts.copy(
             watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+            watchNotificationAlertMode = WatchNotificationAlertMode.ALL,
         ))
     }
 
@@ -1054,7 +1055,11 @@ class TestMigration : GameDomainTestFixtures() {
                 } else {
                     WatchConnectionMode.OFF
                 },
-                alertWatchNotifications = fixtureName != "active-game",
+                watchNotificationAlertMode = if (fixtureName == "active-game") {
+                    WatchNotificationAlertMode.NONE
+                } else {
+                    WatchNotificationAlertMode.VIBRATION_ONLY
+                },
                 cueModes = TimingCueId.entries.associateWith { TimingAlertMode.DING },
                 cueRepeatCounts = TimingCueId.entries.associateWith { 1 },
             ),

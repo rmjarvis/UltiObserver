@@ -83,12 +83,12 @@ private fun writeActiveGame(dir: File) {
         ruleGuidanceMode = guidanceMode,
         timingAlerts = baseSettings.timingAlerts.copy(
             watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
-            alertWatchNotifications = false,
+            watchNotificationAlertMode = WatchNotificationAlertMode.NONE,
         ),
     )
     check(settings.ruleGuidanceMode == RuleGuidanceMode.TIMED)
     check(settings.timingAlerts.watchConnectionMode == WatchConnectionMode.NOTIFICATIONS)
-    check(!settings.timingAlerts.alertWatchNotifications)
+    check(settings.timingAlerts.watchNotificationAlertMode == WatchNotificationAlertMode.NONE)
     store.saveSettings(settings)
     store.saveArchivedGames(
         listOf(
@@ -138,13 +138,13 @@ private fun writeCompleteCurrentGame(dir: File) {
         showAbbaRatioAsSequence = false,
         timingAlerts = baseSettings.timingAlerts.copy(
             watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
-            alertWatchNotifications = true,
+            watchNotificationAlertMode = WatchNotificationAlertMode.ALL,
         ),
     )
     check(settings.ruleGuidanceMode == RuleGuidanceMode.NONE)
     check(!settings.showAbbaRatioAsSequence)
     check(settings.timingAlerts.watchConnectionMode == WatchConnectionMode.NOTIFICATIONS)
-    check(settings.timingAlerts.alertWatchNotifications)
+    check(settings.timingAlerts.watchNotificationAlertMode == WatchNotificationAlertMode.ALL)
 
     store.saveCurrentGame(game)
     store.saveProfile(fixtureProfile())

@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,27 +57,19 @@ import kotlinx.coroutines.launch
 
 private enum class GenderRatioBadgeColorTarget(
     val ratio: GenderRatio,
-    val label: String,
     val testTagPrefix: String,
 ) {
     FOUR_MEN(
         ratio = GenderRatio.FOUR_MEN_THREE_WOMEN,
-        label = "Set 4M/3W indicator color",
         testTagPrefix = "settings-4m-3w-badge-color",
     ),
     FOUR_WOMEN(
         ratio = GenderRatio.FOUR_WOMEN_THREE_MEN,
-        label = "Set 4W/3M indicator color",
         testTagPrefix = "settings-4w-3m-badge-color",
-    ),
-}
+    );
 
-internal enum class SettingsCategory(val title: String) {
-    GUIDANCE("Rule guidance"),
-    WATCH("Watch connection"),
-    TIMING("Sound and vibration"),
-    GAME_SCREEN("Active game screen"),
-    MIXED("Mixed options"),
+    val label: String
+        get() = ratio.badgeColorSettingLabel()
 }
 
 @Composable
@@ -151,7 +144,7 @@ internal fun SettingsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Settings") },
+                title = { Text(Settings.TITLE) },
                 navigationIcon = {
                     TopBarBackButton(onClick = onBackHome)
                 },
@@ -162,7 +155,7 @@ internal fun SettingsScreen(
         },
         bottomBar = {
             NavigationButton(
-                label = "Save and return",
+                label = Settings.SAVE_AND_RETURN_LABEL,
                 fullWidth = true,
                 colors = primaryButtonColors(),
                 modifier = Modifier
@@ -216,29 +209,41 @@ internal fun SettingsScreen(
                             )
 
                             if (settings.timingAlerts.watchConnectionMode == WatchConnectionMode.NOTIFICATIONS) {
+                                val alertMode = settings.timingAlerts.watchNotificationAlertMode
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    SettingsSwitchWithNote(
-                                        label = "Alerting notifications?",
-                                        note = settings.timingAlerts.alertWatchNotificationsDescription,
-                                        checked = settings.timingAlerts.alertWatchNotifications,
-                                        onCheckedChange = {
-                                            onSettingsChange(settings.withTimingAlerts(
-                                                settings.timingAlerts.copy(alertWatchNotifications = it)
-                                            ))
-                                        },
-                                        testTag = "settings-alert-watch-notifications",
+                                    Text(
+                                        WatchNotificationAlertMode.QUESTION,
+                                        style = MaterialTheme.typography.titleMedium,
+                                    )
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        WatchNotificationAlertMode.entries.forEach { mode ->
+                                            ChoiceChipButton(
+                                                label = mode.label,
+                                                selected = alertMode == mode,
+                                                tag = "settings-watch-notification-alerts-${mode.name}",
+                                                onClick = {
+                                                    onSettingsChange(settings.withTimingAlerts(
+                                                        settings.timingAlerts.copy(
+                                                            watchNotificationAlertMode = mode,
+                                                        )
+                                                    ))
+                                                },
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        alertMode.description,
+                                        style = MaterialTheme.typography.bodySmall,
                                     )
                                     if (
-                                        settings.timingAlerts.alertWatchNotifications &&
+                                        alertMode != WatchNotificationAlertMode.NONE &&
                                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
                                     ) {
                                         Text(
-                                            text = buildAnnotatedString {
-                                                pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                                                append("Important: ")
-                                                pop()
-                                                append(WatchConnectionMode.NOTIFICATION_COOLDOWN_WARNING)
-                                            },
+                                            text = WatchConnectionMode.notificationCooldownNotice.annotatedText(),
                                             style = MaterialTheme.typography.bodySmall,
                                         )
                                     }
@@ -247,7 +252,10 @@ internal fun SettingsScreen(
 
                             if (settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS) {
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text("Team display on watch", style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        text = WatchOrientation.SETTING_TITLE,
+                                        style = MaterialTheme.typography.titleMedium,
+                                    )
                                     FlowRow(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -269,7 +277,7 @@ internal fun SettingsScreen(
                                     )
                                 }
                                 SettingsSwitchWithNote(
-                                    label = "Vibrate on watch?",
+                                    label = TimingAlertPreferences.VIBRATE_ON_WATCH_QUESTION,
                                     note = settings.timingAlerts.vibrateOnWatchDescription,
                                     checked = settings.timingAlerts.vibrateOnWatch,
                                     onCheckedChange = {
@@ -280,7 +288,7 @@ internal fun SettingsScreen(
                                     testTag = "settings-vibrate-on-watch",
                                 )
                                 SettingsSwitchWithNote(
-                                    label = "Require long presses?",
+                                    label = Settings.WATCH_LONG_PRESSES_QUESTION,
                                     note = settings.requireWatchLongPressDescription,
                                     checked = settings.requireWatchLongPress,
                                     onCheckedChange = {
@@ -347,7 +355,10 @@ internal fun SettingsScreen(
                             )
 
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Accidental touch protection", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    text = AccidentalTouchProtection.SETTING_TITLE,
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
                                 FlowRow(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -370,7 +381,7 @@ internal fun SettingsScreen(
                             }
 
                             SettingsSwitchWithNote(
-                                label = "Automatically start live play?",
+                                label = Settings.AUTO_START_LIVE_PLAY_QUESTION,
                                 note = settings.automaticallyAdvanceCountdownsDescription,
                                 checked = settings.automaticallyAdvanceCountdowns,
                                 onCheckedChange = {
@@ -380,7 +391,7 @@ internal fun SettingsScreen(
                             )
 
                             SettingsSwitchWithNote(
-                                label = "Show defense countdowns?",
+                                label = Settings.SHOW_DEFENSE_COUNTDOWNS_QUESTION,
                                 note = settings.showDefenseCountdownsDescription,
                                 checked = settings.showDefenseCountdowns,
                                 onCheckedChange = {
@@ -391,7 +402,7 @@ internal fun SettingsScreen(
 
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 SettingsSwitchWithNote(
-                                    label = "Automatically advance countdowns by a few seconds?",
+                                    label = Settings.ADVANCE_COUNTDOWNS_QUESTION,
                                     note = settings.automaticallyAdvanceNewCountdownsDescription,
                                     checked = settings.automaticallyAdvanceNewCountdowns,
                                     onCheckedChange = {
@@ -401,8 +412,7 @@ internal fun SettingsScreen(
                                 )
                                 if (settings.automaticallyAdvanceNewCountdowns) {
                                     Text(
-                                        text = "Seconds already elapsed: " +
-                                            settings.newCountdownAdvanceSeconds,
+                                        text = settings.newCountdownAdvanceLabel,
                                         style = MaterialTheme.typography.titleMedium,
                                     )
                                     Slider(
@@ -430,7 +440,7 @@ internal fun SettingsScreen(
                         }
                         SettingsCategory.MIXED -> {
                             SettingsSwitchWithNote(
-                                label = "Show ABBA gender ratio as M1/M2/W1/W2?",
+                                label = Settings.ABBA_SEQUENCE_QUESTION,
                                 note = settings.showAbbaRatioAsSequenceDescription,
                                 checked = settings.showAbbaRatioAsSequence,
                                 onCheckedChange = {
@@ -518,7 +528,7 @@ private fun OrientationPreferenceSelector(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text = "How should the active game screen be oriented?",
+            text = OrientationPreference.QUESTION,
             style = MaterialTheme.typography.titleMedium,
         )
         FlowRow(
@@ -561,7 +571,7 @@ private fun RuleGuidanceModeSelector(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text = "How much rule guidance should appear during games?",
+            text = RuleGuidanceMode.QUESTION,
             style = MaterialTheme.typography.titleMedium,
         )
         FlowRow(
@@ -624,7 +634,7 @@ private fun presetColorForArgb(colorArgb: Long): TeamColorChoice? {
 }
 
 private fun colorLabel(colorArgb: Long): String {
-    return presetColorForArgb(colorArgb)?.label ?: "Custom"
+    return presetColorForArgb(colorArgb)?.label ?: TeamColorChoice.CUSTOM.label
 }
 
 /**
@@ -728,7 +738,7 @@ internal fun TimingCueSettingsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Cue sound settings") },
+                title = { Text(TimingAlertPreferences.CUE_SETTINGS_TITLE) },
                 navigationIcon = {
                     TopBarBackButton(onClick = onBackSettings)
                 },
@@ -739,7 +749,7 @@ internal fun TimingCueSettingsScreen(
         },
         bottomBar = {
             NavigationButton(
-                label = "Save and return home",
+                label = TimingAlertPreferences.SAVE_AND_RETURN_HOME_LABEL,
                 fullWidth = true,
                 colors = primaryButtonColors(),
                 modifier = Modifier
@@ -758,7 +768,7 @@ internal fun TimingCueSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             SoundPreviewRow(
-                title = "Sound previews",
+                title = TimingAlertPreferences.SOUND_PREVIEWS_TITLE,
                 sounds = TimingAlertSound.entries,
                 note = soundOutput.soundMuteNote ?:
                     settings.timingAlerts.soundPreviewNote(hasTimingCueHaptics),
@@ -777,7 +787,7 @@ internal fun TimingCueSettingsScreen(
                 HorizontalDivider()
                 if (section == timingCueSections.first()) {
                     MenuButton(
-                        label = "Reset all to defaults",
+                        label = TimingAlertPreferences.RESET_CUES_LABEL,
                         tag = "settings-reset-timing-cue-defaults",
                         colors = resetButtonColors(),
                         borderColor = null,
@@ -840,7 +850,7 @@ private fun TimingAlertGlobalModeSelector(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text = "Use sounds and vibration for timing cues?",
+            text = TimingAlertGlobalMode.QUESTION,
             style = MaterialTheme.typography.titleMedium,
         )
         FlowRow(
@@ -901,7 +911,7 @@ private fun TimingAlertSoundControls(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Also vibrate on cues that use sound?",
+                    text = TimingAlertPreferences.VIBRATE_WITH_SOUNDS_QUESTION,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
@@ -924,7 +934,7 @@ private fun TimingAlertSoundControls(
             }
         }
         MenuButton(
-            label = "Sound/vibration settings for individual cues",
+            label = TimingAlertPreferences.INDIVIDUAL_CUES_LABEL,
             tag = "settings-open-timing-cue-settings",
             colors = secondaryButtonColors(),
             borderColor = null,
@@ -933,7 +943,7 @@ private fun TimingAlertSoundControls(
         if (timingAlertPreferences.globalMode == TimingAlertGlobalMode.SOUNDS_ON) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "Sound volume ${(timingAlertPreferences.soundVolume * 100).toInt()}%",
+                    text = timingAlertPreferences.soundVolumeLabel,
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Slider(
@@ -948,7 +958,7 @@ private fun TimingAlertSoundControls(
         if (timingAlertPreferences.globalMode != TimingAlertGlobalMode.OFF) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "Vibration length",
+                    text = TimingAlertPreferences.VIBRATION_LENGTH_LABEL,
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Slider(
@@ -1004,7 +1014,7 @@ private fun WatchConnectionModeSelector(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = "What kind of watch connection do you want to use?",
+            text = WatchConnectionMode.QUESTION,
             style = MaterialTheme.typography.titleMedium,
         )
         FlowRow(
@@ -1023,46 +1033,23 @@ private fun WatchConnectionModeSelector(
                 )
             }
         }
-        val description = buildAnnotatedString {
-            append(selectedMode.description)
-            when (selectedMode) {
-                WatchConnectionMode.OFF -> {
-                    if (!notificationsEnabled) {
-                        append("\n\n")
-                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                        append("Note: ")
-                        pop()
-                        append(WatchConnectionMode.NOTIFICATION_PERMISSION_NOTE)
-                    }
-                }
-                WatchConnectionMode.NOTIFICATIONS -> {
-                    append("\n\n")
-                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append("Warning: ")
-                    pop()
-                    append(WatchConnectionMode.NOTIFICATION_SHARING_WARNING)
-                }
-                WatchConnectionMode.WEAR_OS -> {
-                    if (wearWatchAvailable == true) {
-                        append(" ")
-                        append(WatchConnectionMode.CONNECTED_WEAR_DESCRIPTION)
-                        if (vibrateOnWatch) {
-                            append(WatchConnectionMode.WATCH_VIBRATION_DESCRIPTION)
-                        }
-                    } else if (wearWatchAvailable == false) {
-                        append("\n\n")
-                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                        append(WatchConnectionMode.UNAVAILABLE_WEAR_TITLE)
-                        pop()
-                        append(WatchConnectionMode.UNAVAILABLE_WEAR_DESCRIPTION)
-                    }
-                }
-            }
-        }
         Text(
-            text = description,
+            text = selectedMode.settingsDescription(
+                notificationsEnabled = notificationsEnabled,
+                wearWatchAvailable = wearWatchAvailable,
+                vibrateOnWatch = vibrateOnWatch,
+            ).annotatedText(),
             style = MaterialTheme.typography.bodySmall,
         )
+    }
+}
+
+/// Render the emphasis specified by a settings explanation.
+private fun List<SettingsTextSpan>.annotatedText(): AnnotatedString = buildAnnotatedString {
+    forEach { span ->
+        if (span.bold) pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+        append(span.text)
+        if (span.bold) pop()
     }
 }
 
@@ -1210,18 +1197,6 @@ private fun CompactTimingAlertOption(
     )
 }
 
-/// Return the compact settings label for a timing-alert mode.
-private fun TimingAlertMode.settingsLabel(): String {
-    return when (this) {
-        TimingAlertMode.NONE -> "Off"
-        TimingAlertMode.VIBRATE -> "Vibrate"
-        TimingAlertMode.TICK -> "Tick"
-        TimingAlertMode.BEEP -> "Beep"
-        TimingAlertMode.KNOCK -> "Knock"
-        TimingAlertMode.DING -> "Ding"
-    }
-}
-
 private val timingAlertOptions = listOf(
     TimingAlertMode.NONE,
     TimingAlertMode.VIBRATE,
@@ -1232,91 +1207,3 @@ private val timingAlertOptions = listOf(
 )
 
 private val timingAlertRepeatOptions = listOf(2, 3)
-
-/**
- * Timing cues grouped into one settings section.
- *
- * @param title The section title shown in settings.
- * @param cues The cue ids displayed in this section.
- */
-private data class TimingCueSection(
-    val title: String,
-    val cues: List<TimingCueId>,
-)
-
-/// Return whether this section configures the optional defense-check countdown cues.
-private fun TimingCueSection.isDefenseCheckCountdownSection(): Boolean {
-    return cues == listOf(
-        TimingCueId.DEFENSE_TWENTY,
-        TimingCueId.DEFENSE_TEN,
-        TimingCueId.DEFENSE_CHECK_LIMIT,
-    )
-}
-
-private val timingCueSections = listOf(
-    TimingCueSection(
-        title = "Before pull - offense",
-        cues = listOf(
-            TimingCueId.RECEIVING_TWENTY_FOR_HAND,
-            TimingCueId.RECEIVING_TEN_FOR_HAND,
-            TimingCueId.RECEIVING_GIVE_HAND,
-        ),
-    ),
-    TimingCueSection(
-        title = "Before pull - defense",
-        cues = listOf(
-            TimingCueId.PULLING_TWENTY_TO_PULL,
-            TimingCueId.PULLING_TEN_TO_PULL,
-            TimingCueId.PULLING_TIME_VIOLATION,
-        ),
-    ),
-    TimingCueSection(
-        title = "Timeout / misconduct",
-        cues = listOf(
-            TimingCueId.TIMEOUT_CLEAR_FIELD,
-            TimingCueId.OFFENSE_TWENTY,
-            TimingCueId.OFFENSE_TEN,
-            TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE,
-            TimingCueId.OFFENSE_SET_LIMIT,
-        ),
-    ),
-    TimingCueSection(
-        title = "Defense check countdown",
-        cues = listOf(
-            TimingCueId.DEFENSE_TWENTY,
-            TimingCueId.DEFENSE_TEN,
-            TimingCueId.DEFENSE_CHECK_LIMIT,
-        ),
-    ),
-    TimingCueSection(
-        title = "Timeout between points",
-        cues = listOf(
-            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
-            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
-        ),
-    ),
-    TimingCueSection(
-        title = "Before game",
-        cues = listOf(
-            TimingCueId.PRE_GAME_FIVE_MINUTES,
-            TimingCueId.PRE_GAME_THREE_MINUTES,
-            TimingCueId.PRE_GAME_ONE_MINUTE,
-        ),
-    ),
-    TimingCueSection(
-        title = "Halftime",
-        cues = listOf(
-            TimingCueId.HALFTIME_FIVE_MINUTES,
-            TimingCueId.HALFTIME_TWO_MINUTES,
-            TimingCueId.HALFTIME_OVER,
-        ),
-    ),
-    TimingCueSection(
-        title = "Caps",
-        cues = listOf(
-            TimingCueId.HALF_CAP,
-            TimingCueId.SOFT_CAP,
-            TimingCueId.HARD_CAP,
-        ),
-    ),
-)

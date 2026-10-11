@@ -475,9 +475,9 @@ class TestTimingCues : GameDomainTestFixtures() {
         for (notificationPreferences in listOf(
             preferences.copy(watchConnectionMode = WatchConnectionMode.OFF),
             preferences.copy(watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
-                alertWatchNotifications = false),
+                watchNotificationAlertMode = WatchNotificationAlertMode.NONE),
             preferences.copy(watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
-                alertWatchNotifications = true),
+                watchNotificationAlertMode = WatchNotificationAlertMode.ALL),
         )) {
             deliverTimingVibration(notificationPreferences, VibrationPattern(200L, 1, 120L), watch, phone)
         }
