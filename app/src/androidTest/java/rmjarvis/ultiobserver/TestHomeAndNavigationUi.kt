@@ -957,6 +957,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // Settings keeps previews visible but disabled, with a note explaining each mute.
         composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         composeRule.onNodeWithText("Sounds on").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-test-vibration")
             .performScrollTo().assertIsNotEnabled()
@@ -980,6 +981,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         dismissDialog("Close", waitForText = "Start new game")
 
         composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-sound-preview-TICK").assertIsEnabled()
@@ -993,6 +995,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             .performScrollTo().assertIsOn().performClick().assertIsOff()
         dismissDialog("Close", waitForText = "Start new game")
         composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-test-vibration").performScrollTo()
         composeRule.onNodeWithText("All sounds and vibrations are currently muted.").assertDoesNotExist()
         composeRule.onNodeWithText(application.appState.settings.timingAlerts.vibrationTestDescription)
@@ -1080,6 +1083,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         setNewCountdownAdvanceSettings(enabled = false, seconds = 3)
         setShowAbbaRatioAsSequence(true)
         setPortraitOrientationPreference()
+        setTimingAlertPreferences(TimingAlertPreferences())
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appState.updateSettings(
                 activity.appState.settings
@@ -1095,8 +1099,20 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         }
         composeRule.waitForIdle()
 
-        // Active games default to Portrait; exercise both alternate orientation behaviors.
+        // Rule guidance starts open; its arrow closes it, and opening another category
+        // closes the previous one.
         composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-FULL").assertIsSelected()
+        composeRule.onNodeWithTag("settings-category-GUIDANCE-arrow", useUnmergedTree = true)
+            .performTouchInput { click() }
+        composeRule.onNodeWithTag("settings-rule-guidance-FULL").assertDoesNotExist()
+        composeRule.onNodeWithTag("settings-category-GUIDANCE").performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-FULL").assertIsSelected()
+        composeRule.onNodeWithTag("settings-active-game-orientation-PORTRAIT").assertDoesNotExist()
+        composeRule.onNodeWithTag("settings-category-GAME_SCREEN").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-FULL").assertDoesNotExist()
+
+        // Active games default to Portrait; exercise both alternate orientation behaviors.
         composeRule.onNodeWithTag("settings-active-game-orientation-PORTRAIT").assertIsSelected()
         composeRule.onNodeWithTag("settings-active-game-orientation-LANDSCAPE")
             .performScrollTo()
@@ -1119,6 +1135,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             .performClick()
 
         // Rule guidance defaults to Full. Clicking each shows a description of what it does.
+        composeRule.onNodeWithTag("settings-category-GUIDANCE").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-rule-guidance-FULL")
             .performScrollTo()
             .assertIsSelected()
@@ -1145,6 +1162,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Settings should expose automatic live-play options.  The default is to
         // automatically advance to live play when countdowns expire and then lock
         // the screen.  Both aspects of this are settable.
+        composeRule.onNodeWithTag("settings-category-GAME_SCREEN").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-auto-advance-countdowns").performScrollTo()
         waitForText("Automatically start live play?")
         waitForText(
@@ -1203,6 +1221,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // When defense countdowns are enabled, their cue section is shown without the disabled
         // warning.
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo()
             .performClick()
@@ -1213,6 +1232,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         )
             .assertCountEquals(0)
         dismissDialog(tag = "top-bar-back")
+        composeRule.onNodeWithTag("settings-category-GAME_SCREEN").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performScrollTo()
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performClick()
         waitForText(
@@ -1263,6 +1283,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // The default gender ratio badge for ABBA is to show the sequence M2, W1, W2, M1, M2...
         // or vice versa. The next setting can switch this to just the current ratio.
+        composeRule.onNodeWithTag("settings-category-MIXED").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-show-abba-ratio-as-sequence-value")
             .assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-show-abba-ratio-as-sequence")
@@ -1398,6 +1419,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 }
             }
         }
+        composeRule.onNodeWithTag("settings-category-WATCH").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-watch-connection-WEAR_OS")
             .performScrollTo()
             .performClick()
@@ -1461,7 +1483,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             activity.appState.updateSettings(
                 activity.appState.settings.withTimingAlerts(
                     activity.appState.settings.timingAlerts.withWatchConnectionMode(
-                        WatchConnectionMode.ALERTING
+                        WatchConnectionMode.NOTIFICATIONS
                     )
                 )
             )
@@ -1504,6 +1526,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // With vibration-only mode selected, sound-specific settings should be hidden.
         composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         waitForText("Use sounds and vibration for timing cues?")
         waitForText("Vibration only")
         composeRule.onNodeWithText("Vibration only").performClick()
@@ -1539,11 +1562,12 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
 
         // Watch connection defaults off and exposes notification bridging or Wear OS.
+        composeRule.onNodeWithTag("settings-category-WATCH").performScrollTo().performClick()
         waitForText("Watch connection")
         composeRule.onNodeWithTag("settings-watch-connection-OFF")
             .performScrollTo()
             .assertIsSelected()
-        waitForText("No notifications will be sent to a watch.", substring = true)
+        waitForText("No connection to a smart watch.", substring = true)
         composeRule.onAllNodesWithText("Warning:", substring = true).assertCountEquals(0)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             waitForText(
@@ -1562,7 +1586,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 intending(expectedNotificationSettingsIntent).respondWith(
                     Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null)
                 )
-                composeRule.onNodeWithTag("settings-watch-connection-SILENT").performClick()
+                composeRule.onNodeWithTag("settings-watch-connection-NOTIFICATIONS").performClick()
                 intended(expectedNotificationSettingsIntent)
             } finally {
                 release()
@@ -1586,23 +1610,23 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 composeRule.activity.packageName,
                 Manifest.permission.POST_NOTIFICATIONS,
             )
-            composeRule.onNodeWithTag("settings-watch-connection-ALERTING").performClick()
+            composeRule.onNodeWithTag("settings-watch-connection-NOTIFICATIONS").performClick()
             composeRule.waitUntil(timeoutMillis = 5_000) {
                 composeRule.activity.appState.settings.timingAlerts.watchConnectionMode ==
-                    WatchConnectionMode.ALERTING
+                    WatchConnectionMode.NOTIFICATIONS
             }
             composeRule.onAllNodesWithText(
                 "Phone notifications must be enabled for watch notifications to work.",
                 substring = true,
             ).assertCountEquals(0)
         }
-        composeRule.onNodeWithTag("settings-watch-connection-SILENT").performClick()
+        composeRule.onNodeWithTag("settings-watch-connection-NOTIFICATIONS").performClick()
+        composeRule.onNodeWithTag("settings-alert-watch-notifications").performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appState.settings.timingAlerts.watchConnectionMode ==
-                WatchConnectionMode.SILENT
+            !composeRule.activity.appState.settings.timingAlerts.alertWatchNotifications
         }
         waitForText(
-            "Timing cues will be sent to a paired watch, but no alerts will be triggered.",
+            "No alerts will be triggered in connection with the notification.",
             substring = true,
         )
         waitForText("Warning:", substring = true)
@@ -1611,13 +1635,16 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "By default Android applies a \"cooldown\"",
             substring = true,
         ).assertCountEquals(0)
-        composeRule.onNodeWithTag("settings-watch-connection-ALERTING").performClick()
+        composeRule.onNodeWithTag("settings-watch-connection-OFF").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-alert-watch-notifications").assertDoesNotExist()
+        composeRule.onNodeWithTag("settings-watch-connection-NOTIFICATIONS").performClick()
+        composeRule.onNodeWithTag("settings-alert-watch-notifications").assertIsOff()
+        composeRule.onNodeWithTag("settings-alert-watch-notifications").performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appState.settings.timingAlerts.watchConnectionMode ==
-                WatchConnectionMode.ALERTING
+            composeRule.activity.appState.settings.timingAlerts.alertWatchNotifications
         }
         waitForText(
-            "Cues whose individual setting is not Off will also trigger an alert",
+            "Cues whose individual setting is not Off will trigger an alert",
             substring = true,
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
@@ -1632,7 +1659,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 substring = true,
             ).assertCountEquals(0)
         }
-        composeRule.onNodeWithTag("settings-watch-connection-OFF").performClick()
+        composeRule.onNodeWithTag("settings-watch-connection-OFF").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo()
             .performClick()
@@ -1760,12 +1788,13 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // Save and return returns from Settings to Home.
         composeRule.onNodeWithText("Settings").performClick()
-        waitForText("Use sounds and vibration for timing cues?")
+        waitForText("How much rule guidance should appear during games?")
         composeRule.onNodeWithText("Save and return").performClick()
         waitForText("Start new game")
 
         // Timing cue settings can return directly to Home from their top bar.
         composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         waitForText("Use sounds and vibration for timing cues?")
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo()
@@ -1776,6 +1805,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // Timing cue settings can return directly to Home from their bottom action.
         composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         waitForText("Use sounds and vibration for timing cues?")
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo()
@@ -1786,7 +1816,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // The main Settings screen can also still return directly to Home from its top bar.
         composeRule.onNodeWithText("Settings").performClick()
-        waitForText("Use sounds and vibration for timing cues?")
+        waitForText("How much rule guidance should appear during games?")
         tapTopBarHome()
         waitForText("Start new game")
     }
@@ -1884,12 +1914,15 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 }
             }
         }
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-vibration-length")
             .performScrollTo().assertIsNotEnabled()
 
         // Selecting watch vibration enables the controls and explains the cue's destination.
+        composeRule.onNodeWithTag("settings-category-WATCH").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-watch-connection-WEAR_OS")
             .performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-vibration-length")
             .performScrollTo().assertIsEnabled()
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
@@ -1899,7 +1932,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // Redirecting vibrations to this phone removes the unavailable vibration alternative.
         tapTopBarBack()
+        composeRule.onNodeWithTag("settings-category-WATCH").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-vibrate-on-watch").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo().performClick()
         waitForText("Cue sound settings")

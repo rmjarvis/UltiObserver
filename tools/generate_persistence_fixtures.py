@@ -235,6 +235,8 @@ def copy_current_worktree(workdir: Path) -> None:
         "wear/src",
         "wear-protocol/build.gradle.kts",
         "wear-protocol/src",
+        "shared/build.gradle.kts",
+        "shared/src",
     ):
         copy_project_path(path, workdir)
     copy_local_files(workdir)

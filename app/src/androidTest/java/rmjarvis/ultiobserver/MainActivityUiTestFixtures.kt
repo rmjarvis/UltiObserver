@@ -11,6 +11,7 @@ import androidx.core.view.SoftwareKeyboardControllerCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.compose.ui.platform.ViewRootForTest
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertCountEquals
@@ -1206,7 +1207,10 @@ abstract class MainActivityUiTestFixtures {
 
     /// Select a category in the open More actions dialog.
     protected fun selectMoreActionsCategory(title: String) {
-        composeRule.onNodeWithText(title).performClick()
+        val category = composeRule.onNodeWithText(title)
+        if (!category.fetchSemanticsNode().config[SemanticsProperties.Selected]) {
+            category.performClick()
+        }
     }
 
     /** Click an item in the open More actions category for the matrix device's menu geometry. */

@@ -720,7 +720,7 @@ class TestMigration : GameDomainTestFixtures() {
             v1_3FixtureSettings("active-game"),
         )
         assertEquals(
-            WatchConnectionMode.SILENT,
+            WatchConnectionMode.NOTIFICATIONS,
             activeGame.settings.timingAlerts.watchConnectionMode,
         )
 
@@ -781,6 +781,8 @@ class TestMigration : GameDomainTestFixtures() {
         assertNotNull(active.currentGame!!.countdown)
         assertEquals(1, active.archivedGames.size)
         assertProfileAndSettings(active, v1_1FixtureProfile(), v1_3FixtureSettings("active-game"))
+        assertEquals(WatchConnectionMode.NOTIFICATIONS, active.settings.timingAlerts.watchConnectionMode)
+        assertFalse(active.settings.timingAlerts.alertWatchNotifications)
 
         // A completed current game retains its End game action and preceding pull countdown.
         val completed = loadMigratedFixture("v1.4", "complete-current-game")
@@ -788,8 +790,10 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals("Undo End game", completed.currentGame!!.undoEntry?.label)
         assertNotNull(completed.currentGame!!.undoLastAction().countdown)
         assertProfileAndSettings(
-            completed, v1_1FixtureProfile(), v1_3FixtureSettings("complete-current-game"),
+            completed, v1_1FixtureProfile(), v1_4CompletedGameSettings(),
         )
+        assertEquals(WatchConnectionMode.NOTIFICATIONS, completed.settings.timingAlerts.watchConnectionMode)
+        assertTrue(completed.settings.timingAlerts.alertWatchNotifications)
 
         // Archived games retain their completed state and receive usable Undo End game states.
         val archived = loadMigratedFixture("v1.4", "completed-archive")
@@ -1029,6 +1033,14 @@ class TestMigration : GameDomainTestFixtures() {
         }
     }
 
+    /// Return the expected settings for the v1.4 completed-current-game fixture.
+    private fun v1_4CompletedGameSettings(): Settings {
+        val settings = v1_3FixtureSettings("complete-current-game")
+        return settings.copy(timingAlerts = settings.timingAlerts.copy(
+            watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+        ))
+    }
+
     /// Return the expected settings for one standard v1.3 fixture.
     private fun v1_3FixtureSettings(fixtureName: String): Settings {
         if (fixtureName == "default-buckets") {
@@ -1038,10 +1050,11 @@ class TestMigration : GameDomainTestFixtures() {
         return settings.copy(
             timingAlerts = settings.timingAlerts.copy(
                 watchConnectionMode = if (fixtureName == "active-game") {
-                    WatchConnectionMode.SILENT
+                    WatchConnectionMode.NOTIFICATIONS
                 } else {
                     WatchConnectionMode.OFF
                 },
+                alertWatchNotifications = fixtureName != "active-game",
                 cueModes = TimingCueId.entries.associateWith { TimingAlertMode.DING },
                 cueRepeatCounts = TimingCueId.entries.associateWith { 1 },
             ),

@@ -604,7 +604,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             globalMode = TimingAlertGlobalMode.OFF,
             cueMode = TimingAlertMode.NONE,
             vibrateWithSounds = false,
-            watchConnectionMode = WatchConnectionMode.SILENT,
+            watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+            alertWatchNotifications = false,
         )
 
         // Fully disabled alerts should be a no-op even when the countdown reaches a cue time.
@@ -1097,6 +1098,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         cueMode: TimingAlertMode,
         vibrateWithSounds: Boolean,
         watchConnectionMode: WatchConnectionMode = WatchConnectionMode.OFF,
+        alertWatchNotifications: Boolean = true,
         cueAlreadyDue: Boolean = false,
         cueDueInMillis: Long = 500L,
         waitAfterDueMillis: Long = 300L,
@@ -1107,6 +1109,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 globalMode = globalMode,
                 vibrateWithSounds = vibrateWithSounds,
                 watchConnectionMode = watchConnectionMode,
+                alertWatchNotifications = alertWatchNotifications,
                 cueModes = defaultPreferences.cueModes + mapOf(
                     TimingCueId.OFFENSE_TWENTY to cueMode,
                 ),

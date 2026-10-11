@@ -33,8 +33,6 @@ needs to be set or until the pull, depending on which end you are on.
 If a team has no timeouts remaining, tapping **TO** shows a message indicating this.
 It will also remind you of the consequence if the attempt was made during a live point.
 
-.. _pull-violations:
-
 Pull Violations
 ---------------
 
@@ -54,8 +52,6 @@ of the violations -- where the offense should put the disc into play and whether
 For mixed games, you can record a majority pull violation by clicking **Offsides** and then
 clicking **This was a Majority pull violation** on the popup page. The consequences are the
 same in either case, but this will record the violation event with the correct name.
-
-.. _time-violations:
 
 Time Violations
 ---------------

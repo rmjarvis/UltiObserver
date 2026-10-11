@@ -27,8 +27,6 @@ can add more details that you might not have known at the time or didn't want to
 time to enter during the game.  E.g. a player's name, or the reason for the card, or more
 details about the context of the card that you think are worth recording.
 
-.. _summary-share:
-
 Share
 -----
 

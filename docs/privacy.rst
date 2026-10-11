@@ -1,5 +1,3 @@
-.. _Privacy:
-
 UltiObserver Privacy Policy
 ===========================
 

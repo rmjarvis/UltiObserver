@@ -79,11 +79,11 @@ Goal
 
 Time viol.
     Records a time violation if they don't signal readiness or pull in the time required.
-    See :ref:`time-violations` for details.
+    See :ref:`Time Violations` for details.
 
 Offsides / False start
     Records the appropriate pull violation for that team according to whether they are
-    the pulling or receiving team. See :ref:`pull-violations` for details.
+    the pulling or receiving team. See :ref:`Pull Violations` for details.
 
     .. note::
 
@@ -94,7 +94,7 @@ Card
     Records a yellow, red or blue card assessed against a team. See :ref:`misconduct` for details.
 
 Tech
-    Records a technical foul assessed against a team. See :ref:`technical-fouls` for details.
+    Records a technical foul assessed against a team. See :ref:`Technical fouls` for details.
 
 TO
     Records a timeout called by a team. See :ref:`timeouts` for details.
@@ -178,7 +178,7 @@ The bottom of the screen holds some buttons for less common operations.
 **More actions** opens a menu with a number of less common actions such as adjustments
 to the current game state, setup updates, field-display changes, pull-prompt changes,
 accessing the event log, and more.
-See :ref:`more-actions-menu` for details.
+See :ref:`More actions` for details.
 
 Most game actions are undoable. The Undo button at the bottom of the screen names the
 action it will undo, such as **Undo Goal by Team 1** or **Undo Yellow on #7 of Team 2**.

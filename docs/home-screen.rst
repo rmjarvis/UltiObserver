@@ -12,7 +12,7 @@ starting, resuming, and finding games, along with access to your profile and set
 The buttons in the center of the home screen open the main parts of the app:
 
 Start new game
-    This button opens the :ref:`Setup screen <setup-screen>` to start a new game. If there
+    This button opens the :ref:`Setup screen <Setting Up A Game>` to start a new game. If there
     is already a current game, this action will automatically move it to the archive, so you
     cannot lose a game in progress by accidentally pressing this button.
 
@@ -33,7 +33,7 @@ Settings
 If there is a current game in progress (or completed, but not yet archived), it will appear
 at the bottom of the home screen with a summary of the current state.
 Click on the game, and it will take you to the appropriate screen for the game.
-For games still being set up, it will take you to the `Setup screen <setup-screen>`.
+For games still being set up, it will take you to the `Setup screen <Setting Up A Game>`.
 For in-progress games, it will take you to the `Active Game Screen`.
 For completed games, it will take you to the `Game Summary`.
 

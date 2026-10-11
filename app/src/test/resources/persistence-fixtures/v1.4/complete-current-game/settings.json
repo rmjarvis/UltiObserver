@@ -20,7 +20,7 @@
             "soundVolume": 0.35,
             "vibrationDurationMillis": 250,
             "vibrateWithSounds": true,
-            "watchConnectionMode": "OFF",
+            "watchConnectionMode": "ALERTING",
             "vibrateOnWatch": true,
             "cueModes": {
                 "RECEIVING_TWENTY_FOR_HAND": "DING",

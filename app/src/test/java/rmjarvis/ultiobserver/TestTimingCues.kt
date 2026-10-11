@@ -472,9 +472,14 @@ class TestTimingCues : GameDomainTestFixtures() {
         assertEquals(listOf(VibrationPattern(300L, 1, 120L), VibrationPattern(500L, 3, 120L)), phonePatterns)
 
         // Ordinary and bridged-notification modes continue to vibrate on the phone.
-        for (mode in listOf(WatchConnectionMode.OFF, WatchConnectionMode.SILENT,
-            WatchConnectionMode.ALERTING)) {
-            deliverTimingVibration(preferences.copy(watchConnectionMode = mode), VibrationPattern(200L, 1, 120L), watch, phone)
+        for (notificationPreferences in listOf(
+            preferences.copy(watchConnectionMode = WatchConnectionMode.OFF),
+            preferences.copy(watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+                alertWatchNotifications = false),
+            preferences.copy(watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+                alertWatchNotifications = true),
+        )) {
+            deliverTimingVibration(notificationPreferences, VibrationPattern(200L, 1, 120L), watch, phone)
         }
         assertEquals(listOf(VibrationPattern(420L, 3, 120L)), watchPatterns)
         assertEquals(listOf(VibrationPattern(300L, 1, 120L), VibrationPattern(500L, 3, 120L), VibrationPattern(200L, 1, 120L), VibrationPattern(200L, 1, 120L), VibrationPattern(200L, 1, 120L)), phonePatterns)

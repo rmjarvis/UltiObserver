@@ -32,6 +32,11 @@ internal fun UltiObserverApp(
     var showMissingExactAlarmAccessDialog by remember { mutableStateOf(false) }
     var showPreviousCrashDialog by rememberSaveable { mutableStateOf(previousRunCrashed) }
     var archiveTransfer by rememberSaveable { mutableStateOf<String?>(null) }
+    var settingsCategory by rememberSaveable(
+        snapshot.screen == AppScreen.SETTINGS || snapshot.screen == AppScreen.TIMING_CUE_SETTINGS,
+    ) {
+        mutableStateOf<SettingsCategory?>(SettingsCategory.GUIDANCE)
+    }
 
     // Back returns to setup from the pre-pull preview, otherwise to home.
     BackHandler(
@@ -179,6 +184,10 @@ internal fun UltiObserverApp(
                     appState.goHome()
                 },
                 wearWatchAvailable = wearWatchAvailable,
+                selectedCategory = settingsCategory,
+                onCategorySelected = {
+                    settingsCategory = it
+                },
             )
         }
 

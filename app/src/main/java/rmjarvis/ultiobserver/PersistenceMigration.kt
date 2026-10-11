@@ -126,7 +126,7 @@ private val knownVersionMigrations = listOf(
         targetVersion = "1.5",
         currentGame = V1_4ToV1_5::migrateCurrentGame,
         profile = null,
-        settings = null,
+        settings = V1_4ToV1_5::migrateSettings,
         archivedGame = V1_4ToV1_5::migrateArchivedGame,
         decodedGame = V1_4ToV1_5::migrateCountdowns,
     ),
@@ -217,6 +217,18 @@ internal fun currentPersistenceVersion(
 
 /// Version 1.5 game identities and countdown repairs for older saves.
 private object V1_4ToV1_5 {
+    fun migrateSettings(jsonElement: JsonElement): JsonElement {
+        val settings = jsonElement.jsonObject
+        val timingAlerts = (settings["timingAlerts"] ?: return jsonElement).jsonObject.toMutableMap()
+        val mode = timingAlerts["watchConnectionMode"]?.jsonPrimitive?.content
+        if (mode == "SILENT" || mode == "ALERTING") {
+            timingAlerts["watchConnectionMode"] = JsonPrimitive(WatchConnectionMode.NOTIFICATIONS.name)
+            timingAlerts["alertWatchNotifications"] = JsonPrimitive(mode == "ALERTING")
+            return JsonObject(settings + ("timingAlerts" to JsonObject(timingAlerts)))
+        }
+        return jsonElement
+    }
+
     /// Undo patches inherit the base state's identity; each serialized redo state needs the same ID.
     fun migrateCurrentGame(jsonElement: JsonElement): JsonElement {
         return assignSerializedId(jsonElement, UUID.randomUUID().toString())

@@ -460,6 +460,7 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         // Turning off Wear OS removes its return-to-game shortcut too.
         tapTopBarHome()
         composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-category-WATCH").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-watch-connection-OFF").performScrollTo().performClick()
     }
 

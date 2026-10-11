@@ -1,5 +1,3 @@
-.. _more-actions-menu:
-
 More Actions
 ============
 

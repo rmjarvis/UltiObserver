@@ -20,7 +20,7 @@ Getting Connected
 
 Install UltiObserver on both your phone and your paired Wear OS watch.
 (See `Installing on a Wear OS Watch`.)
-In UltiObserver's `Settings` on the phone, set **Watch connection** to **Wear OS**,
+In UltiObserver's `Settings` on the phone, set **Watch connection** to **Wear OS app**,
 then open UltiObserver on the watch.
 
 Before starting a game, the watch will show the message "No active game".
@@ -59,7 +59,7 @@ such as "Live point in progress". Other messages show up here when relevant.
 
 The two colored team areas cover most of the bottom half of the screen.
 These show the team names, the current score, and which end of the field they are on.
-See the **Team display on watch** setting in `Wear OS Settings` to control whether
+See the **Team display on watch** setting in `Wear OS app settings` to control whether
 the teams stay fixed throughout the game or the ends do.
 
 An arrow in the middle indicates the pull direction.
@@ -72,7 +72,7 @@ will appear, sharing the space at the bottom.
 To prevent accidentally messing up your game state, both of these buttons require a long press
 to activate. Just hold the button down for about a second. On most watches, there will be
 a slight vibration when the press activates. If you want this protection for all of the
-main screen buttons, enable **Require long presses** in `Wear OS Settings`.
+main screen buttons, enable **Require long presses** in `Wear OS app settings`.
 
 Team Action Screen
 ------------------
@@ -159,7 +159,7 @@ If you prefer to keep vibrations on your phone, you can change the setting
 
 Note that the choice of sound or vibration is still set individually for each timing cue.
 Enabling watch vibration or not doesn't change anything about those choices.
-See `Timing Cues` and `Sounds and Vibration`.
+See `Timing Cues` and `Sound and vibration`.
 
 Screen Sleep and Wake
 ---------------------
@@ -209,7 +209,7 @@ get past **Connecting…**, try these steps:
    for the companion app, not for UltiObserver. Google's
    `Pixel Watch connection help <https://support.google.com/googlepixelwatch/answer/13579198>`_
    has more device-specific instructions; for other watches, consult the manufacturer's help.
-4. Open UltiObserver on the phone and check that **Watch connection** is set to **Wear OS**
+4. Open UltiObserver on the phone and check that **Watch connection** is set to **Wear OS app**
    in `Settings`. Then open UltiObserver on the watch and tap **Retry** if it is shown.
 5. Check for UltiObserver updates in the Play Store on both devices. The phone and watch
    apps are installed and updated separately, so check both whenever you update either one.
@@ -252,21 +252,21 @@ screen and put the phone away, but it has to be on that screen, not the home scr
 the settings, or anywhere else.
 
 If everything looks connected but a tap does nothing, check if you have
-**Require long presses** set in the `Wear OS Settings`.
+**Require long presses** set in the `Wear OS app settings`.
 When that setting is enabled, you have to hold the press for about a second for it
 to register.  **Undo** and **Redo** always require a long press.
 
 The watch does not vibrate
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-On the phone, check that **Vibrate on watch?** is enabled in `Wear OS Settings` and that
+On the phone, check that **Vibrate on watch?** is enabled in `Wear OS app settings` and that
 the particular cue has vibration selected in `Timing Cues`. For cues that use sound,
-you can enable **Also vibrate on cues that use sound?** in `Sounds and Vibration`.
+you can enable **Also vibrate on cues that use sound?** in `Sound and vibration`.
 Sounds still play through the phone or its connected earbud.
 
 If the phone vibrates instead, the watch may have been unreachable when the cue was sent.
 Check the connection and use the **Test** button below **Vibration length** in the
-phone's `Sounds and Vibration` settings.
+phone's `Sound and vibration` settings.
 
 The return-to-game shortcut is missing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

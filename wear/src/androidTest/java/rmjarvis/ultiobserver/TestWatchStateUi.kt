@@ -524,7 +524,7 @@ class TestWatchStateUi {
         // If the watch connects to a phone, but the phone does not have the setting set to
         // use the Wear OS companion app, the watch says where to set that.
         composeRule.onNodeWithText(
-            "To use, set Watch connection to Wear OS in the UltiObserver Settings."
+            "To use, set Watch connection to Wear OS app in the UltiObserver Settings."
         ).assertIsDisplayed()
 
         // Once it is enabled, the phone is still not showing an active game.

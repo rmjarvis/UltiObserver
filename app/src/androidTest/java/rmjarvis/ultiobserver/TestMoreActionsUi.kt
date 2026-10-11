@@ -1,16 +1,20 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -32,8 +36,17 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         // Start from a live game so More actions exposes the observer-facing correction tools.
         startLiveGameProgrammatically()
 
-        // Manual correction dialogs should open and return to More actions cleanly.
+        // Setup changes starts open and can close via its arrow and reopen via its heading.
         openMoreActionsDialog()
+        composeRule.onNodeWithText("Setup changes").assertIsSelected()
+        composeRule.onNodeWithTag("more-actions-category-SETUP_CHANGES-arrow", useUnmergedTree = true)
+            .performTouchInput { click() }
+        composeRule.onAllNodesWithText("Update game setup").assertCountEquals(0)
+        composeRule.onAllNodes(isSelected()).assertCountEquals(0)
+        selectMoreActionsCategory("Setup changes")
+        composeRule.onNodeWithText("Update game setup").assertExists()
+
+        // Manual correction dialogs should open and return to More actions cleanly.
         dismissDialog(text = "Close")
         composeRule.onAllNodesWithText("Update game setup").assertCountEquals(0)
         openMoreActionsDialog()
@@ -292,7 +305,7 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         dismissDialog(text = "Cancel")
     }
 
-    /** Test that every landscape More actions category remains selectable. */
+    /** Test that landscape More actions categories can close and remain individually selectable. */
     @Test
     fun landscapeMoreActionsCategories() {
         setLandscapeOrientationPreference()
@@ -303,10 +316,18 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         recordGoal(TeamId.TEAM_ONE, "Undo Goal by Team 1")
         openMoreActionsDialog()
 
+        // Closing the selected category hides its detail card.
+        composeRule.onNodeWithText("Setup changes").performClick()
+        composeRule.onAllNodesWithText("Update game setup").assertCountEquals(0)
+        composeRule.onAllNodes(isSelected()).assertCountEquals(0)
+
+        // Opening each category selects only that category, closing any previous one.
         MoreActionsCategory.entries.forEach { category ->
             composeRule.onNodeWithText(category.title)
                 .performScrollTo()
                 .performClick()
+                .assertIsSelected()
+            composeRule.onAllNodes(isSelected()).assertCountEquals(1)
         }
 
         dismissDialog(text = "Close")

@@ -1,5 +1,3 @@
-.. _setup-screen:
-
 Setting Up A Game
 =================
 

@@ -90,8 +90,9 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
         composeRule.waitForIdle()
 
         clickText("Settings")
-        waitForText("Use sounds and vibration for timing cues?")
+        waitForText("How much rule guidance should appear during games?")
         capture("SettingsTop.png")
+        clickTag("settings-category-TIMING", scroll = true)
         clickTag("settings-open-timing-cue-settings", scroll = true)
         waitForText("Cue sound settings")
         capture("CueSoundSettings.png")

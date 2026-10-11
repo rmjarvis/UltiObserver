@@ -37,6 +37,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -76,6 +78,7 @@ private fun MoreActionsCardHeader(
     textStyle: TextStyle,
     indicator: ImageVector?,
     indicatorDescription: String?,
+    indicatorTag: String,
     indicatorSize: Dp,
     contentPadding: PaddingValues,
     onClick: () -> Unit,
@@ -98,7 +101,7 @@ private fun MoreActionsCardHeader(
             Icon(
                 imageVector = indicator,
                 contentDescription = indicatorDescription,
-                modifier = Modifier.size(indicatorSize),
+                modifier = Modifier.size(indicatorSize).testTag(indicatorTag),
                 tint = OnSecondaryColor,
             )
         }
@@ -139,8 +142,8 @@ private fun MoreActionsCardContents(
 private fun LandscapeMoreActionsRegion(
     modifier: Modifier,
     actionsByCategory: Map<MoreActionsCategory, List<MoreActionsItem>>,
-    selectedCategory: MoreActionsCategory,
-    onCategorySelected: (MoreActionsCategory) -> Unit,
+    selectedCategory: MoreActionsCategory?,
+    onCategorySelected: (MoreActionsCategory?) -> Unit,
 ) {
     val categories = MoreActionsCategory.entries
     val density = LocalDensity.current
@@ -200,6 +203,7 @@ private fun LandscapeMoreActionsRegion(
                         MoreActionsCardHeader(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .semantics { selected = category == selectedCategory }
                                 .defaultMinSize(minHeight = 40.dp),
                             title = category.title,
                             textStyle = MaterialTheme.typography.labelMedium,
@@ -214,8 +218,11 @@ private fun LandscapeMoreActionsRegion(
                                 null
                             },
                             indicatorSize = 24.dp,
+                            indicatorTag = "more-actions-category-${category.name}-arrow",
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                            onClick = { onCategorySelected(category) },
+                            onClick = {
+                                onCategorySelected(if (selectedCategory == category) null else category)
+                            },
                         )
                     }
                 }
@@ -226,23 +233,25 @@ private fun LandscapeMoreActionsRegion(
             maxHeight = dialogBodyMaxHeight(),
             verticalArrangement = Arrangement.Top,
         ) {
-            Spacer(modifier = Modifier.height(actionCardTop))
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onSizeChanged { actionCardHeightPx = it.height },
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                MoreActionsCardContents(
-                    actions = actionsByCategory.getValue(selectedCategory),
-                    rowSizeModifier = Modifier.defaultMinSize(minHeight = 44.dp),
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                )
+            if (selectedCategory != null) {
+                Spacer(modifier = Modifier.height(actionCardTop))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onSizeChanged { actionCardHeightPx = it.height },
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    MoreActionsCardContents(
+                        actions = actionsByCategory.getValue(selectedCategory),
+                        rowSizeModifier = Modifier.defaultMinSize(minHeight = 44.dp),
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                    )
+                }
             }
         }
     }
@@ -253,8 +262,8 @@ private fun LandscapeMoreActionsRegion(
 private fun PortraitMoreActionsRegion(
     modifier: Modifier,
     actionsByCategory: Map<MoreActionsCategory, List<MoreActionsItem>>,
-    selectedCategory: MoreActionsCategory,
-    onCategorySelected: (MoreActionsCategory) -> Unit,
+    selectedCategory: MoreActionsCategory?,
+    onCategorySelected: (MoreActionsCategory?) -> Unit,
 ) {
     ScrollableDialogRegion(
         modifier = modifier,
@@ -271,7 +280,9 @@ private fun PortraitMoreActionsRegion(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 MoreActionsCardHeader(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { selected = expanded },
                     title = category.title,
                     textStyle = MaterialTheme.typography.labelMedium,
                     indicator = if (expanded) {
@@ -281,8 +292,11 @@ private fun PortraitMoreActionsRegion(
                     },
                     indicatorDescription = if (expanded) "Expanded" else "Collapsed",
                     indicatorSize = 24.dp,
+                    indicatorTag = "more-actions-category-${category.name}-arrow",
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    onClick = { onCategorySelected(category) },
+                    onClick = {
+                        onCategorySelected(if (expanded) null else category)
+                    },
                 )
                 if (expanded) {
                     MoreActionsCardContents(
@@ -410,8 +424,8 @@ internal fun MoreActionsChildDialog(
  * @param onShowGameSummary Callback opening the current game summary.
  * @param onOpenChild Callback opening a dialog launched from More actions.
  * @param onAction Callback receiving an updated game state after a model action.
- * @param selectedCategory The category whose items are currently shown.
- * @param onCategorySelected Callback selecting a category.
+ * @param selectedCategory The category whose items are currently shown, or null when all are closed.
+ * @param onCategorySelected Callback selecting a category or closing the open category.
  */
 @Composable
 internal fun MoreActionsContent(
@@ -422,8 +436,8 @@ internal fun MoreActionsContent(
     onShowGameSummary: () -> Unit,
     onOpenChild: (MoreActionsChild) -> Unit,
     onAction: (GameState) -> Unit,
-    selectedCategory: MoreActionsCategory,
-    onCategorySelected: (MoreActionsCategory) -> Unit,
+    selectedCategory: MoreActionsCategory?,
+    onCategorySelected: (MoreActionsCategory?) -> Unit,
 ) {
     val setupActions = listOf(
         MoreActionsItem(

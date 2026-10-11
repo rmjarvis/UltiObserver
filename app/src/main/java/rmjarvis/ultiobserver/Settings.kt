@@ -84,35 +84,30 @@ enum class WatchConnectionMode(
     val description: String,
 ) {
     OFF(
-        "Off",
-        "No notifications will be sent to a watch.",
+        "None",
+        "No connection to a smart watch.",
     ),
-    SILENT(
-        "Silent",
-        "Timing cues will be sent to a paired watch, but no alerts will be " +
-        "triggered.",
-    ),
-    ALERTING(
-        "Alerting",
-        "Timing cues will be sent to a paired watch. Cues whose individual " +
-        "setting is not Off will also trigger an alert, causing a vibration if " +
-        "enabled on the watch.",
+    NOTIFICATIONS(
+        "Notifications",
+        "Timing cues will be sent as notifications to a paired watch. " +
+        "The notifications will include the current score and (for mixed games using ABBA) " +
+        "the current gender ratio.",
     ),
     WEAR_OS(
-        "Wear OS",
+        "Wear OS app",
         "Use UltiObserver on a paired Wear OS watch.",
     ),
     ;
 
     /// Report whether standard Android notifications should be bridged to a watch.
     fun usesNotifications(): Boolean {
-        return this == SILENT || this == ALERTING
+        return this == NOTIFICATIONS
     }
 
     companion object {
         const val NOTIFICATION_PERMISSION_NOTE =
             "Phone notifications must be enabled for watch notifications to work. " +
-            "Selecting either Silent or Alerting will open the Android settings " +
+            "Selecting Notifications will open the Android settings " +
             "page where you can enable notifications."
 
         const val NOTIFICATION_SHARING_WARNING =
@@ -149,6 +144,7 @@ enum class WatchConnectionMode(
  * @param vibrationDurationMillis Vibration length for vibration alerts.
  * @param vibrateWithSounds Whether sound alerts should also vibrate.
  * @param watchConnectionMode How UltiObserver communicates with a watch.
+ * @param alertWatchNotifications Whether mirrored timing notifications should request an alert.
  * @param cueModes Per-cue alert mode overrides.
  * @param cueRepeatCounts Per-cue sound/vibration repeat counts.
  */
@@ -159,10 +155,20 @@ data class TimingAlertPreferences(
     val vibrationDurationMillis: Long = DEFAULT_TIMING_CUE_VIBRATION_MS,
     val vibrateWithSounds: Boolean = false,
     val watchConnectionMode: WatchConnectionMode = WatchConnectionMode.OFF,
+    val alertWatchNotifications: Boolean = true,
     val vibrateOnWatch: Boolean = true,
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
     val cueRepeatCounts: Map<TimingCueId, Int> = defaultTimingCueRepeatCounts(),
 ) {
+    /// Explanation shown below the alerting-notifications setting.
+    val alertWatchNotificationsDescription: String
+        get() = if (alertWatchNotifications) {
+            "Cues whose individual setting is not Off will trigger an alert, " +
+            "causing a vibration if enabled on the watch."
+        } else {
+            "No alerts will be triggered in connection with the notification."
+        }
+
     /// Explanation shown below the vibrateOnWatch setting.
     val vibrateOnWatchDescription: String
         get() = if (vibrateOnWatch) {

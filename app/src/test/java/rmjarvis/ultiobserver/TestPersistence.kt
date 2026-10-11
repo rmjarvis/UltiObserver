@@ -61,7 +61,7 @@ class TestPersistence : GameDomainTestFixtures() {
         updateTimingAlerts { it.withSoundVolume(0.4f) }
         updateTimingAlerts { it.withVibrationDuration(420L) }
         updateTimingAlerts { it.withVibrateWithSounds(true) }
-        updateTimingAlerts { it.withWatchConnectionMode(WatchConnectionMode.ALERTING) }
+        updateTimingAlerts { it.withWatchConnectionMode(WatchConnectionMode.NOTIFICATIONS) }
         updateTimingAlerts { it.copy(vibrateOnWatch = false) }
         updateSettings { it.withAutomaticallyAdvanceCountdowns(false) }
         updateSettings { it.copy(
@@ -167,7 +167,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(420L, restored.settings.timingAlerts.vibrationDurationMillis)
         assertTrue(restored.settings.timingAlerts.vibrateWithSounds)
         assertEquals(
-            WatchConnectionMode.ALERTING,
+            WatchConnectionMode.NOTIFICATIONS,
             restored.settings.timingAlerts.watchConnectionMode,
         )
 
@@ -175,7 +175,7 @@ class TestPersistence : GameDomainTestFixtures() {
         // available, but turns it Off and persists that correction when they are unavailable.
         restored.disableWatchNotificationsIfUnavailable(notificationsEnabled = true)
         assertEquals(
-            WatchConnectionMode.ALERTING,
+            WatchConnectionMode.NOTIFICATIONS,
             restored.settings.timingAlerts.watchConnectionMode,
         )
         restored.disableWatchNotificationsIfUnavailable(notificationsEnabled = false)

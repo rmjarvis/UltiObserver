@@ -624,7 +624,7 @@ internal class TimingAlertForegroundServiceController(
     private fun deliverWatchCue(cue: TimingAlertServiceCue) {
         val snapshot = timingAlertSnapshot ?: return
         val scoreLine = snapshot.watchScoreLine ?: return
-        val alert = snapshot.watchConnectionMode == WatchConnectionMode.ALERTING &&
+        val alert = snapshot.alertWatchNotifications &&
             cue.watchAlertEnabled && !platform.vibrationsMuted
         val countdownSeconds = cue.countdownSeconds
         if (countdownSeconds == null) {
@@ -751,6 +751,7 @@ internal data class TimingAlertServiceSnapshot(
     val countdownCues: List<TimingAlertServiceCue>,
     val capCues: List<TimingAlertServiceCue>,
     val watchConnectionMode: WatchConnectionMode,
+    val alertWatchNotifications: Boolean,
     val watchScoreLine: String?,
 )
 
@@ -800,6 +801,7 @@ internal fun GameState.timingAlertSnapshot(
         countdownCues = countdownCues,
         capCues = upcomingCapTimingCues(now).timingAlertServiceCues(timingAlertPreferences),
         watchConnectionMode = timingAlertPreferences.watchConnectionMode,
+        alertWatchNotifications = timingAlertPreferences.alertWatchNotifications,
         watchScoreLine = if (watchEnabled) watchNotificationScoreLine(settings) else null,
     )
 }

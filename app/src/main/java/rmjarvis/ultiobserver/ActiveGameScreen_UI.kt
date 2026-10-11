@@ -83,7 +83,7 @@ internal fun ActiveGameScreen(
     var showMoreActionsDialog by remember { mutableStateOf(false) }
     var moreActionsChild by remember { mutableStateOf<MoreActionsChild?>(null) }
     var moreActionsCategory by remember {
-        mutableStateOf(MoreActionsCategory.SETUP_CHANGES)
+        mutableStateOf<MoreActionsCategory?>(MoreActionsCategory.SETUP_CHANGES)
     }
     var showRulesReference by remember { mutableStateOf(false) }
     var showEventLogSheet by remember { mutableStateOf(false) }

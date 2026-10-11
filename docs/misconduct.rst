@@ -57,7 +57,7 @@ it will allow you to confirm that this is a different person with the same numbe
 Upon recording the card, a message will tell you the total number of cards assessed against
 the team.
 If there are associated yardage penalties, it will tell you the appropriate
-restart (see :ref:`team-card-totals` below).
+restart (see :ref:`Team Card Totals` below).
 
 .. figure:: screen-shots/ThirdCardPenalty.png
    :class: phone-screenshot mobile-only
@@ -73,7 +73,7 @@ that were recorded earlier in the game. For instance, you might go back and add 
 to players who were only recorded by number or edit the reason for a card when you have
 more time to write the relevant details.
 
-You can also access the Edit existing cards screen from the :ref:`more-actions-menu` menu
+You can also access the Edit existing cards screen from the :ref:`More actions` menu
 under **Adjust cards/techs**. This gives you the additional power to delete cards that
 you may have erroneously recorded or add cards you forgot to record.
 
@@ -84,9 +84,7 @@ To record a blue card assessed against a team, click the **Card** button and sel
 This will directly record a blue card for that team and tell you the current total
 number of cards assessed against the team.
 If there are associated yardage penalties, it will tell you the appropriate
-restart (see :ref:`team-card-totals` below).
-
-.. _technical-fouls:
+restart (see :ref:`Team Card Totals` below).
 
 Technical fouls
 ---------------
@@ -95,9 +93,7 @@ To record a technical foul assessed against a team, click the **Tech** button.
 This will directly record a technical foul for that team and tell you the current total
 number of technical fouls assessed against the team.
 If there are associated yardage penalties, it will tell you the appropriate
-restart (see :ref:`team-card-totals` below).
-
-.. _team-card-totals:
+restart (see :ref:`Team Card Totals` below).
 
 Team Card Totals
 ----------------

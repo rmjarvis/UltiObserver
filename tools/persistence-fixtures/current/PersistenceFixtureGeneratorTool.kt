@@ -74,7 +74,7 @@ private fun writeActiveGame(dir: File) {
     check(setup.rules.waterBreakMode == WaterBreakMode.AUTOMATIC)
     check(setup.rules.waterBreakMinutes == 4)
     val guidanceMode = RuleGuidanceMode.TIMED
-    val game = activeGameWithEvents(setup, guidanceMode)
+    val game = activeGameWithEvents(setup)
 
     store.saveCurrentGame(game)
     store.saveProfile(fixtureProfile())
@@ -82,11 +82,13 @@ private fun writeActiveGame(dir: File) {
     val settings = baseSettings.copy(
         ruleGuidanceMode = guidanceMode,
         timingAlerts = baseSettings.timingAlerts.copy(
-            watchConnectionMode = WatchConnectionMode.SILENT,
+            watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+            alertWatchNotifications = false,
         ),
     )
     check(settings.ruleGuidanceMode == RuleGuidanceMode.TIMED)
-    check(settings.timingAlerts.watchConnectionMode == WatchConnectionMode.SILENT)
+    check(settings.timingAlerts.watchConnectionMode == WatchConnectionMode.NOTIFICATIONS)
+    check(!settings.timingAlerts.alertWatchNotifications)
     store.saveSettings(settings)
     store.saveArchivedGames(
         listOf(
@@ -110,7 +112,7 @@ private fun writeCompletedArchive(dir: File) {
     check(richSetup.rules.timeBetweenPointsSeconds == 120)
     check(richSetup.rules.softCapMinutes == 70)
     check(richSetup.rules.hardCapMinutes == 90)
-    val richGame = activeGameWithEvents(richSetup, RuleGuidanceMode.FULL)
+    val richGame = activeGameWithEvents(richSetup)
         .endGameNow(setupEpoch(richSetup) + 180_000L)
 
     store.saveCurrentGame(null)
@@ -128,14 +130,21 @@ private fun writeCompleteCurrentGame(dir: File) {
     val store = freshStore(dir)
     val setup = nonDefaultSetup().copy(division = GameDivision.MIXED)
     val guidanceMode = RuleGuidanceMode.NONE
-    val game = activeGameWithEvents(setup, guidanceMode)
+    val game = activeGameWithEvents(setup)
         .endGameNow(setupEpoch(setup) + 180_000L)
-    val settings = fixtureSettings().copy(
+    val baseSettings = fixtureSettings()
+    val settings = baseSettings.copy(
         ruleGuidanceMode = guidanceMode,
         showAbbaRatioAsSequence = false,
+        timingAlerts = baseSettings.timingAlerts.copy(
+            watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+            alertWatchNotifications = true,
+        ),
     )
     check(settings.ruleGuidanceMode == RuleGuidanceMode.NONE)
     check(!settings.showAbbaRatioAsSequence)
+    check(settings.timingAlerts.watchConnectionMode == WatchConnectionMode.NOTIFICATIONS)
+    check(settings.timingAlerts.alertWatchNotifications)
 
     store.saveCurrentGame(game)
     store.saveProfile(fixtureProfile())
@@ -277,7 +286,6 @@ private fun nonDefaultSetup(): GameState {
 
 private fun activeGameWithEvents(
     setup: GameState,
-    guidanceMode: RuleGuidanceMode,
 ): GameState {
     val start = setupEpoch(setup)
     var game = setup.startGame(OrientationPreference.PORTRAIT)
@@ -285,16 +293,14 @@ private fun activeGameWithEvents(
     game = game.recordMajorityPullViolation(start + 2_000L)
     game = game.assessYellowCard(
         team = TeamId.TEAM_ONE,
-        jerseyNumber = "7",
+        identity = PlayerIdentity("7", "Bee Seven"),
         now = start + 3_000L,
-        playerName = "Bee Seven",
         reason = CardReason(preset = "Dangerous play"),
     ).state
     game = game.assessRedCard(
         team = TeamId.TEAM_TWO,
-        jerseyNumber = "12",
+        identity = PlayerIdentity("12", "Fern Twelve"),
         now = start + 4_000L,
-        playerName = "Fern Twelve",
         reason = CardReason(preset = "Other", otherText = "Fixture reason"),
     ).state
     game = game.assessBlueCard(TeamId.TEAM_ONE, start + 5_000L).state
@@ -304,7 +310,6 @@ private fun activeGameWithEvents(
     game = game.assessTechnicalFoul(
         TeamId.TEAM_TWO,
         start + 90_000L,
-        guidanceMode,
     ).state
     game = game.recordGoal(TeamId.TEAM_TWO, start + 120_000L)
     game = game.chargeTimeout(TeamId.TEAM_ONE, start + 130_000L)
@@ -406,7 +411,7 @@ private fun fixtureProfile(): Profile {
 private fun fixtureSettings(): Settings {
     return Settings(
         automaticallyAdvanceCountdowns = false,
-        automaticallyLockLivePoint = false,
+        accidentalTouchProtection = AccidentalTouchProtection.NONE,
         showDefenseCountdowns = true,
         fourMenThreeWomenBadgeColorArgb = 0xFF7B1FA2,
         fourWomenThreeMenBadgeColorArgb = 0xFF00897B,

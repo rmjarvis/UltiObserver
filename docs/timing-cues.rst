@@ -44,7 +44,7 @@ For offense countdowns, the cues that are displayed are:
      - Give hand
 
 If the team hasn't signaled readiness by 0:00, you may choose to issue a time violation.
-See :ref:`time-violations`. The typical thing to do at 0:00 is to raise your hand to signal
+See :ref:`Time Violations`. The typical thing to do at 0:00 is to raise your hand to signal
 that the team is ready and let them know that you are doing so.
 
 For defense countdowns, the cues that are displayed are:
@@ -64,7 +64,7 @@ For defense countdowns, the cues that are displayed are:
      - Time violation?
 
 If the team hasn't pulled by 0:00, you may choose to issue a time violation.
-See :ref:`time-violations`.
+See :ref:`Time Violations`.
 
 During a countdown between points, you may choose to start the point early if that
 is appropriate by clicking **Start point** in the center of the game screen.

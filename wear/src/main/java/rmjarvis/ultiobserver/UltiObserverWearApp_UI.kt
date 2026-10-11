@@ -406,7 +406,7 @@ private fun DisabledScreen() {
             pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
             append("Watch connection")
             pop()
-            append(" to Wear OS in the UltiObserver Settings.")
+            append(" to Wear OS app in the UltiObserver Settings.")
         }
     )
 }

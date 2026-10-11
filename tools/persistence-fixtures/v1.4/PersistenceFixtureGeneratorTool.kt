@@ -123,9 +123,13 @@ private fun writeCompleteCurrentGame(dir: File) {
     val settings = fixtureSettings().copy(
         ruleGuidanceMode = guidanceMode,
         showAbbaRatioAsSequence = false,
+        timingAlerts = fixtureSettings().timingAlerts.copy(
+            watchConnectionMode = WatchConnectionMode.ALERTING,
+        ),
     )
     check(settings.ruleGuidanceMode == RuleGuidanceMode.NONE)
     check(!settings.showAbbaRatioAsSequence)
+    check(settings.timingAlerts.watchConnectionMode == WatchConnectionMode.ALERTING)
     store.saveCurrentGame(game)
     store.saveProfile(fixtureProfile())
     store.saveSettings(settings)

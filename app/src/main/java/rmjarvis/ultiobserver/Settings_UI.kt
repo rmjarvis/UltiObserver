@@ -4,6 +4,9 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings as AndroidSettings
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -12,8 +15,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
@@ -61,6 +71,62 @@ private enum class GenderRatioBadgeColorTarget(
     ),
 }
 
+internal enum class SettingsCategory(val title: String) {
+    GUIDANCE("Rule guidance"),
+    WATCH("Watch connection"),
+    TIMING("Sound and vibration"),
+    GAME_SCREEN("Active game screen"),
+    MIXED("Mixed options"),
+}
+
+@Composable
+private fun SettingsCategorySection(
+    category: SettingsCategory,
+    expanded: Boolean,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("settings-category-${category.name}")
+                .background(SecondaryColor)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = category.title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = OnSecondaryColor,
+            )
+            Icon(
+                imageVector = if (expanded) Icons.Filled.KeyboardArrowDown else {
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight
+                },
+                contentDescription = if (expanded) "Expanded" else "Collapsed",
+                modifier = Modifier.size(24.dp).testTag("settings-category-${category.name}-arrow"),
+                tint = OnSecondaryColor,
+            )
+        }
+        if (expanded) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                content()
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SettingsScreen(
@@ -70,6 +136,8 @@ internal fun SettingsScreen(
     onBackHome: () -> Unit,
     onHome: () -> Unit,
     wearWatchAvailable: Boolean?,
+    selectedCategory: SettingsCategory?,
+    onCategorySelected: (SettingsCategory?) -> Unit,
 ) {
     val context = LocalContext.current
     val hasTimingCueHaptics = context.hasTimingCueHaptics() ||
@@ -112,234 +180,277 @@ internal fun SettingsScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            RuleGuidanceModeSelector(
-                selectedMode = settings.ruleGuidanceMode,
-                onModeChange = {
-                    onSettingsChange(settings.withRuleGuidanceMode(it))
-                },
-            )
-
-            HorizontalDivider()
-
-            TimingAlertGlobalModeSelector(
-                selectedMode = settings.timingAlerts.globalMode,
-                hasTimingCueHaptics = hasTimingCueHaptics,
-                onModeChange = {
-                    onSettingsChange(
-                        settings.withTimingAlerts(settings.timingAlerts.withGlobalMode(it))
-                    )
-                },
-            )
-
-            TimingAlertSoundControls(
-                timingAlertPreferences = settings.timingAlerts,
-                soundOutput = soundOutput,
-                onSoundVolumeChange = {
-                    onSettingsChange(
-                        settings.withTimingAlerts(settings.timingAlerts.withSoundVolume(it))
-                    )
-                },
-                onVibrationDurationChange = {
-                    onSettingsChange(
-                        settings.withTimingAlerts(settings.timingAlerts.withVibrationDuration(it))
-                    )
-                },
-                onVibrateWithSoundsChange = {
-                    onSettingsChange(
-                        settings.withTimingAlerts(settings.timingAlerts.withVibrateWithSounds(it))
-                    )
-                },
-                onWatchConnectionModeChange = { mode ->
-                    if (
-                        mode == WatchConnectionMode.OFF ||
-                        mode == WatchConnectionMode.WEAR_OS ||
-                        NotificationManagerCompat.from(context).areNotificationsEnabled()
-                    ) {
-                        onSettingsChange(
-                            settings.withTimingAlerts(
-                                settings.timingAlerts.withWatchConnectionMode(mode)
+            SettingsCategory.entries.forEach { category ->
+                SettingsCategorySection(
+                    category = category,
+                    expanded = selectedCategory == category,
+                    onClick = {
+                        onCategorySelected(if (selectedCategory == category) null else category)
+                    },
+                ) {
+                    when (category) {
+                        SettingsCategory.WATCH -> {
+                            WatchConnectionModeSelector(
+                                selectedMode = settings.timingAlerts.watchConnectionMode,
+                                vibrateOnWatch = settings.timingAlerts.vibrateOnWatch,
+                                onModeChange = { mode ->
+                                    if (
+                                        mode != WatchConnectionMode.NOTIFICATIONS ||
+                                        NotificationManagerCompat.from(context).areNotificationsEnabled()
+                                    ) {
+                                        onSettingsChange(settings.withTimingAlerts(
+                                            settings.timingAlerts.withWatchConnectionMode(mode)
+                                        ))
+                                    } else {
+                                        context.startActivity(
+                                            Intent(AndroidSettings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                                .putExtra(
+                                                    AndroidSettings.EXTRA_APP_PACKAGE,
+                                                    context.packageName,
+                                                )
+                                        )
+                                    }
+                                },
+                                notificationsEnabled = notificationsEnabled,
+                                wearWatchAvailable = wearWatchAvailable,
                             )
-                        )
-                    } else {
-                        context.startActivity(
-                            Intent(AndroidSettings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(
-                                AndroidSettings.EXTRA_APP_PACKAGE,
-                                context.packageName,
-                            )
-                        )
-                    }
-                },
-                onOpenTimingCueSettings = onOpenTimingCueSettings,
-                hasTimingCueHaptics = hasTimingCueHaptics,
-                notificationsEnabled = notificationsEnabled,
-                wearWatchAvailable = wearWatchAvailable,
-                onTestVibration = { durationMillis ->
-                    vibrationScope.launch {
-                        (context.applicationContext as UltiObserverApplication)
-                            .vibrateTimingCue(VibrationPattern(
-                                durationMillis, 1, gapMillis = 0L,
-                            ))
-                    }
-                },
-            )
 
-            if (settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Team display on watch", style = MaterialTheme.typography.titleMedium)
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        WatchOrientation.entries.forEach { orientation ->
-                            ChoiceChipButton(
-                                label = orientation.label,
-                                selected = settings.watchOrientation == orientation,
-                                tag = "settings-watch-orientation-${orientation.name}",
-                                onClick = {
-                                    onSettingsChange(settings.copy(watchOrientation = orientation))
+                            if (settings.timingAlerts.watchConnectionMode == WatchConnectionMode.NOTIFICATIONS) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    SettingsSwitchWithNote(
+                                        label = "Alerting notifications?",
+                                        note = settings.timingAlerts.alertWatchNotificationsDescription,
+                                        checked = settings.timingAlerts.alertWatchNotifications,
+                                        onCheckedChange = {
+                                            onSettingsChange(settings.withTimingAlerts(
+                                                settings.timingAlerts.copy(alertWatchNotifications = it)
+                                            ))
+                                        },
+                                        testTag = "settings-alert-watch-notifications",
+                                    )
+                                    if (
+                                        settings.timingAlerts.alertWatchNotifications &&
+                                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
+                                    ) {
+                                        Text(
+                                            text = buildAnnotatedString {
+                                                pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                                                append("Important: ")
+                                                pop()
+                                                append(WatchConnectionMode.NOTIFICATION_COOLDOWN_WARNING)
+                                            },
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("Team display on watch", style = MaterialTheme.typography.titleMedium)
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        WatchOrientation.entries.forEach { orientation ->
+                                            ChoiceChipButton(
+                                                label = orientation.label,
+                                                selected = settings.watchOrientation == orientation,
+                                                tag = "settings-watch-orientation-${orientation.name}",
+                                                onClick = {
+                                                    onSettingsChange(settings.copy(watchOrientation = orientation))
+                                                },
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        settings.watchOrientation.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                                SettingsSwitchWithNote(
+                                    label = "Vibrate on watch?",
+                                    note = settings.timingAlerts.vibrateOnWatchDescription,
+                                    checked = settings.timingAlerts.vibrateOnWatch,
+                                    onCheckedChange = {
+                                        onSettingsChange(settings.withTimingAlerts(
+                                            settings.timingAlerts.copy(vibrateOnWatch = it)
+                                        ))
+                                    },
+                                    testTag = "settings-vibrate-on-watch",
+                                )
+                                SettingsSwitchWithNote(
+                                    label = "Require long presses?",
+                                    note = settings.requireWatchLongPressDescription,
+                                    checked = settings.requireWatchLongPress,
+                                    onCheckedChange = {
+                                        onSettingsChange(settings.copy(requireWatchLongPress = it))
+                                    },
+                                    testTag = "settings-watch-long-press",
+                                )
+                            }
+                        }
+                        SettingsCategory.TIMING -> {
+                            TimingAlertGlobalModeSelector(
+                                selectedMode = settings.timingAlerts.globalMode,
+                                hasTimingCueHaptics = hasTimingCueHaptics,
+                                onModeChange = {
+                                    onSettingsChange(settings.withTimingAlerts(
+                                        settings.timingAlerts.withGlobalMode(it)
+                                    ))
+                                },
+                            )
+                            TimingAlertSoundControls(
+                                timingAlertPreferences = settings.timingAlerts,
+                                soundOutput = soundOutput,
+                                onSoundVolumeChange = {
+                                    onSettingsChange(settings.withTimingAlerts(
+                                        settings.timingAlerts.withSoundVolume(it)
+                                    ))
+                                },
+                                onVibrationDurationChange = {
+                                    onSettingsChange(settings.withTimingAlerts(
+                                        settings.timingAlerts.withVibrationDuration(it)
+                                    ))
+                                },
+                                onVibrateWithSoundsChange = {
+                                    onSettingsChange(settings.withTimingAlerts(
+                                        settings.timingAlerts.withVibrateWithSounds(it)
+                                    ))
+                                },
+                                onOpenTimingCueSettings = onOpenTimingCueSettings,
+                                hasTimingCueHaptics = hasTimingCueHaptics,
+                                onTestVibration = { durationMillis ->
+                                    vibrationScope.launch {
+                                        (context.applicationContext as UltiObserverApplication)
+                                            .vibrateTimingCue(VibrationPattern(
+                                                durationMillis, 1, gapMillis = 0L,
+                                            ))
+                                    }
                                 },
                             )
                         }
-                    }
-                    Text(
-                        settings.watchOrientation.description,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                SettingsSwitchWithNote(
-                    label = "Vibrate on watch?",
-                    note = settings.timingAlerts.vibrateOnWatchDescription,
-                    checked = settings.timingAlerts.vibrateOnWatch,
-                    onCheckedChange = {
-                        onSettingsChange(settings.withTimingAlerts(
-                            settings.timingAlerts.copy(vibrateOnWatch = it)
-                        ))
-                    },
-                    testTag = "settings-vibrate-on-watch",
-                )
-                SettingsSwitchWithNote(
-                    label = "Require long presses?",
-                    note = settings.requireWatchLongPressDescription,
-                    checked = settings.requireWatchLongPress,
-                    onCheckedChange = {
-                        onSettingsChange(settings.copy(requireWatchLongPress = it))
-                    },
-                    testTag = "settings-watch-long-press",
-                )
-            }
-
-            HorizontalDivider()
-
-            OrientationPreferenceSelector(
-                selectedPreference = settings.orientationPreference,
-                onPreferenceChange = {
-                    onSettingsChange(settings.withOrientationPreference(it))
-                },
-            )
-
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Accidental touch protection", style = MaterialTheme.typography.titleMedium)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    AccidentalTouchProtection.entries.forEach { protection ->
-                        ChoiceChipButton(
-                            label = protection.label,
-                            selected = settings.accidentalTouchProtection == protection,
-                            tag = "settings-touch-protection-${protection.name}",
-                            onClick = {
-                                onSettingsChange(settings.copy(accidentalTouchProtection = protection))
-                            },
-                        )
-                    }
-                }
-                Text(
-                    settings.accidentalTouchProtection.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-
-
-            SettingsSwitchWithNote(
-                label = "Automatically start live play?",
-                note = settings.automaticallyAdvanceCountdownsDescription,
-                checked = settings.automaticallyAdvanceCountdowns,
-                onCheckedChange = {
-                    onSettingsChange(settings.withAutomaticallyAdvanceCountdowns(it))
-                },
-                testTag = "settings-auto-advance-countdowns",
-            )
-
-            SettingsSwitchWithNote(
-                label = "Show defense countdowns?",
-                note = settings.showDefenseCountdownsDescription,
-                checked = settings.showDefenseCountdowns,
-                onCheckedChange = {
-                    onSettingsChange(settings.withShowDefenseCountdowns(it))
-                },
-                testTag = "settings-show-defense-countdowns",
-            )
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SettingsSwitchWithNote(
-                    label = "Automatically advance countdowns by a few seconds?",
-                    note = settings.automaticallyAdvanceNewCountdownsDescription,
-                    checked = settings.automaticallyAdvanceNewCountdowns,
-                    onCheckedChange = {
-                        onSettingsChange(settings.withAutomaticallyAdvanceNewCountdowns(it))
-                    },
-                    testTag = "settings-advance-new-countdowns",
-                )
-                if (settings.automaticallyAdvanceNewCountdowns) {
-                    Text(
-                        text = "Seconds already elapsed: " +
-                            settings.newCountdownAdvanceSeconds,
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Slider(
-                        value = settings.newCountdownAdvanceSeconds.toFloat(),
-                        onValueChange = { value ->
-                            onSettingsChange(
-                                settings.withNewCountdownAdvanceSeconds(value.roundToInt())
+                        SettingsCategory.GUIDANCE -> {
+                            RuleGuidanceModeSelector(
+                                selectedMode = settings.ruleGuidanceMode,
+                                onModeChange = {
+                                    onSettingsChange(settings.withRuleGuidanceMode(it))
+                                },
                             )
-                        },
-                        valueRange = 1f..MAX_NEW_COUNTDOWN_ADVANCE_SECONDS.toFloat(),
-                        steps = MAX_NEW_COUNTDOWN_ADVANCE_SECONDS - 2,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("settings-new-countdown-advance-seconds"),
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("1")
-                        Text(MAX_NEW_COUNTDOWN_ADVANCE_SECONDS.toString())
+                        }
+                        SettingsCategory.GAME_SCREEN -> {
+                            OrientationPreferenceSelector(
+                                selectedPreference = settings.orientationPreference,
+                                onPreferenceChange = {
+                                    onSettingsChange(settings.withOrientationPreference(it))
+                                },
+                            )
+
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Accidental touch protection", style = MaterialTheme.typography.titleMedium)
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    AccidentalTouchProtection.entries.forEach { protection ->
+                                        ChoiceChipButton(
+                                            label = protection.label,
+                                            selected = settings.accidentalTouchProtection == protection,
+                                            tag = "settings-touch-protection-${protection.name}",
+                                            onClick = {
+                                                onSettingsChange(settings.copy(accidentalTouchProtection = protection))
+                                            },
+                                        )
+                                    }
+                                }
+                                Text(
+                                    settings.accidentalTouchProtection.description,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+
+                            SettingsSwitchWithNote(
+                                label = "Automatically start live play?",
+                                note = settings.automaticallyAdvanceCountdownsDescription,
+                                checked = settings.automaticallyAdvanceCountdowns,
+                                onCheckedChange = {
+                                    onSettingsChange(settings.withAutomaticallyAdvanceCountdowns(it))
+                                },
+                                testTag = "settings-auto-advance-countdowns",
+                            )
+
+                            SettingsSwitchWithNote(
+                                label = "Show defense countdowns?",
+                                note = settings.showDefenseCountdownsDescription,
+                                checked = settings.showDefenseCountdowns,
+                                onCheckedChange = {
+                                    onSettingsChange(settings.withShowDefenseCountdowns(it))
+                                },
+                                testTag = "settings-show-defense-countdowns",
+                            )
+
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                SettingsSwitchWithNote(
+                                    label = "Automatically advance countdowns by a few seconds?",
+                                    note = settings.automaticallyAdvanceNewCountdownsDescription,
+                                    checked = settings.automaticallyAdvanceNewCountdowns,
+                                    onCheckedChange = {
+                                        onSettingsChange(settings.withAutomaticallyAdvanceNewCountdowns(it))
+                                    },
+                                    testTag = "settings-advance-new-countdowns",
+                                )
+                                if (settings.automaticallyAdvanceNewCountdowns) {
+                                    Text(
+                                        text = "Seconds already elapsed: " +
+                                            settings.newCountdownAdvanceSeconds,
+                                        style = MaterialTheme.typography.titleMedium,
+                                    )
+                                    Slider(
+                                        value = settings.newCountdownAdvanceSeconds.toFloat(),
+                                        onValueChange = { value ->
+                                            onSettingsChange(
+                                                settings.withNewCountdownAdvanceSeconds(value.roundToInt())
+                                            )
+                                        },
+                                        valueRange = 1f..MAX_NEW_COUNTDOWN_ADVANCE_SECONDS.toFloat(),
+                                        steps = MAX_NEW_COUNTDOWN_ADVANCE_SECONDS - 2,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("settings-new-countdown-advance-seconds"),
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Text("1")
+                                        Text(MAX_NEW_COUNTDOWN_ADVANCE_SECONDS.toString())
+                                    }
+                                }
+                            }
+                        }
+                        SettingsCategory.MIXED -> {
+                            SettingsSwitchWithNote(
+                                label = "Show ABBA gender ratio as M1/M2/W1/W2?",
+                                note = settings.showAbbaRatioAsSequenceDescription,
+                                checked = settings.showAbbaRatioAsSequence,
+                                onCheckedChange = {
+                                    onSettingsChange(settings.withShowAbbaRatioAsSequence(it))
+                                },
+                                testTag = "settings-show-abba-ratio-as-sequence",
+                            )
+
+                            GenderRatioBadgeColorTarget.entries.forEach { target ->
+                                GenderRatioBadgeColorRow(
+                                    target = target,
+                                    colorArgb = settings.genderRatioBadgeColorArgb(target.ratio),
+                                    onClick = {
+                                        colorTarget = target
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
-            }
-
-            HorizontalDivider()
-
-            SettingsSwitchWithNote(
-                label = "Show ABBA gender ratio as M1/M2/W1/W2?",
-                note = settings.showAbbaRatioAsSequenceDescription,
-                checked = settings.showAbbaRatioAsSequence,
-                onCheckedChange = {
-                    onSettingsChange(settings.withShowAbbaRatioAsSequence(it))
-                },
-                testTag = "settings-show-abba-ratio-as-sequence",
-            )
-
-            GenderRatioBadgeColorTarget.entries.forEach { target ->
-                GenderRatioBadgeColorRow(
-                    target = target,
-                    colorArgb = settings.genderRatioBadgeColorArgb(target.ratio),
-                    onClick = {
-                        colorTarget = target
-                    },
-                )
             }
         }
     }
@@ -764,11 +875,8 @@ private fun TimingAlertGlobalModeSelector(
  * @param onSoundVolumeChange Callback receiving sound volume changes.
  * @param onVibrationDurationChange Callback receiving vibration duration changes in milliseconds.
  * @param onVibrateWithSoundsChange Callback receiving the sound-plus-vibration toggle state.
- * @param onWatchConnectionModeChange Callback receiving the watch-connection mode.
  * @param onOpenTimingCueSettings Callback opening per-cue timing alert settings.
  * @param hasTimingCueHaptics Whether this device reports usable timing-cue haptics.
- * @param notificationsEnabled Whether Android currently allows UltiObserver notifications.
- * @param wearWatchAvailable Whether a Wear OS node is reachable, or null before the check finishes.
  * @param onTestVibration Callback playing a haptic test for the selected duration.
  */
 @Composable
@@ -778,11 +886,8 @@ private fun TimingAlertSoundControls(
     onSoundVolumeChange: (Float) -> Unit,
     onVibrationDurationChange: (Long) -> Unit,
     onVibrateWithSoundsChange: (Boolean) -> Unit,
-    onWatchConnectionModeChange: (WatchConnectionMode) -> Unit,
     onOpenTimingCueSettings: () -> Unit,
     hasTimingCueHaptics: Boolean,
-    notificationsEnabled: Boolean,
-    wearWatchAvailable: Boolean?,
     onTestVibration: (Long) -> Unit,
 ) {
     Column(
@@ -885,13 +990,6 @@ private fun TimingAlertSoundControls(
                 }
             }
         }
-        WatchConnectionModeSelector(
-            selectedMode = timingAlertPreferences.watchConnectionMode,
-            vibrateOnWatch = timingAlertPreferences.vibrateOnWatch,
-            onModeChange = onWatchConnectionModeChange,
-            notificationsEnabled = notificationsEnabled,
-            wearWatchAvailable = wearWatchAvailable,
-        )
     }
 }
 
@@ -906,7 +1004,7 @@ private fun WatchConnectionModeSelector(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = "Watch connection",
+            text = "What kind of watch connection do you want to use?",
             style = MaterialTheme.typography.titleMedium,
         )
         FlowRow(
@@ -937,24 +1035,12 @@ private fun WatchConnectionModeSelector(
                         append(WatchConnectionMode.NOTIFICATION_PERMISSION_NOTE)
                     }
                 }
-                WatchConnectionMode.SILENT,
-                WatchConnectionMode.ALERTING,
-                -> {
+                WatchConnectionMode.NOTIFICATIONS -> {
                     append("\n\n")
                     pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
                     append("Warning: ")
                     pop()
                     append(WatchConnectionMode.NOTIFICATION_SHARING_WARNING)
-                    if (
-                        selectedMode == WatchConnectionMode.ALERTING &&
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
-                    ) {
-                        append("\n\n")
-                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                        append("Important: ")
-                        pop()
-                        append(WatchConnectionMode.NOTIFICATION_COOLDOWN_WARNING)
-                    }
                 }
                 WatchConnectionMode.WEAR_OS -> {
                     if (wearWatchAvailable == true) {

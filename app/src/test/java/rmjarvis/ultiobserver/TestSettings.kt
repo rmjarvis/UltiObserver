@@ -2,9 +2,42 @@ package rmjarvis.ultiobserver
 
 import org.junit.Assert.*
 import org.junit.Test
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
 
 /** Settings defaults, updates, protection policies, and observer-facing explanations. */
 class TestSettings {
+    /** Connection type and notification alerting are independent saved preferences. */
+    @Test
+    fun watchConnectionPreferences() {
+        // Notifications initially request alerts; selecting another connection retains the choice.
+        val notifications = TimingAlertPreferences(
+            watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+        )
+        assertTrue(notifications.alertWatchNotifications)
+        val silent = notifications.copy(alertWatchNotifications = false)
+        val disconnected = silent.withWatchConnectionMode(WatchConnectionMode.OFF)
+        assertFalse(disconnected.alertWatchNotifications)
+        val reconnected = disconnected.withWatchConnectionMode(WatchConnectionMode.NOTIFICATIONS)
+        assertEquals(silent, reconnected)
+
+        // Saving a disconnected preference retains No for the next notification connection.
+        val serialized = appStateJson.encodeToJsonElement(disconnected)
+        val restored = appStateJson.decodeFromJsonElement<TimingAlertPreferences>(serialized)
+        assertEquals(disconnected, restored)
+        assertFalse(restored.withWatchConnectionMode(WatchConnectionMode.NOTIFICATIONS)
+            .alertWatchNotifications)
+
+        // Valid settings that omit the optional timing-alert bucket use its ordinary defaults.
+        val defaultSettings = Settings.decodeJson(
+            JsonObject(emptyMap()),
+            AppVersion(APP_STATE_VERSION_NAME, APP_STATE_VERSION_CODE),
+        )!!
+        assertEquals(Settings(), defaultSettings.value)
+        assertFalse(defaultSettings.wasMigrated)
+    }
+
     /**
      * Test default timing-alert preferences.
      */
@@ -15,6 +48,7 @@ class TestSettings {
         // Default preferences start in vibration-only mode with full sound volume.
         assertEquals(TimingAlertGlobalMode.VIBRATION_ONLY, defaultPreferences.globalMode)
         assertEquals(WatchConnectionMode.OFF, defaultPreferences.watchConnectionMode)
+        assertTrue(defaultPreferences.alertWatchNotifications)
         assertEquals(1f, defaultPreferences.soundVolume, 0f)
         assertFalse(defaultPreferences.vibrateWithSounds)
 
@@ -36,7 +70,8 @@ class TestSettings {
             GameRules().hasEnabledCapTimingAlerts(
                 defaultPreferences.copy(
                     globalMode = TimingAlertGlobalMode.OFF,
-                    watchConnectionMode = WatchConnectionMode.SILENT,
+                    watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+                    alertWatchNotifications = false,
                 )
             )
         )
@@ -44,7 +79,8 @@ class TestSettings {
             GameRules().hasEnabledCapTimingAlerts(
                 defaultPreferences.copy(
                     globalMode = TimingAlertGlobalMode.OFF,
-                    watchConnectionMode = WatchConnectionMode.SILENT,
+                    watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+                    alertWatchNotifications = false,
                     cueModes = TimingCueId.entries.associateWith { TimingAlertMode.NONE },
                 )
             )
@@ -181,7 +217,10 @@ class TestSettings {
         // Watch delivery requires watch notifications and an individually enabled cue, except that
         // an Off countdown-ending cue is still sent to return the notification to the score.
         assertTrue(
-            defaultPreferences.copy(watchConnectionMode = WatchConnectionMode.SILENT)
+            defaultPreferences.copy(
+                watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
+                alertWatchNotifications = false,
+            )
                 .sendsCueToWatch(
                     TimingCueId.PULLING_TWENTY_TO_PULL,
                     countdownSeconds = 20,
@@ -194,7 +233,7 @@ class TestSettings {
             )
         )
         val offCuePreferences = defaultPreferences.copy(
-            watchConnectionMode = WatchConnectionMode.ALERTING,
+            watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
             cueModes = defaultPreferences.cueModes +
                 (TimingCueId.PULLING_TIME_VIOLATION to TimingAlertMode.NONE),
         )
@@ -373,9 +412,12 @@ class TestSettings {
     @Test
     fun watchVibrationGuidance() {
         // Connection choices explain whether timing cues reach a companion.
-        assertTrue(WatchConnectionMode.OFF.description.contains("No notifications"))
-        assertTrue(WatchConnectionMode.SILENT.description.contains("no alerts"))
-        assertTrue(WatchConnectionMode.ALERTING.description.contains("trigger an alert"))
+        assertTrue(WatchConnectionMode.OFF.description.contains("No connection"))
+        assertTrue(WatchConnectionMode.NOTIFICATIONS.description.contains("notifications"))
+        assertTrue(TimingAlertPreferences(alertWatchNotifications = false)
+            .alertWatchNotificationsDescription.contains("No alerts"))
+        assertTrue(TimingAlertPreferences().alertWatchNotificationsDescription
+            .contains("trigger an alert"))
         assertTrue(WatchConnectionMode.WEAR_OS.description.isNotBlank())
         val watch = TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
         assertTrue(watch.vibrateOnWatchDescription.contains("screen is off"))
@@ -394,7 +436,7 @@ class TestSettings {
         assertEquals("Tick", TimingAlertSound.TICK.label)
         assertEquals("Sounds on", TimingAlertGlobalMode.SOUNDS_ON.label)
         assertEquals(
-            listOf("Off", "Silent", "Alerting", "Wear OS"),
+            listOf("None", "Notifications", "Wear OS app"),
             WatchConnectionMode.entries.map { mode -> mode.label },
         )
 
