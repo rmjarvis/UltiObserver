@@ -1163,6 +1163,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // automatically advance to live play when countdowns expire and then lock
         // the screen.  Both aspects of this are settable.
         composeRule.onNodeWithTag("settings-category-GAME_SCREEN").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-touch-protection-AUTO_LOCK").assertIsSelected()
+        waitForText("The screen will automatically lock whenever play becomes live.")
+        composeRule.onNodeWithTag("settings-auto-advance-countdowns").assertDoesNotExist()
+        composeRule.onNodeWithTag("settings-category-COUNTDOWNS").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-touch-protection-AUTO_LOCK").assertDoesNotExist()
         composeRule.onNodeWithTag("settings-auto-advance-countdowns").performScrollTo()
         waitForText("Automatically start live play?")
         waitForText(
@@ -1170,14 +1175,13 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "or resume live play."
         )
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
-        composeRule.onNodeWithTag("settings-touch-protection-AUTO_LOCK").assertIsSelected()
-        waitForText("The screen will automatically lock whenever play becomes live.")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns").performClick()
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("No")
         waitForText(
             "When a countdown expires, UltiObserver will wait for you to tap Start point or " +
             "Continue point."
         )
+        composeRule.onNodeWithTag("settings-category-GAME_SCREEN").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-touch-protection-NONE")
             .performScrollTo()
             .performClick()
@@ -1187,9 +1191,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "You can still lock the screen manually by clicking the lock icon in the central " +
             "region of the screen."
         )
+        composeRule.onNodeWithTag("settings-category-COUNTDOWNS").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-auto-advance-countdowns")
             .performScrollTo()
             .performClick()
+        composeRule.onNodeWithTag("settings-category-GAME_SCREEN").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-touch-protection-AUTO_LOCK").performClick()
 
         // Long press replaces automatic locking while retaining the manual lock.
@@ -1203,6 +1209,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // By default we don't show countdowns for the defensive check on timeouts and
         // misconduct. The next setting can enable those.
+        composeRule.onNodeWithTag("settings-category-COUNTDOWNS").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performScrollTo()
         composeRule.onNodeWithTag("settings-show-defense-countdowns-value")
             .assertTextEquals("No")
@@ -1232,7 +1239,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         )
             .assertCountEquals(0)
         dismissDialog(tag = "top-bar-back")
-        composeRule.onNodeWithTag("settings-category-GAME_SCREEN").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-category-COUNTDOWNS").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performScrollTo()
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performClick()
         waitForText(
@@ -1283,7 +1290,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // The default gender ratio badge for ABBA is to show the sequence M2, W1, W2, M1, M2...
         // or vice versa. The next setting can switch this to just the current ratio.
-        composeRule.onNodeWithTag("settings-category-MIXED").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-category-GENDER_RATIO").performScrollTo().performClick()
+        waitForText("Gender ratio indicator")
         composeRule.onNodeWithTag("settings-show-abba-ratio-as-sequence-value")
             .assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-show-abba-ratio-as-sequence")

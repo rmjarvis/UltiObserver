@@ -17,7 +17,8 @@ internal enum class SettingsCategory(val title: String) {
     WATCH("Watch connection"),
     TIMING("Sound and vibration"),
     GAME_SCREEN("Active game screen"),
-    MIXED("Mixed options"),
+    COUNTDOWNS("Countdowns"),
+    GENDER_RATIO("Gender ratio indicator"),
 }
 
 /** Protection used for touch actions on the phone's active-game screen. */

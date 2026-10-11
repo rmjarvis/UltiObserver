@@ -379,7 +379,8 @@ internal fun SettingsScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
-
+                        }
+                        SettingsCategory.COUNTDOWNS -> {
                             SettingsSwitchWithNote(
                                 label = Settings.AUTO_START_LIVE_PLAY_QUESTION,
                                 note = settings.automaticallyAdvanceCountdownsDescription,
@@ -438,7 +439,7 @@ internal fun SettingsScreen(
                                 }
                             }
                         }
-                        SettingsCategory.MIXED -> {
+                        SettingsCategory.GENDER_RATIO -> {
                             SettingsSwitchWithNote(
                                 label = Settings.ABBA_SEQUENCE_QUESTION,
                                 note = settings.showAbbaRatioAsSequenceDescription,

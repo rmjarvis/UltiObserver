@@ -225,6 +225,9 @@ Accidental touch protection
     Note that there is a lock icon on the active game screen, which lets you lock the
     screen manually whenever you need.
 
+Countdowns
+^^^^^^^^^^
+
 Automatically start live play?
     The default behavior when a pull or timeout countdown expires is to automatically advance
     to live play. If you prefer to do this manually (using either the **Start point** or
@@ -247,8 +250,8 @@ Automatically advance countdowns by a few seconds?
     If you enable this feature, the countdown will start with the given number of seconds
     already elapsed. You may choose any amount from 1 to 10 seconds.
 
-Mixed options
-^^^^^^^^^^^^^
+Gender ratio indicator
+^^^^^^^^^^^^^^^^^^^^^^
 
 Show ABBA gender ratio as M1/M2/W1/W2?
     The default for mixed games using ABBA is to display the current point's gender ratio using
