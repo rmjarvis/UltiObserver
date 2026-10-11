@@ -250,6 +250,16 @@ Automatically advance countdowns by a few seconds?
     If you enable this feature, the countdown will start with the given number of seconds
     already elapsed. You may choose any amount from 1 to 10 seconds.
 
+Dual pull countdowns?
+    For the countdown between points, UltiObserver normally shows the time remaining for
+    whichever team is at the end you are getting prompts for. If they are receiving the pull,
+    it will say "Signal in..." If they are pulling it will say "Pull in..." This option lets
+    you show both countdowns on the screen at once if you prefer to see both.
+    In portrait mode, they will be ordered in the same relative position as the teams are
+    on the field. (I.e., if the top team is pulling, the Pull countdown will be above the
+    signal countdown, and vice versa.) In landscape mode, the countdowns will appear above
+    the team they correspond to.
+
 Gender ratio indicator
 ^^^^^^^^^^^^^^^^^^^^^^
 

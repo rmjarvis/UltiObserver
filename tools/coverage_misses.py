@@ -961,6 +961,9 @@ def composable_restart_epilogue_reason(
     One compiler shape reports a tiny miss for each uncovered restart exit. Another reports
     one missed and one covered branch plus eight covered instructions, while the missed
     instruction count varies with the values captured by the generated restart callback.
+    The inspected two-exit shape in CountdownLine maps both captured-callback epilogues
+    to this brace: 22 missed / 15 covered instructions and two missed / two covered branches.
+    Accept that exact combined profile only when the function has one unlabeled early return.
     A user cannot deliberately exercise this close-brace bytecode through app behavior; the
     meaningful coverage is whether the body of the Composable rendered and its callbacks ran.
 
@@ -982,13 +985,17 @@ def composable_restart_epilogue_reason(
     if not opens_composable_function(source_lines, opening_index):
         return None
 
+    return_count = unlabeled_return_count(source_lines, opening_index, line_index)
     captured_restart_callback_profile = (
         counters.missed_instructions > 0
         and counters.covered_instructions == 8
         and counters.missed_branches == 1
         and counters.covered_branches == 1
     )
-    if captured_restart_callback_profile:
+    two_exit_restart_callback_profile = (
+        return_count == 1 and counters == LineCounters(22, 15, 2, 2)
+    )
+    if captured_restart_callback_profile or two_exit_restart_callback_profile:
         return "Compose restart-scope epilogue"
 
     if counters.missed_instructions != counters.missed_branches:
@@ -996,7 +1003,7 @@ def composable_restart_epilogue_reason(
     if counters.covered_instructions == 0 or counters.covered_branches == 0:
         return None
 
-    maximum_expected_misses = 1 + unlabeled_return_count(source_lines, opening_index, line_index)
+    maximum_expected_misses = 1 + return_count
     if not 1 <= counters.missed_instructions <= maximum_expected_misses:
         return None
 

@@ -97,6 +97,8 @@ internal data class GameDisplay(
     val timingControls: TimingControlsDisplay?,
     val countdownLabel: String,
     val countdownValue: String?,
+    val signalCountdownLabel: String,
+    val signalCountdownValue: String?,
     val nextCue: String?,
     val statusMessage: String?,
     val teamOne: TeamDisplay,
@@ -243,14 +245,18 @@ private fun StatusRegion(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = topPadding - 6.dp, start = 16.dp, end = 16.dp),
+                .padding(
+                    top = topPadding - if (display.signalCountdownValue != null) 10.dp else 6.dp,
+                    start = 16.dp,
+                    end = 16.dp,
+                ),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth()
                     .gameClickable(enabled = true, role = Role.Button, onClick = onRulesReference)
                     .semantics { contentDescription = "Game rules" }
-                    .padding(vertical = 6.dp),
+                    .padding(vertical = if (display.signalCountdownValue != null) 4.dp else 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -332,7 +338,19 @@ private fun StatusRegion(
                         ).semantics { contentDescription = "Countdown controls" },
                         contentAlignment = Alignment.Center,
                     ) {
-                        CountdownStatus(display.countdownLabel, display.countdownValue)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            if (display.signalCountdownValue != null) {
+                                CountdownStatus(
+                                    display.signalCountdownLabel, display.signalCountdownValue,
+                                    compact = true, valueTag = "signal-countdown-value",
+                                )
+                            }
+                            CountdownStatus(
+                                display.countdownLabel, display.countdownValue,
+                                compact = display.signalCountdownValue != null,
+                                valueTag = "countdown-value",
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     val action = display.primaryCountdownAction
@@ -364,7 +382,7 @@ private fun StatusRegion(
 }
 
 @Composable
-private fun CountdownStatus(label: String, value: String) {
+private fun CountdownStatus(label: String, value: String, compact: Boolean, valueTag: String) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -373,7 +391,8 @@ private fun CountdownStatus(label: String, value: String) {
         BoxWithConstraints(modifier = Modifier.weight(1f, fill = false)) {
             val textMeasurer = rememberTextMeasurer()
             val labelStyle = LocalTextStyle.current.copy(
-                fontSize = 18.sp,
+                fontSize = if (compact) 14.sp else 18.sp,
+                lineHeight = if (compact) 22.sp else LocalTextStyle.current.lineHeight,
                 fontWeight = FontWeight.Normal,
             )
             val naturalWidth = textMeasurer.measure(
@@ -398,9 +417,12 @@ private fun CountdownStatus(label: String, value: String) {
         }
         Text(
             text = value,
-            modifier = Modifier.testTag("countdown-value"),
-            style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
-            fontSize = 27.sp,
+            modifier = Modifier.testTag(valueTag),
+            style = LocalTextStyle.current.copy(
+                fontFeatureSettings = "tnum",
+                lineHeight = if (compact) 22.sp else LocalTextStyle.current.lineHeight,
+            ),
+            fontSize = if (compact) 20.sp else 27.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             softWrap = false,

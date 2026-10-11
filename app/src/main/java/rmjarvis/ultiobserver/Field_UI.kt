@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -55,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
@@ -260,10 +262,11 @@ internal fun StatusLine(
     val capLabel = capStatus?.label ?: ""
     val capCountdown = capStatus?.let { status -> formatDuration(status.remaining(now)) }
     val capText = listOfNotNull(capLabel, capCountdown).joinToString(" ")
-    val preferredClockFontSize = (allocatedHeight.value * 0.68f).coerceIn(28f, 36f).sp
-    val preferredCapFontSize = (allocatedHeight.value * 0.42f).coerceIn(18f, 22f).sp
+    val preferredClockFontSize = (allocatedHeight.value * 0.68f).coerceIn(20f, 36f).sp
+    val preferredCapFontSize = (allocatedHeight.value * 0.42f).coerceIn(12f, 22f).sp
     val preferredClockStyle = MaterialTheme.typography.headlineMedium.copy(
         fontSize = preferredClockFontSize,
+        lineHeight = preferredClockFontSize,
         fontWeight = FontWeight.Bold,
     )
     val preferredCapStyle = MaterialTheme.typography.bodyLarge.copy(
@@ -325,7 +328,10 @@ internal fun StatusLine(
             .coerceAtLeast(minimumRulesIconSize)
         val rulesIconPadding = 4.dp * (rulesIconSize.value / preferredRulesIconSize.value)
         val iconWidth = with(density) { rulesIconSize.roundToPx() }
-        val clockStyle = preferredClockStyle.copy(fontSize = responsiveClockFontSize)
+        val clockStyle = preferredClockStyle.copy(
+            fontSize = responsiveClockFontSize,
+            lineHeight = responsiveClockFontSize,
+        )
         val capStyle = preferredCapStyle.copy(
             fontSize = responsiveCapFontSize,
             lineHeight = responsiveCapFontSize,
@@ -357,11 +363,13 @@ internal fun StatusLine(
         ) {
             Text(
                 text = clockText,
+                modifier = Modifier.alignByBaseline(),
                 style = clockStyle,
                 maxLines = 1,
             )
             Row(
                 modifier = Modifier
+                    .alignByBaseline()
                     .weight(1f, fill = pushCapToEnd)
                     .padding(start = clockCapGap),
                 horizontalArrangement = Arrangement.spacedBy(capIconGap),
@@ -655,12 +663,58 @@ internal fun PortraitFieldSketchCard(
     val bottomTimeoutsRemaining = state.timeoutsRemaining(bottomSlot)
     val topPullViolationType = state.pullViolationTypeFor(topSlot)
     val bottomPullViolationType = state.pullViolationTypeFor(bottomSlot)
+    val originalDensity = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    val titleHeight = with(originalDensity) {
+        textMeasurer.measure(
+            AnnotatedString("0 Team"),
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontSize = metrics.titleFontSize,
+                lineHeight = metrics.titleLineHeight,
+            ),
+        ).size.height.toDp()
+    }
+    val endLabelHeight = with(originalDensity) {
+        textMeasurer.measure(
+            AnnotatedString("Near end"),
+            style = MaterialTheme.typography.labelMedium,
+        ).size.height.toDp()
+    }
+    val ratioLabelHeight = with(originalDensity) {
+        textMeasurer.measure(
+            AnnotatedString("M1"),
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontSize = metrics.genderRatioBadgeFontSize,
+                lineHeight = metrics.genderRatioBadgeFontSize,
+            ),
+        ).size.height.toDp()
+    }
+    val footerTextHeight = if (ratioChoosingTeam == topSlot) {
+        maxOf(endLabelHeight, ratioLabelHeight)
+    } else {
+        endLabelHeight
+    }
+    val fixedHeight = metrics.teamRowPadding * 2f +
+        metrics.detailGap.coerceAtLeast(3.dp) * 2f + metrics.actionGap + 8.dp + 8.dp * 2f +
+        if (ratioChoosingTeam == topSlot) metrics.genderRatioBadgeVerticalPadding * 2f else 0.dp
+    val actionTextHeight = metrics.actionButtonHeight - 8.dp
+    val teamTextScale = ((metrics.teamRowHeight - fixedHeight) /
+        (titleHeight + footerTextHeight + actionTextHeight * 2f)).coerceIn(0f, 1f)
+    val teamTextDensity = remember(originalDensity, teamTextScale) {
+        object : Density {
+            override val density = originalDensity.density
+            override val fontScale = originalDensity.fontScale * teamTextScale
+        }
+    }
+    val fittedMetrics = metrics.copy(
+        actionButtonHeight = actionTextHeight * teamTextScale + 8.dp,
+    )
     val naturalTopActionGridWidths = teamActionGridWidths(
         team = topTeam,
         cardPoints = topCardPoints,
         timeoutsRemaining = topTimeoutsRemaining,
         pullViolationType = topPullViolationType,
-        actionButtonHeight = metrics.actionButtonHeight,
+        actionButtonHeight = fittedMetrics.actionButtonHeight,
         gap = metrics.actionGap,
     )
     val naturalBottomActionGridWidths = teamActionGridWidths(
@@ -668,7 +722,7 @@ internal fun PortraitFieldSketchCard(
         cardPoints = bottomCardPoints,
         timeoutsRemaining = bottomTimeoutsRemaining,
         pullViolationType = bottomPullViolationType,
-        actionButtonHeight = metrics.actionButtonHeight,
+        actionButtonHeight = fittedMetrics.actionButtonHeight,
         gap = metrics.actionGap,
     )
 
@@ -729,7 +783,8 @@ internal fun PortraitFieldSketchCard(
                         ActiveGameOrientation.PORTRAIT,
                     ),
                     fieldEndLabelAtTop = true,
-                    metrics = metrics,
+                    teamTextDensity = teamTextDensity,
+                    metrics = fittedMetrics,
                     onGoal = { onGoal(topSlot) },
                     onTimeout = { onTimeout(topSlot) },
                     onTimeViolation = { onTimeViolation(topSlot) },
@@ -809,7 +864,8 @@ internal fun PortraitFieldSketchCard(
                         ActiveGameOrientation.PORTRAIT,
                     ),
                     fieldEndLabelAtTop = false,
-                    metrics = metrics,
+                    teamTextDensity = teamTextDensity,
+                    metrics = fittedMetrics,
                     onGoal = { onGoal(bottomSlot) },
                     onTimeout = { onTimeout(bottomSlot) },
                     onTimeViolation = { onTimeViolation(bottomSlot) },
@@ -1333,6 +1389,7 @@ private fun PortraitEndZonePanel(
     actionGridWidths: TeamActionGridWidths,
     fieldEndName: String,
     fieldEndLabelAtTop: Boolean,
+    teamTextDensity: Density,
     metrics: PortraitFieldLayoutMetrics,
     onGoal: () -> Unit,
     onTimeout: () -> Unit,
@@ -1359,64 +1416,66 @@ private fun PortraitEndZonePanel(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(metrics.detailGap.coerceAtLeast(3.dp)),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(metrics.titleGap),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = team.score.toString(),
-                    color = team.content,
-                    style = titleTextStyle,
-                    fontWeight = FontWeight.Bold,
-                )
-                if (hasHeaderTrailingLabel) {
-                    BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                        val contentWidth = (maxWidth - metrics.titleGap).coerceAtLeast(0.dp)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(metrics.titleGap),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            TeamHeaderIdentity(
-                                requireLongPress = requireLongPress,
-                                teamId = teamId,
-                                team = team,
-                                titleTextStyle = titleTextStyle,
-                                modifier = if (fieldEndLabelAtTop) {
-                                    Modifier.widthIn(max = contentWidth * 0.75f)
+            CompositionLocalProvider(LocalDensity provides teamTextDensity) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(metrics.titleGap),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = team.score.toString(),
+                        color = team.content,
+                        style = titleTextStyle,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (hasHeaderTrailingLabel) {
+                        BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                            val contentWidth = (maxWidth - metrics.titleGap).coerceAtLeast(0.dp)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(metrics.titleGap),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TeamHeaderIdentity(
+                                    requireLongPress = requireLongPress,
+                                    teamId = teamId,
+                                    team = team,
+                                    titleTextStyle = titleTextStyle,
+                                    modifier = if (fieldEndLabelAtTop) {
+                                        Modifier.widthIn(max = contentWidth * 0.75f)
+                                    } else {
+                                        Modifier.weight(1f)
+                                    },
+                                    onTeamInfo = onTeamInfo,
+                                )
+                                if (fieldEndLabelAtTop) {
+                                    FieldEndCornerLabel(
+                                        name = fieldEndName,
+                                        contentColor = team.content,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.End,
+                                    )
                                 } else {
-                                    Modifier.weight(1f)
-                                },
-                                onTeamInfo = onTeamInfo,
-                            )
-                            if (fieldEndLabelAtTop) {
-                                FieldEndCornerLabel(
-                                    name = fieldEndName,
-                                    contentColor = team.content,
-                                    modifier = Modifier.weight(1f),
-                                    textAlign = TextAlign.End,
-                                )
-                            } else {
-                                GenderRatioChooserBadge(
-                                    colors = genderRatioChooserColors,
-                                    fontSize = metrics.genderRatioBadgeFontSize,
-                                    verticalPadding = metrics.genderRatioBadgeVerticalPadding,
-                                    modifier = Modifier,
-                                    alignment = Alignment.CenterEnd,
-                                )
+                                    GenderRatioChooserBadge(
+                                        colors = genderRatioChooserColors,
+                                        fontSize = metrics.genderRatioBadgeFontSize,
+                                        verticalPadding = metrics.genderRatioBadgeVerticalPadding,
+                                        modifier = Modifier,
+                                        alignment = Alignment.CenterEnd,
+                                    )
+                                }
                             }
                         }
+                    } else {
+                        TeamHeaderIdentity(
+                            requireLongPress = requireLongPress,
+                            teamId = teamId,
+                            team = team,
+                            titleTextStyle = titleTextStyle,
+                            modifier = Modifier.weight(1f),
+                            onTeamInfo = onTeamInfo,
+                        )
                     }
-                } else {
-                    TeamHeaderIdentity(
-                        requireLongPress = requireLongPress,
-                        teamId = teamId,
-                        team = team,
-                        titleTextStyle = titleTextStyle,
-                        modifier = Modifier.weight(1f),
-                        onTeamInfo = onTeamInfo,
-                    )
                 }
             }
             BoxWithConstraints(modifier = Modifier.weight(1f)) {
@@ -1448,21 +1507,25 @@ private fun PortraitEndZonePanel(
                 )
             }
             if (fieldEndLabelAtTop && choosesGenderRatio) {
-                GenderRatioChooserBadge(
-                    colors = genderRatioChooserColors,
-                    fontSize = metrics.genderRatioBadgeFontSize,
-                    verticalPadding = metrics.genderRatioBadgeVerticalPadding,
-                    modifier = Modifier.fillMaxWidth(),
-                    alignment = Alignment.CenterEnd,
-                )
+                CompositionLocalProvider(LocalDensity provides teamTextDensity) {
+                    GenderRatioChooserBadge(
+                        colors = genderRatioChooserColors,
+                        fontSize = metrics.genderRatioBadgeFontSize,
+                        verticalPadding = metrics.genderRatioBadgeVerticalPadding,
+                        modifier = Modifier.fillMaxWidth(),
+                        alignment = Alignment.CenterEnd,
+                    )
+                }
             }
             if (!fieldEndLabelAtTop) {
-                FieldEndCornerLabel(
-                    name = fieldEndName,
-                    contentColor = team.content,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.End,
-                )
+                CompositionLocalProvider(LocalDensity provides teamTextDensity) {
+                    FieldEndCornerLabel(
+                        name = fieldEndName,
+                        contentColor = team.content,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.End,
+                    )
+                }
             }
         }
     }
@@ -2137,89 +2200,142 @@ private fun PullDirectionLabel() {
  * Render the active countdown row, expired-pull actions, or misconduct countdown action.
  *
  * @param countdown The visible countdown state, or null when no countdown is active.
- * @param enabled Whether countdown actions should be enabled.
- * @param onAdjust Callback receiving signed second adjustments from the quick buttons.
- * @param waterBreakAction Callback for a water-break prompt, or null when disabled.
- * @param onTogglePaused Callback for pausing or resuming the countdown.
- * @param expiredPullActions Actions to show after undoing an automatic start point.
- * @param misconductCountdownAction Action to show before starting a live-point misconduct countdown.
+ * @param controls Interactive actions, or null for a timer without controls.
  * @param statusMessage Message to show when no countdown or countdown action occupies the row.
- * @param height Reserved row height so the field layout does not shift when content changes.
+ * @param height Available countdown-band height used to scale the text continuously.
+ * @param cueText Formatted cue-line text; empty reserves a blank row, null omits the row.
  */
 @Composable
 internal fun CountdownLine(
-    requireLongPress: Boolean,
     countdown: ActiveCountdownDisplay?,
-    enabled: Boolean,
-    onAdjust: (Int) -> Unit,
-    waterBreakAction: (() -> Unit)?,
-    onTogglePaused: () -> Unit,
-    expiredPullActions: ExpiredPullActions?,
-    misconductCountdownAction: MisconductCountdownAction?,
-    statusMessage: String? = null,
+    controls: CountdownControls?,
+    statusMessage: String?,
     height: Dp,
+    cueText: String?,
     modifier: Modifier = Modifier,
 ) {
     val fontScale = LocalDensity.current.fontScale
+    val allocatedHeight = if (cueText == null) {
+        countdownHeightWithoutCue(height, fontScale)
+    } else {
+        countdownHeightWithCue(height, fontScale)
+    }
+    if (countdown == null && statusMessage != null &&
+        controls!!.misconductCountdownAction == null
+    ) {
+        BoxWithConstraints(modifier = modifier.fillMaxWidth().height(allocatedHeight)) {
+            val density = LocalDensity.current
+            val textMeasurer = rememberTextMeasurer()
+            val preferredFontSize = (height.value * 0.23f).coerceIn(14f, 16f).sp
+            val preferredStyle = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = preferredFontSize,
+                lineHeight = (preferredFontSize.value + 2f).sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            val maxWidthPx = with(density) { maxWidth.roundToPx() }
+            val maxHeightPx = with(density) { maxHeight.roundToPx() }
+            fun messageFits(scale: Float): Boolean {
+                val measured = textMeasurer.measure(
+                    text = AnnotatedString(statusMessage),
+                    style = preferredStyle.copy(
+                        fontSize = preferredStyle.fontSize * scale,
+                        lineHeight = preferredStyle.lineHeight * scale,
+                    ),
+                    constraints = Constraints(maxWidth = maxWidthPx),
+                    maxLines = 2,
+                )
+                return !measured.hasVisualOverflow && measured.size.height <= maxHeightPx
+            }
+            val textScale = if (messageFits(1f)) {
+                1f
+            } else {
+                var lowerScale = 0f
+                var upperScale = 1f
+                repeat(8) {
+                    val candidateScale = (lowerScale + upperScale) / 2f
+                    if (messageFits(candidateScale)) {
+                        lowerScale = candidateScale
+                    } else {
+                        upperScale = candidateScale
+                    }
+                }
+                lowerScale
+            }
+            Text(
+                text = statusMessage,
+                modifier = Modifier.align(Alignment.Center).fillMaxWidth()
+                    .testTag("countdown-status-message"),
+                style = preferredStyle.copy(
+                    fontSize = preferredStyle.fontSize * textScale,
+                    lineHeight = preferredStyle.lineHeight * textScale,
+                ),
+                maxLines = 2,
+            )
+        }
+        return
+    }
     val titleFontSize = (
         (height.value * 0.4f).coerceIn(22f, 28f) / fontScale
         ).sp
-    val labelFontSize = (
-        (height.value * 0.21f).coerceIn(12f, 14f) / fontScale
-        ).sp
-    val controlHeight = (
-        34f - (fontScale - 1f).coerceAtLeast(0f) * (8f / 0.15f)
-        )
-        .coerceIn(26f, 34f)
-        .dp
+    val labelFontSize = ((height.value * 0.28f).coerceIn(12f, 18f) / fontScale).sp
+    val controlHeight = countdownControlHeight(fontScale)
     val controlGap = controlHeight * (6f / 34f)
     val controlStartPadding = controlHeight * (8f / 34f)
-    val statusFontSize = (height.value * 0.23f).coerceIn(14f, 16f).sp
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(height),
+            .height(allocatedHeight),
         verticalArrangement = Arrangement.spacedBy(1.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().heightIn(min = controlHeight),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (misconductCountdownAction != null) {
+            if (controls?.misconductCountdownAction != null) {
                 BigActionButton(
-                    requireLongPress = requireLongPress,
+                    requireLongPress = controls.requireLongPress,
                     label = "Start misconduct countdown",
-                    enabled = enabled,
+                    enabled = controls.enabled,
                     fullWidth = true,
                     containerColor = DarkNeutralColor,
-                    tag = "live-start-misconduct-countdown",
-                    onClick = misconductCountdownAction.onStart,
+                    tag = "start-misconduct-countdown",
+                    onClick = controls.misconductCountdownAction.onStart,
                 )
-            } else if (expiredPullActions != null) {
+            } else if (controls?.expiredPullActions != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     BigActionButton(
-                        requireLongPress = requireLongPress,
+                        requireLongPress = controls.requireLongPress,
                         label = "Restart countdown",
-                        enabled = enabled,
+                        enabled = controls.enabled,
                         fullWidth = true,
                         containerColor = DarkNeutralColor,
-                        tag = "live-restart-pull-countdown",
-                        onClick = expiredPullActions.onRestartPullCountdown,
+                        tag = "restart-pull-countdown",
+                        onClick = controls.expiredPullActions.onRestartPullCountdown,
                     )
                 }
             } else if (countdown != null) {
                 Row(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).then(
+                        if (controls == null) {
+                            Modifier.semantics(mergeDescendants = true) {}
+                                .testTag("dual-${countdown.label}")
+                        } else {
+                            Modifier
+                        }
+                    ),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = countdown.label,
-                        modifier = Modifier.weight(1f, fill = false),
+                        modifier = Modifier.weight(1f, fill = false).testTag(
+                            if (controls == null) "dual-label" else "countdown-label"
+                        ),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontSize = titleFontSize,
                             lineHeight = titleFontSize,
@@ -2230,6 +2346,9 @@ internal fun CountdownLine(
                     )
                     Text(
                         text = formatDuration(countdown.remaining),
+                        modifier = Modifier.testTag(
+                            if (controls == null) "dual-remaining" else "countdown-remaining"
+                        ),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontSize = titleFontSize,
                             lineHeight = titleFontSize,
@@ -2238,78 +2357,127 @@ internal fun CountdownLine(
                         maxLines = 1,
                     )
                 }
-                Row(
-                    modifier = Modifier.padding(start = controlStartPadding),
-                    horizontalArrangement = Arrangement.spacedBy(controlGap),
-                ) {
-                    if (waterBreakAction != null) {
-                        WaterBreakButton(
-                            requireLongPress = requireLongPress,
-                            enabled = enabled,
+                if (controls != null) {
+                    Row(
+                        modifier = Modifier.padding(start = controlStartPadding),
+                        horizontalArrangement = Arrangement.spacedBy(controlGap),
+                    ) {
+                        if (controls.waterBreakAction != null) {
+                            WaterBreakButton(
+                                requireLongPress = controls.requireLongPress,
+                                enabled = controls.enabled,
+                                height = controlHeight,
+                                onClick = controls.waterBreakAction,
+                            )
+                        }
+                        PauseResumeButton(
+                            requireLongPress = controls.requireLongPress,
+                            isPaused = countdown.isPaused,
+                            enabled = controls.enabled,
                             height = controlHeight,
-                            onClick = waterBreakAction,
+                            onClick = controls.onTogglePaused,
                         )
-                    }
-                    PauseResumeButton(
-                        requireLongPress = requireLongPress,
-                        isPaused = countdown.isPaused,
-                        enabled = enabled,
-                        height = controlHeight,
-                        onClick = onTogglePaused,
-                    )
-                    AdjustButton(
-                        requireLongPress = requireLongPress,
-                        label = "-5",
-                        enabled = enabled,
-                        containerColor = DarkNeutralColor,
-                        height = controlHeight,
-                    ) {
-                        onAdjust(-5)
-                    }
-                    AdjustButton(
-                        requireLongPress = requireLongPress,
-                        label = "+5",
-                        enabled = enabled,
-                        containerColor = DarkNeutralColor,
-                        height = controlHeight,
-                    ) {
-                        onAdjust(5)
+                        AdjustButton(
+                            requireLongPress = controls.requireLongPress,
+                            label = "-5",
+                            enabled = controls.enabled,
+                            containerColor = DarkNeutralColor,
+                            height = controlHeight,
+                        ) {
+                            controls.onAdjust(-5)
+                        }
+                        AdjustButton(
+                            requireLongPress = controls.requireLongPress,
+                            label = "+5",
+                            enabled = controls.enabled,
+                            containerColor = DarkNeutralColor,
+                            height = controlHeight,
+                        ) {
+                            controls.onAdjust(5)
+                        }
                     }
                 }
-            } else if (statusMessage != null) {
-                Text(
-                    text = statusMessage,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("live-countdown-status-message"),
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = statusFontSize,
-                        lineHeight = (statusFontSize.value + 2f).sp,
-                    ),
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                )
             }
         }
-        Text(
-            text = if (countdown?.isPaused == true) {
-                "Paused"
-            } else if (countdown?.nextCue != null) {
-                val cue = countdown.nextCue
-                "Next cue at ${formatDuration(cue.countdownTime)} - ${cue.message}"
-            } else {
-                ""
-            },
+        if (cueText != null) {
+            Text(
+                modifier = Modifier.testTag(
+                    if (controls == null) "dual-cue" else "countdown-cue"
+                ),
+                text = cueText,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontSize = labelFontSize,
+                    lineHeight = labelFontSize,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
+ * Interactive actions belonging to the one countdown line that owns the controls.
+ *
+ * @param enabled Whether countdown actions should be enabled.
+ * @param onAdjust Callback receiving signed second adjustments from the quick buttons.
+ * @param waterBreakAction Callback for a water-break prompt, or null when disabled.
+ * @param onTogglePaused Callback for pausing or resuming the countdown.
+ * @param expiredPullActions Actions to show after undoing an automatic start point.
+ * @param misconductCountdownAction Action to show before starting a live-point misconduct countdown.
+ */
+internal data class CountdownControls(
+    val requireLongPress: Boolean,
+    val enabled: Boolean,
+    val onAdjust: (Int) -> Unit,
+    val waterBreakAction: (() -> Unit)?,
+    val onTogglePaused: () -> Unit,
+    val expiredPullActions: ExpiredPullActions?,
+    val misconductCountdownAction: MisconductCountdownAction?,
+)
+
+/** Match timer row heights even when only one timer has controls. */
+private fun countdownControlHeight(fontScale: Float): Dp {
+    return (34f - (fontScale - 1f).coerceAtLeast(0f) * (8f / 0.15f))
+        .coerceIn(26f, 34f).dp
+}
+
+/** Measure a timer row without reserving space for a cue. */
+@Composable
+internal fun countdownHeightWithoutCue(height: Dp, fontScale: Float): Dp {
+    val density = LocalDensity.current
+    val titleFontSize = ((height.value * 0.4f).coerceIn(22f, 28f) / fontScale).sp
+    val titleHeight = with(density) {
+        rememberTextMeasurer().measure(
+            text = AnnotatedString("Pull in 00:00"),
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontSize = titleFontSize,
+                lineHeight = titleFontSize,
+                fontWeight = FontWeight.Bold,
+            ),
+            maxLines = 1,
+        ).size.height.toDp()
+    }
+    return maxOf(titleHeight, countdownControlHeight(fontScale))
+}
+
+/** Fit a timer and its cue without retaining unused countdown-band space. */
+@Composable
+internal fun countdownHeightWithCue(height: Dp, fontScale: Float): Dp {
+    val density = LocalDensity.current
+    val labelFontSize = ((height.value * 0.28f).coerceIn(12f, 18f) / fontScale).sp
+    val cueHeight = with(density) {
+        rememberTextMeasurer().measure(
+            text = AnnotatedString("Next cue"),
             style = MaterialTheme.typography.labelMedium.copy(
                 fontSize = labelFontSize,
                 lineHeight = labelFontSize,
             ),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        ).size.height.toDp()
     }
+    return countdownHeightWithoutCue(height, fontScale) + cueHeight + 1.dp
 }
 
 /**

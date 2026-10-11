@@ -114,6 +114,37 @@ class TestGameDisplay {
         assertNull(finished.nextCue)
     }
 
+    /** Keep Signal above Pull and preserve the one shared upcoming cue in dual mode. */
+    @Test
+    fun dualPullCountdowns() {
+        // The original offense cue schedule remains authoritative while both deadlines render.
+        val game = navigationSnapshot().activeGame!!.copy(
+            countdown = WearCountdownSnapshot(
+                "Phone pull label", 90_000L, null,
+                listOf(WearCueSnapshot("Give hand", 90_000L)),
+                signalTargetEpochMillis = 90_000L,
+                pullTargetEpochMillis = 110_000L,
+                signalLabel = "Phone signal label",
+            ),
+        )
+        val running = game.toGameDisplay(80_000L, true)
+        assertEquals("0:10", running.signalCountdownValue)
+        assertEquals("0:30", running.countdownValue)
+        assertEquals("Phone pull label", running.countdownLabel)
+        assertEquals("Phone signal label", running.signalCountdownLabel)
+        assertEquals("Next: Give hand", running.nextCue)
+
+        // An expired Signal stays at zero while Pull continues; pause freezes both deadlines.
+        val signalExpired = game.toGameDisplay(100_000L, true)
+        assertEquals("0:00", signalExpired.signalCountdownValue)
+        assertEquals("0:10", signalExpired.countdownValue)
+        val paused = game.copy(countdown = game.countdown!!.copy(pausedAtEpochMillis = 80_000L))
+            .toGameDisplay(120_000L, true)
+        assertEquals("0:10", paused.signalCountdownValue)
+        assertEquals("0:30", paused.countdownValue)
+        assertEquals("Paused", paused.nextCue)
+    }
+
     /** Select the latest status text only when no countdown occupies that area. */
     @Test
     fun statusMessages() {

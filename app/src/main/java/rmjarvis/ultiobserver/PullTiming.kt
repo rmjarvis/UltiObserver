@@ -68,6 +68,23 @@ private val OpeningPullTiming = PullTimingSeconds(offenseReadySeconds = 20, pull
 private val ReceivingTeamWarningResetTiming = PullTimingSeconds(offenseReadySeconds = 20, pullSeconds = 50)
 private val PullingTeamWarningResetTiming = PullTimingSeconds(offenseReadySeconds = 0, pullSeconds = 30)
 
+/** Return one team's deadline, preserving adjustments, timeout extensions, and pauses. */
+internal fun CountdownState.pullDeadline(target: BetweenPointsCountdownTarget): Long {
+    val timing = pullTiming!!
+    return targetEpoch +
+        (timing.durationSecondsFor(target) - timing.durationSecondsFor(betweenPointsTarget!!)) * 1000L
+}
+
+/** Return the expiration used for automatic advancement in the selected display mode. */
+internal fun CountdownState.expirationEpoch(dualPullCountdowns: Boolean): Long {
+    return if (dualPullCountdowns && kind.usesBetweenPointsTarget()) {
+        maxOf(pullDeadline(BetweenPointsCountdownTarget.OFFENSE_READY),
+            pullDeadline(BetweenPointsCountdownTarget.PULL))
+    } else {
+        targetEpoch
+    }
+}
+
 /// Return the default pull deadlines for one between-points countdown kind.
 internal fun defaultPullTimingSeconds(kind: CountdownKind, rules: GameRules): PullTimingSeconds {
     return when (kind) {
@@ -282,14 +299,14 @@ internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
  *
  * @param now The epoch millis used to decide whether an active pull countdown has expired.
  */
-fun GameState.hasExpiredPullActions(now: Long): Boolean {
+fun GameState.hasExpiredPullActions(now: Long, dualPullCountdowns: Boolean = false): Boolean {
     if (!this.phase.isBeforeLivePoint || this.pullSkippedForCurrentPoint) {
         return false
     }
     val countdown = this.countdown!!
     return countdown.kind.usesBetweenPointsTarget() &&
         !countdown.isPaused() &&
-        now >= countdown.targetEpoch
+        now >= countdown.expirationEpoch(dualPullCountdowns)
 }
 
 /// Report whether a time violation can be recorded for the current pull sequence.
@@ -420,8 +437,8 @@ private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameS
  *
  * @param now The epoch millis used as the restarted countdown's sequence start.
  */
-fun GameState.restartPullCountdown(now: Long): GameState {
-    if (!this.hasExpiredPullActions(now)) {
+fun GameState.restartPullCountdown(now: Long, dualPullCountdowns: Boolean = false): GameState {
+    if (!this.hasExpiredPullActions(now, dualPullCountdowns)) {
         return this
     }
     return this.copy(

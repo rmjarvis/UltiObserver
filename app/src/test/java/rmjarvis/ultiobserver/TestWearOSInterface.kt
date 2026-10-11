@@ -495,6 +495,36 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertEquals(now, pausedSnapshot.pausedAtEpochMillis)
         assertTrue(pausedSnapshot.cues.isEmpty())
 
+        // Dual mode carries both team deadlines without replacing the authoritative cue schedule.
+        val dualSnapshot = buildWearStateSnapshot(
+            activeGame, mixedSettings.copy(dualPullCountdowns = true), now,
+        ).activeGame!!.countdown!!
+        assertEquals("Pull in", dualSnapshot.label)
+        assertEquals("Signal in", dualSnapshot.signalLabel)
+        assertEquals(expectedCountdown.pullDeadline(BetweenPointsCountdownTarget.OFFENSE_READY),
+            dualSnapshot.signalTargetEpochMillis)
+        assertEquals(expectedCountdown.pullDeadline(BetweenPointsCountdownTarget.PULL),
+            dualSnapshot.pullTargetEpochMillis)
+        assertEquals(gameSnapshot.countdown!!.cues, dualSnapshot.cues)
+        val dualPaused = buildWearStateSnapshot(
+            pausedGame, mixedSettings.copy(dualPullCountdowns = true), now + 5_000L,
+        ).activeGame!!.countdown!!
+        assertEquals(now, dualPaused.pausedAtEpochMillis)
+        assertEquals(dualSnapshot.label, dualPaused.label)
+        assertEquals(dualSnapshot.signalLabel, dualPaused.signalLabel)
+        assertEquals(dualSnapshot.signalTargetEpochMillis, dualPaused.signalTargetEpochMillis)
+        assertEquals(dualSnapshot.pullTargetEpochMillis, dualPaused.pullTargetEpochMillis)
+
+        // Dual pull mode leaves halftime as a single countdown on the watch.
+        val halftimeCountdown = buildWearStateSnapshot(
+            halftimeGame, mixedSettings.copy(dualPullCountdowns = true), now,
+        ).activeGame!!.countdown!!
+        assertEquals("Halftime", halftimeCountdown.label)
+        assertEquals(halftimeGame.countdown!!.targetEpoch, halftimeCountdown.targetEpochMillis)
+        assertNull(halftimeCountdown.signalTargetEpochMillis)
+        assertNull(halftimeCountdown.signalLabel)
+        assertNull(halftimeCountdown.pullTargetEpochMillis)
+
         // Watch countdowns carry the configured pattern alongside the same cue text and deadline.
         val watchSettings = mixedSettings.copy(timingAlerts = TimingAlertPreferences(
             watchConnectionMode = WatchConnectionMode.WEAR_OS,

@@ -1291,6 +1291,16 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-advance-new-countdowns").performClick()
         waitForText("Seconds already elapsed: 3")
 
+        // Dual pull countdowns are optional and explain both display choices.
+        composeRule.onNodeWithTag("settings-dual-pull-countdowns").performScrollTo()
+        composeRule.onNodeWithTag("settings-dual-pull-countdowns-value").assertTextEquals("No")
+        composeRule.onNodeWithTag("settings-dual-pull-countdowns").performClick()
+        composeRule.onNodeWithTag("settings-dual-pull-countdowns-value").assertTextEquals("Yes")
+        waitForText("Show separate pull countdowns for both the offense and defense on the screen.")
+        composeRule.onNodeWithTag("settings-dual-pull-countdowns").performClick()
+        composeRule.onNodeWithTag("settings-dual-pull-countdowns-value").assertTextEquals("No")
+        waitForText("Show one pull countdown on the screen", substring = true)
+
         // The default gender ratio badge for ABBA is to show the sequence M2, W1, W2, M1, M2...
         // or vice versa. The next setting can switch this to just the current ratio.
         composeRule.onNodeWithTag("settings-category-GENDER_RATIO").performScrollTo().performClick()

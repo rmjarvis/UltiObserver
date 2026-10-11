@@ -3,6 +3,7 @@ package rmjarvis.ultiobserver
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
@@ -95,6 +96,21 @@ class TestCapsUi : MainActivityUiTestFixtures() {
 
         // Hard cap can be deferred, then applied on a tied score to keep the game live.
         startLiveGameWithDueCap("Hard cap", "Hard cap")
+        waitForText("Hard cap passed. It will apply at the end of this point.")
+
+        // Also render the status message in landscape mode, since that sometimes needs to
+        // shrink the text a bit. So check this bit in landscape on all devices.
+        setLandscapeOrientationPreference()
+        waitForText("Hard cap passed. It will apply at the end of this point.")
+        composeRule.onNodeWithTag("countdown-status-message")
+            .assertTextEquals("Hard cap passed. It will apply at the end of this point.")
+            .assertIsDisplayed()
+        if (testOrientationPreference() == OrientationPreference.PORTRAIT) {
+            setPortraitOrientationPreference()
+        }
+
+        // Continue the hard-cap confirmation flow after checking the live status.
+        assertLiveScreen()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Hard cap")
         composeRule.onNodeWithText("Not yet").performClick()

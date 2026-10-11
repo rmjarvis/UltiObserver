@@ -933,7 +933,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Start misconduct countdown")
         composeRule.onNodeWithTag("live-center-lock").performClick()
         waitForText("Slide right to unlock")
-        composeRule.onNodeWithTag("live-start-misconduct-countdown")
+        composeRule.onNodeWithTag("start-misconduct-countdown")
             .assertIsDisplayed().assertIsNotEnabled()
         unlockLiveScreen()
         waitForText("Start misconduct countdown")
@@ -1032,7 +1032,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Start misconduct countdown")
 
         // The pending misconduct countdown starts only when the observer is ready for it.
-        composeRule.onNodeWithTag("live-start-misconduct-countdown").performClick()
+        composeRule.onNodeWithTag("start-misconduct-countdown").performClick()
         val misconductCountdownState = accessCurrentGameState()
         val misconductCountdown = misconductCountdownState.countdown!!
         assertEquals(CountdownKind.TIME_OUT, misconductCountdown.kind)

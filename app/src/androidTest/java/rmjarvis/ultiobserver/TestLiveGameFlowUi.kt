@@ -694,7 +694,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation"))
             .assertIsNotEnabled()
-        composeRule.onNodeWithTag("live-restart-pull-countdown")
+        composeRule.onNodeWithTag("restart-pull-countdown")
             .assertIsDisplayed().assertIsNotEnabled()
         unlockLiveScreen()
         waitForText("Restart countdown")
@@ -805,10 +805,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
 
         // Locking keeps the restart action visible but disabled until the screen is unlocked.
         composeRule.onNodeWithTag("live-center-lock").performClick()
-        composeRule.onNodeWithTag("live-restart-pull-countdown")
+        composeRule.onNodeWithTag("restart-pull-countdown")
             .assertIsDisplayed().assertIsNotEnabled()
         unlockLiveScreen()
-        composeRule.onNodeWithTag("live-restart-pull-countdown").assertIsEnabled()
+        composeRule.onNodeWithTag("restart-pull-countdown").assertIsEnabled()
         composeRule.onNodeWithText("Redo").performClick()
 
         // For a time out during a point, the countdown expiring automatically continues
@@ -903,6 +903,105 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("+5").assertIsNotEnabled()
         composeRule.onNodeWithText("-5").assertIsNotEnabled()
         assertEquals(lockedCountdownTarget, accessCurrentGameState().countdown!!.targetEpoch)
+    }
+
+    /** Show and control both pull timers, with cue copy appropriate to each orientation. */
+    @Test
+    fun dualPullCountdowns() {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appState.updateSettings(activity.appState.settings.copy(
+                dualPullCountdowns = true,
+                automaticallyAdvanceCountdowns = false,
+                automaticallyAdvanceNewCountdowns = false,
+                accidentalTouchProtection = AccidentalTouchProtection.NONE,
+            ))
+        }
+        composeRule.waitForIdle()
+        for (orientation in listOf(OrientationPreference.PORTRAIT, OrientationPreference.LANDSCAPE)) {
+            // Both orientations show the timer belonging to each displayed team.
+            if (orientation == OrientationPreference.PORTRAIT) {
+                setPortraitOrientationPreference()
+            } else {
+                setLandscapeOrientationPreference()
+            }
+            setAutomaticallyAdvanceCountdowns(false)
+            startBetweenPointsProgrammatically(newSetupGameState(now = System.currentTimeMillis())
+                .copy(pullPromptTarget = PullPromptTarget.BOTH))
+            val game = accessCurrentGameState()
+            val firstTeam = game.teamDefendingEnd(game.topDisplayedEnd)
+            val primaryTeam = if (orientation == OrientationPreference.PORTRAIT) {
+                firstTeam
+            } else {
+                firstTeam.flip()
+            }
+            val secondaryLabel = if (primaryTeam == game.pullingTeam) "Signal in" else "Pull in"
+            val primaryLabel = if (primaryTeam == game.pullingTeam) "Pull in" else "Signal in"
+            waitForTag("dual-$secondaryLabel")
+            composeRule.onNodeWithTag("countdown-label").assertTextEquals(primaryLabel)
+            composeRule.onNodeWithTag("dual-$secondaryLabel").assertIsDisplayed()
+            composeRule.onAllNodesWithTag("live-pause-countdown").assertCountEquals(1)
+
+            // One pause control freezes both timers; both adjustments move the same sequence.
+            composeRule.onNodeWithTag("live-pause-countdown").performClick()
+            composeRule.onNodeWithTag("dual-cue").assertTextEquals("Paused")
+            val paused = accessCurrentGameState()
+            val display = paused.dualPullCountdownDisplay(paused.countdown!!.pausedAtEpoch!!)!!
+            val primary = display.forTeam(primaryTeam, paused.pullingTeam)
+            val secondary = display.forTeam(primaryTeam.flip(), paused.pullingTeam)
+            composeRule.onNodeWithTag("countdown-remaining")
+                .assertTextEquals(formatDuration(primary.remaining))
+            composeRule.onNodeWithTag("dual-$secondaryLabel")
+                .assertTextEquals(secondaryLabel, formatDuration(secondary.remaining))
+            composeRule.onNodeWithText("+5").performClick()
+            assertEquals(paused.countdown!!.targetEpoch + 5_000L,
+                accessCurrentGameState().countdown!!.targetEpoch)
+            composeRule.onNodeWithText("-5").performClick()
+            assertEquals(paused.countdown!!.targetEpoch, accessCurrentGameState().countdown!!.targetEpoch)
+            composeRule.onNodeWithTag("live-resume-countdown").performClick()
+
+            // Portrait shares both cue times; landscape uses one time under its team timer.
+            if (orientation == OrientationPreference.PORTRAIT) {
+                composeRule.onNodeWithTag("dual-cue")
+                    .assertTextEquals(game.dualPullCueText(System.currentTimeMillis(), firstTeam)!!)
+                composeRule.onAllNodesWithTag("countdown-cue").assertCountEquals(0)
+            } else {
+                val signalCueTag = if (primaryLabel == "Signal in") "countdown-cue" else "dual-cue"
+                val pullCueTag = if (primaryLabel == "Pull in") "countdown-cue" else "dual-cue"
+                composeRule.onNodeWithTag(signalCueTag)
+                    .assertTextEquals("Next cue at 0:20 - 20 seconds for a hand")
+                composeRule.onNodeWithTag(pullCueTag).assertTextEquals("")
+            }
+
+            // Manual expiry leaves the second timer at zero and clears its cue; restart restores both.
+            expireActiveCountdownProgrammatically()
+            waitForText("Restart countdown")
+            composeRule.onNodeWithTag("dual-$secondaryLabel")
+                .assertTextEquals(secondaryLabel, "0:00")
+            composeRule.onNodeWithTag("dual-cue").assertTextEquals("")
+            composeRule.onNodeWithTag("restart-pull-countdown").performClick()
+            waitForTag("live-pause-countdown")
+
+            // Automatic advancement waits through the expired Signal timer until Pull also expires.
+            setActiveCountdownRemainingProgrammatically(secondsRemaining = 19)
+            setAutomaticallyAdvanceCountdowns(true)
+            val checkAfter = System.currentTimeMillis() + 1_200L
+            composeRule.waitUntil(timeoutMillis = 3_000) { System.currentTimeMillis() >= checkAfter }
+            assertEquals(GamePhase.BETWEEN_POINTS, accessCurrentGameState().phase)
+            if (primaryLabel == "Signal in") {
+                composeRule.onNodeWithTag("countdown-remaining").assertTextEquals("0:00")
+            } else {
+                composeRule.onNodeWithTag("dual-Signal in").assertTextEquals("Signal in", "0:00")
+            }
+            expireActiveCountdownProgrammatically()
+            composeRule.waitUntil(timeoutMillis = 3_000) {
+                accessCurrentGameState().phase == GamePhase.LIVE_POINT
+            }
+            composeRule.onAllNodesWithTag("dual-$secondaryLabel").assertCountEquals(0)
+        }
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appState.updateSettings(activity.appState.settings.copy(dualPullCountdowns = false))
+        }
+        composeRule.waitForIdle()
     }
 
     /** Protect game controls using long presses. */

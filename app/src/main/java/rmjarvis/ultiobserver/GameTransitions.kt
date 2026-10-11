@@ -481,6 +481,7 @@ internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
 fun GameState.applyAutomaticGameTransitions(
     now: Long,
     showDefenseCountdowns: Boolean,
+    dualPullCountdowns: Boolean = false,
 ): GameState {
     if (this.redoEntry != null) {
         return this
@@ -489,7 +490,7 @@ fun GameState.applyAutomaticGameTransitions(
     if (countdown.isPaused()) {
         return this
     }
-    if (now < countdown.targetEpoch) {
+    if (now < countdown.expirationEpoch(dualPullCountdowns)) {
         return this
     }
     return when {
@@ -524,6 +525,7 @@ fun GameState.applyAutomaticGameTransitions(
             betweenPointsState.applyAutomaticGameTransitions(
                 now = now,
                 showDefenseCountdowns = showDefenseCountdowns,
+                dualPullCountdowns = dualPullCountdowns,
             )
         }
         else -> error("Countdown ${countdown.kind} is not valid while game phase is ${this.phase}.")

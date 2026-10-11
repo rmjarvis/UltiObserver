@@ -140,8 +140,8 @@ internal fun ActiveGameScreen(
     val canStartPoint = remember(state, now) {
         state.phase.isBeforeLivePoint || state.halftimeTransitionReady(now)
     }
-    val hasExpiredPullActions = remember(state, now) {
-        state.hasExpiredPullActions(now)
+    val hasExpiredPullActions = remember(state, now, settings.dualPullCountdowns) {
+        state.hasExpiredPullActions(now, settings.dualPullCountdowns)
     }
     val canReportOffenseSet = remember(state, settings.showDefenseCountdowns) {
         state.canReportOffenseSet(settings.showDefenseCountdowns)
@@ -156,11 +156,13 @@ internal fun ActiveGameScreen(
         settings.automaticallyAdvanceCountdowns,
         settings.automaticallyLockLivePoint,
         settings.showDefenseCountdowns,
+        settings.dualPullCountdowns,
     ) {
         if (settings.automaticallyAdvanceCountdowns) {
             val transitionedState = state.applyAutomaticGameTransitions(
                 now = now,
                 showDefenseCountdowns = settings.showDefenseCountdowns,
+                dualPullCountdowns = settings.dualPullCountdowns,
             )
             if (transitionedState != state) {
                 if (settings.automaticallyLockLivePoint && transitionedState.phase == GamePhase.LIVE_POINT) {
@@ -1003,7 +1005,18 @@ private fun PortraitActiveGameContent(
     } else {
         Color(settings.genderRatioBadgeColorArgb(currentGenderRatio))
     }
-    val metrics = portraitActiveGameLayoutMetrics(maxHeight)
+    val dualCountdown = if (settings.dualPullCountdowns) state.dualPullCountdownDisplay(now) else null
+    val topTeam = state.teamDefendingEnd(topDisplayedEnd)
+    val dualCueText = if (dualCountdown != null) {
+        if (dualCountdown.signal.isPaused) "Paused" else state.dualPullCueText(now, topTeam)
+    } else {
+        null
+    }
+    val metrics = portraitActiveGameLayoutMetrics(
+        contentHeight = maxHeight,
+        dualPullCountdowns = dualCountdown != null,
+        fontScale = LocalDensity.current.fontScale,
+    )
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1022,47 +1035,62 @@ private fun PortraitActiveGameContent(
         )
 
         CountdownLine(
-            requireLongPress = requireLongPress,
-            countdown = activeCountdown,
-            enabled = !locked,
-            onAdjust = { seconds ->
-                onStateChange(state.addTimeToCountdown(seconds))
-            },
-            waterBreakAction = if (state.canApplyWaterBreak()) {
-                onWaterBreak
-            } else {
-                null
-            },
-            onTogglePaused = {
-                onStateChange(
-                    state.toggleCountdownPaused(System.currentTimeMillis())
-                )
-            },
-            expiredPullActions = if (hasExpiredPullActions) {
-                ExpiredPullActions(
-                    onRestartPullCountdown = {
-                        onStateChange(
-                            state.restartPullCountdown(System.currentTimeMillis())
-                        )
-                    },
-                )
-            } else {
-                null
-            },
-            misconductCountdownAction = if (state.pendingMisconductCountdown) {
-                MisconductCountdownAction(
-                    onStart = {
-                        onStateChange(
-                            state.startMisconductCountdown(System.currentTimeMillis())
-                        )
-                    },
-                )
-            } else {
-                null
-            },
+            countdown = dualCountdown?.forTeam(topTeam, state.pullingTeam) ?: activeCountdown,
+            controls = CountdownControls(
+                requireLongPress = requireLongPress,
+                enabled = !locked,
+                onAdjust = { seconds ->
+                    onStateChange(state.addTimeToCountdown(seconds))
+                },
+                waterBreakAction = if (state.canApplyWaterBreak()) {
+                    onWaterBreak
+                } else {
+                    null
+                },
+                onTogglePaused = {
+                    onStateChange(
+                        state.toggleCountdownPaused(System.currentTimeMillis())
+                    )
+                },
+                expiredPullActions = if (hasExpiredPullActions) {
+                    ExpiredPullActions(
+                        onRestartPullCountdown = {
+                            onStateChange(
+                                state.restartPullCountdown(
+                                    System.currentTimeMillis(), settings.dualPullCountdowns
+                                )
+                            )
+                        },
+                    )
+                } else {
+                    null
+                },
+                misconductCountdownAction = if (state.pendingMisconductCountdown) {
+                    MisconductCountdownAction(
+                        onStart = {
+                            onStateChange(
+                                state.startMisconductCountdown(System.currentTimeMillis())
+                            )
+                        },
+                    )
+                } else {
+                    null
+                },
+            ),
             statusMessage = livePointStatusMessage,
             height = metrics.countdownHeight,
+            cueText = if (dualCountdown == null) activeCountdown?.cueText() ?: "" else null,
         )
+
+        if (dualCountdown != null) {
+            CountdownLine(
+                countdown = dualCountdown.forTeam(topTeam.flip(), state.pullingTeam),
+                controls = null,
+                statusMessage = null,
+                height = metrics.countdownHeight,
+                cueText = dualCueText ?: "",
+            )
+        }
 
         PortraitFieldSketchCard(
             requireLongPress = requireLongPress,
@@ -1212,7 +1240,15 @@ private fun LandscapeActiveGameContent(
         contentWidth = maxWidth,
         contentHeight = maxHeight,
         fontScale = fontScale,
+        dualPullCountdowns = settings.dualPullCountdowns &&
+            state.dualPullCountdownDisplay(now) != null,
     )
+    val dualCountdown = if (settings.dualPullCountdowns) {
+        state.dualPullCountdownDisplay(now)?.withOnlyNextCue()
+    } else {
+        null
+    }
+    val leftTeam = state.teamDefendingEnd(leftDisplayedEnd)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1222,6 +1258,18 @@ private fun LandscapeActiveGameContent(
             ),
         verticalArrangement = Arrangement.spacedBy(metrics.sectionSpacing),
     ) {
+        if (dualCountdown != null) {
+            StatusLine(
+                requireLongPress = requireLongPress,
+                clockText = state.formatOfficialGameTime(now),
+                capStatus = capStatus,
+                now = now,
+                allocatedHeight = 30.dp,
+                modifier = Modifier.fillMaxWidth(),
+                pushCapToEnd = false,
+                onRulesReference = onRulesReference,
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1229,57 +1277,74 @@ private fun LandscapeActiveGameContent(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StatusLine(
-                requireLongPress = requireLongPress,
-                clockText = state.formatOfficialGameTime(now),
-                capStatus = capStatus,
-                now = now,
-                allocatedHeight = metrics.topRowHeight,
-                modifier = Modifier.weight(1f),
-                pushCapToEnd = false,
-                onRulesReference = onRulesReference,
-            )
+            if (dualCountdown != null) {
+                CountdownLine(
+                    countdown = dualCountdown.forTeam(leftTeam, state.pullingTeam),
+                    controls = null,
+                    statusMessage = null,
+                    height = metrics.countdownHeight,
+                    cueText = dualCountdown.forTeam(leftTeam, state.pullingTeam).cueText() ?: "",
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                StatusLine(
+                    requireLongPress = requireLongPress,
+                    clockText = state.formatOfficialGameTime(now),
+                    capStatus = capStatus,
+                    now = now,
+                    allocatedHeight = metrics.topRowHeight,
+                    modifier = Modifier.weight(1f),
+                    pushCapToEnd = false,
+                    onRulesReference = onRulesReference,
+                )
+            }
             CountdownLine(
-                requireLongPress = requireLongPress,
-                countdown = activeCountdown,
-                enabled = !locked,
-                onAdjust = { seconds ->
-                    onStateChange(state.addTimeToCountdown(seconds))
-                },
-                waterBreakAction = if (state.canApplyWaterBreak()) {
-                    onWaterBreak
-                } else {
-                    null
-                },
-                onTogglePaused = {
-                    onStateChange(
-                        state.toggleCountdownPaused(System.currentTimeMillis())
-                    )
-                },
-                expiredPullActions = if (hasExpiredPullActions) {
-                    ExpiredPullActions(
-                        onRestartPullCountdown = {
-                            onStateChange(
-                                state.restartPullCountdown(System.currentTimeMillis())
-                            )
-                        },
-                    )
-                } else {
-                    null
-                },
-                misconductCountdownAction = if (state.pendingMisconductCountdown) {
-                    MisconductCountdownAction(
-                        onStart = {
-                            onStateChange(
-                                state.startMisconductCountdown(System.currentTimeMillis())
-                            )
-                        },
-                    )
-                } else {
-                    null
-                },
+                countdown = dualCountdown?.forTeam(leftTeam.flip(), state.pullingTeam) ?: activeCountdown,
+                controls = CountdownControls(
+                    requireLongPress = requireLongPress,
+                    enabled = !locked,
+                    onAdjust = { seconds ->
+                        onStateChange(state.addTimeToCountdown(seconds))
+                    },
+                    waterBreakAction = if (state.canApplyWaterBreak()) {
+                        onWaterBreak
+                    } else {
+                        null
+                    },
+                    onTogglePaused = {
+                        onStateChange(
+                            state.toggleCountdownPaused(System.currentTimeMillis())
+                        )
+                    },
+                    expiredPullActions = if (hasExpiredPullActions) {
+                        ExpiredPullActions(
+                            onRestartPullCountdown = {
+                                onStateChange(
+                                    state.restartPullCountdown(
+                                        System.currentTimeMillis(), settings.dualPullCountdowns
+                                    )
+                                )
+                            },
+                        )
+                    } else {
+                        null
+                    },
+                    misconductCountdownAction = if (state.pendingMisconductCountdown) {
+                        MisconductCountdownAction(
+                            onStart = {
+                                onStateChange(
+                                    state.startMisconductCountdown(System.currentTimeMillis())
+                                )
+                            },
+                        )
+                    } else {
+                        null
+                    },
+                ),
                 statusMessage = livePointStatusMessage,
-                height = metrics.topRowHeight,
+                height = metrics.countdownHeight,
+                cueText = (dualCountdown?.forTeam(leftTeam.flip(), state.pullingTeam)
+                    ?: activeCountdown)?.cueText() ?: "",
                 modifier = Modifier.weight(1f),
             )
         }
@@ -1440,6 +1505,7 @@ private data class LandscapeActiveGameLayoutMetrics(
     val verticalPadding: Dp,
     val sectionSpacing: Dp,
     val topRowHeight: Dp,
+    val countdownHeight: Dp,
     val bottomBarHeight: Dp,
     val centerButtonMinHeight: Dp,
     val centerButtonFontSize: androidx.compose.ui.unit.TextUnit,
@@ -1449,26 +1515,34 @@ private data class LandscapeActiveGameLayoutMetrics(
 /**
  * Derive landscape active-game measurements from the current app window.
  */
+@Composable
 private fun landscapeActiveGameLayoutMetrics(
     contentWidth: Dp,
     contentHeight: Dp,
     fontScale: Float,
+    dualPullCountdowns: Boolean,
 ): LandscapeActiveGameLayoutMetrics {
     val horizontalPadding = (contentWidth.value * 0.012f).dp.coerceIn(6.dp, 12.dp)
     val verticalPadding = (contentHeight.value * 0.014f).dp.coerceIn(4.dp, 8.dp)
     val sectionSpacing = 4.dp
-    val topRowHeight = (
+    val preferredTopRowHeight = (
         contentHeight.value * 0.16f +
             (fontScale - 1f).coerceAtLeast(0f) * 80f
         )
         .dp
         .coerceIn(44.dp, 60.dp)
+    val topRowHeight = if (dualPullCountdowns) {
+        countdownHeightWithCue(preferredTopRowHeight, fontScale)
+    } else {
+        maxOf(preferredTopRowHeight, countdownHeightWithCue(preferredTopRowHeight, fontScale))
+    }
     val bottomBarHeight = 34.dp
     val fieldHeight = (
         contentHeight.value -
             verticalPadding.value * 2f -
             sectionSpacing.value * 2f -
             topRowHeight.value -
+            (if (dualPullCountdowns) 34f else 0f) -
             bottomBarHeight.value
         )
         .coerceAtLeast(0f)
@@ -1478,6 +1552,7 @@ private fun landscapeActiveGameLayoutMetrics(
         verticalPadding = verticalPadding,
         sectionSpacing = sectionSpacing,
         topRowHeight = topRowHeight,
+        countdownHeight = preferredTopRowHeight,
         bottomBarHeight = bottomBarHeight,
         centerButtonMinHeight = 48.dp,
         centerButtonFontSize = (fieldHeight.value * 0.065f).coerceIn(14f, 17f).sp,
@@ -1507,11 +1582,26 @@ private data class PortraitActiveGameLayoutMetrics(
  *
  * @param contentHeight The height inside the scaffold content area.
  */
-private fun portraitActiveGameLayoutMetrics(contentHeight: Dp): PortraitActiveGameLayoutMetrics {
+@Composable
+private fun portraitActiveGameLayoutMetrics(
+    contentHeight: Dp,
+    dualPullCountdowns: Boolean,
+    fontScale: Float,
+): PortraitActiveGameLayoutMetrics {
     val pagePadding = (contentHeight.value * 0.014f).dp.coerceIn(8.dp, 16.dp)
     val sectionSpacing = (contentHeight.value * 0.011f).dp.coerceIn(6.dp, 12.dp)
-    val statusLineHeight = (contentHeight.value * 0.075f).dp.coerceIn(42.dp, 52.dp)
+    val statusLineHeight = if (dualPullCountdowns) {
+        (contentHeight.value * 0.05f).dp.coerceIn(30.dp, 38.dp)
+    } else {
+        (contentHeight.value * 0.075f).dp.coerceIn(42.dp, 52.dp)
+    }
     val countdownHeight = (contentHeight.value * 0.08f).dp.coerceIn(48.dp, 64.dp)
+    val upperCountdownHeight = if (dualPullCountdowns) {
+        countdownHeightWithoutCue(countdownHeight, fontScale)
+    } else {
+        countdownHeightWithCue(countdownHeight, fontScale)
+    }
+    val lowerCountdownHeight = countdownHeightWithCue(countdownHeight, fontScale)
     val bottomActionHeight = 34.dp
     val undoHeight = 34.dp
     val fieldHeight = (
@@ -1519,7 +1609,8 @@ private fun portraitActiveGameLayoutMetrics(contentHeight: Dp): PortraitActiveGa
             pagePadding.value * 2f -
             sectionSpacing.value * 4f -
             statusLineHeight.value -
-            countdownHeight.value -
+            upperCountdownHeight.value -
+            (if (dualPullCountdowns) lowerCountdownHeight.value + sectionSpacing.value else 0f) -
             bottomActionHeight.value -
             undoHeight.value
         )

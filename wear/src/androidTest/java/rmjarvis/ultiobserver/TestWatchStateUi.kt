@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -64,6 +65,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearCueSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
 import rmjarvis.ultiobserver.wearprotocol.WearTimingControlsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearRatioChooserSnapshot
@@ -204,6 +206,96 @@ class TestWatchStateUi {
         composeRule.onNodeWithText("Continue point").assertDoesNotExist()
         composeRule.onNodeWithText("Offense is set").assertIsDisplayed().performClick()
         composeRule.runOnIdle { assertEquals(2, submittedCommands) }
+    }
+
+    /** Run the watch in dual countdown mode. */
+    @Test
+    fun dualPullCountdowns() {
+        // Both timers render with one upcoming cue and the usual team controls.
+        val now = System.currentTimeMillis()
+        val initial = activeSnapshot()
+        val timedGame = initial.snapshot.activeGame!!.copy(
+            countdown = WearCountdownSnapshot(
+                label = "Pull in",
+                targetEpochMillis = now + 100_000L,
+                pausedAtEpochMillis = null,
+                cues = listOf(WearCueSnapshot("Give hand", now + 80_000L)),
+                signalTargetEpochMillis = now + 100_000L,
+                pullTargetEpochMillis = now + 120_000L,
+                signalLabel = "Signal in",
+            ),
+            timingControls = WearTimingControlsSnapshot(
+                adjustments = listOf(
+                    WearCountdownAction.PAUSE, WearCountdownAction.MINUS_FIVE,
+                    WearCountdownAction.PLUS_FIVE,
+                ),
+                pointAction = WearCountdownAction.START_POINT,
+                secondaryAction = WearCountdownAction.RESTART_PULL,
+            ),
+        )
+        var state by mutableStateOf(initial.copy(snapshot = initial.snapshot.copy(activeGame = timedGame)))
+        show(state = { state }, connection = { ConnectionState.CONNECTED })
+        composeRule.onNodeWithText("Signal in").assertIsDisplayed()
+        composeRule.onNodeWithText("Pull in").assertIsDisplayed()
+        composeRule.onNodeWithTag("signal-countdown-value", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("countdown-value", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Next: Give hand").assertIsDisplayed()
+        composeRule.onNodeWithText("Start point").assertDoesNotExist()
+
+        // The phone's paused snapshot freezes both values and replaces the cue with Paused.
+        composeRule.runOnIdle {
+            state = initial.copy(snapshot = initial.snapshot.copy(activeGame = timedGame.copy(
+                countdown = timedGame.countdown!!.copy(pausedAtEpochMillis = now),
+                timingControls = timedGame.timingControls!!.copy(
+                    adjustments = listOf(
+                        WearCountdownAction.RESUME, WearCountdownAction.MINUS_FIVE,
+                        WearCountdownAction.PLUS_FIVE,
+                    ),
+                ),
+            )))
+        }
+        composeRule.onNodeWithTag("signal-countdown-value", useUnmergedTree = true)
+            .assertTextEquals("1:40").assertIsDisplayed()
+        composeRule.onNodeWithTag("countdown-value", useUnmergedTree = true)
+            .assertTextEquals("2:00").assertIsDisplayed()
+        composeRule.onNodeWithText("Paused").assertIsDisplayed()
+
+        // After resuming, an expired Signal stays at zero while Pull and its next cue remain.
+        composeRule.runOnIdle {
+            val resumedAt = System.currentTimeMillis()
+            state = initial.copy(snapshot = initial.snapshot.copy(activeGame = timedGame.copy(
+                countdown = timedGame.countdown!!.copy(
+                    targetEpochMillis = resumedAt - 1_000L,
+                    signalTargetEpochMillis = resumedAt - 1_000L,
+                    pullTargetEpochMillis = resumedAt + 19_000L,
+                    cues = listOf(WearCueSnapshot("Pull", resumedAt + 10_000L)),
+                ),
+            )))
+        }
+        composeRule.onNodeWithTag("signal-countdown-value", useUnmergedTree = true)
+            .assertTextEquals("0:00").assertIsDisplayed()
+        composeRule.onNodeWithTag("countdown-value", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Next: Pull").assertIsDisplayed()
+        composeRule.onNodeWithText("Start point").assertDoesNotExist()
+
+        // Once both expire, Start point is direct and Restart countdown remains in the panel.
+        composeRule.runOnIdle {
+            val expiredAt = System.currentTimeMillis() - 1_000L
+            state = initial.copy(snapshot = initial.snapshot.copy(activeGame = timedGame.copy(
+                countdown = timedGame.countdown!!.copy(
+                    targetEpochMillis = expiredAt - 20_000L,
+                    signalTargetEpochMillis = expiredAt - 20_000L,
+                    pullTargetEpochMillis = expiredAt,
+                    cues = emptyList(),
+                ),
+            )))
+        }
+        composeRule.onNodeWithTag("signal-countdown-value", useUnmergedTree = true)
+            .assertTextEquals("0:00").assertIsDisplayed()
+        composeRule.onNodeWithTag("countdown-value", useUnmergedTree = true)
+            .assertTextEquals("0:00").assertIsDisplayed()
+        composeRule.onNodeWithText("Next: Pull").assertDoesNotExist()
+        composeRule.onNodeWithText("Start point").assertIsDisplayed()
     }
 
     private fun countdownSeconds(): Int {

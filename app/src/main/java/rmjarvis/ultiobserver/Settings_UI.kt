@@ -183,6 +183,7 @@ internal fun SettingsScreen(
                         onCategorySelected(if (selectedCategory == category) null else category)
                     },
                 ) {
+                    // No else branch: every SettingsCategory value is handled.
                     when (category) {
                         SettingsCategory.WATCH -> {
                             WatchConnectionModeSelector(
@@ -440,6 +441,16 @@ internal fun SettingsScreen(
                                     }
                                 }
                             }
+
+                            SettingsSwitchWithNote(
+                                label = Settings.DUAL_PULL_COUNTDOWNS_QUESTION,
+                                note = settings.dualPullCountdownsDescription,
+                                checked = settings.dualPullCountdowns,
+                                onCheckedChange = {
+                                    onSettingsChange(settings.copy(dualPullCountdowns = it))
+                                },
+                                testTag = "settings-dual-pull-countdowns",
+                            )
                         }
                         SettingsCategory.GENDER_RATIO -> {
                             SettingsSwitchWithNote(

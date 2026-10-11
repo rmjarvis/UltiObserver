@@ -17,6 +17,128 @@ import org.junit.Test
 
 /// Tests for timing cue selection, alert preferences, and alert delivery helpers.
 class TestTimingCues : GameDomainTestFixtures() {
+    /** Keep both team deadlines visible and advance only after the full pull sequence. */
+    @Test
+    fun dualPullCountdowns() {
+        // Offense-only prompts keep their cues, but dual mode waits for the pull deadline.
+        val opening = standardLiveGameState()
+        val signalEnd = opening.countdown!!.targetEpoch
+        val pullEnd = signalEnd + 20_000L
+        val atSignal = opening.dualPullCountdownDisplay(signalEnd)!!
+        assertEquals(Duration.ZERO, atSignal.signal.remaining)
+        assertEquals(Duration.ofSeconds(20), atSignal.pull.remaining)
+        assertEquals(opening, opening.applyAutomaticGameTransitions(
+            signalEnd, showDefenseCountdowns = false, dualPullCountdowns = true,
+        ))
+        assertFalse(opening.hasExpiredPullActions(signalEnd, dualPullCountdowns = true))
+        assertEquals(GamePhase.LIVE_POINT, opening.applyAutomaticGameTransitions(
+            pullEnd, showDefenseCountdowns = false, dualPullCountdowns = true,
+        ).phase)
+        assertEquals(GamePhase.LIVE_POINT, opening.applyAutomaticGameTransitions(
+            signalEnd, showDefenseCountdowns = false,
+        ).phase)
+
+        // Pausing and adjusting the sequence move both visible timers together.
+        val paused = opening.toggleCountdownPaused(signalEnd - 10_000L)
+        val pausedDisplay = paused.dualPullCountdownDisplay(pullEnd)!!
+        assertEquals(Duration.ofSeconds(10), pausedDisplay.signal.remaining)
+        assertEquals(Duration.ofSeconds(30), pausedDisplay.pull.remaining)
+        assertTrue(pausedDisplay.signal.isPaused)
+        assertTrue(pausedDisplay.pull.isPaused)
+        val adjusted = paused.addTimeToCountdown(5).dualPullCountdownDisplay(pullEnd)!!
+        assertEquals(Duration.ofSeconds(15), adjusted.signal.remaining)
+        assertEquals(Duration.ofSeconds(35), adjusted.pull.remaining)
+
+        // Both prompt targets put each upcoming cue on its own timer, splitting the shared cue.
+        val both = standardGameSetup(startTime = opening.startTime)
+            .copy(pullPromptTarget = PullPromptTarget.BOTH)
+            .startGame(OrientationPreference.PORTRAIT)
+        val bothSignalEnd = both.countdown!!.pullDeadline(BetweenPointsCountdownTarget.OFFENSE_READY)
+        val beforeSignal = both.dualPullCountdownDisplay(bothSignalEnd - 5_000L)!!
+        assertEquals("Give hand", beforeSignal.signal.nextCue!!.message)
+        assertEquals("20 seconds to pull", beforeSignal.pull.nextCue!!.message)
+        assertEquals(Duration.ZERO, beforeSignal.signal.nextCue!!.countdownTime)
+        assertEquals(Duration.ofSeconds(20), beforeSignal.pull.nextCue!!.countdownTime)
+        assertEquals(beforeSignal.pull, beforeSignal.forTeam(both.pullingTeam, both.pullingTeam))
+        assertEquals(beforeSignal.signal, beforeSignal.forTeam(both.pullingTeam.flip(), both.pullingTeam))
+
+        // Landscape shows only the next cue, switching its team after the hand cue has passed.
+        val nextHand = beforeSignal.withOnlyNextCue()
+        assertEquals("Give hand", nextHand.signal.nextCue!!.message)
+        assertNull(nextHand.pull.nextCue)
+        val nextPull = both.dualPullCountdownDisplay(bothSignalEnd)!!.withOnlyNextCue()
+        assertNull(nextPull.signal.nextCue)
+        assertEquals("10 seconds to pull", nextPull.pull.nextCue!!.message)
+        val offenseOnly = opening.dualPullCountdownDisplay(signalEnd - 5_000L)!!.withOnlyNextCue()
+        assertEquals("Give hand", offenseOnly.signal.nextCue!!.message)
+        assertNull(offenseOnly.pull.nextCue)
+
+        // Shared cue copy gives both nominal timer values, including an expired Signal timer.
+        assertEquals("Next cue at 0:40/0:20: 20 seconds for a hand",
+            opening.dualPullCueText(signalEnd - 25_000L, opening.pullingTeam))
+        assertEquals("Next cue at 0:20/0:40: 20 seconds for a hand",
+            opening.dualPullCueText(signalEnd - 25_000L, opening.pullingTeam.flip()))
+        assertEquals("Next cue at 0:10/0:00: 10 seconds to pull",
+            both.dualPullCueText(bothSignalEnd, both.pullingTeam))
+
+        // Before the game, start reminders follow the observer's selected prompt end.
+        val beforeGame = opening.startEpoch - 6 * 60_000L
+        val offenseReminder = opening.dualPullCountdownDisplay(beforeGame)!!
+        assertEquals("5 minutes to start", offenseReminder.signal.nextCue!!.message)
+        assertNull(offenseReminder.pull.nextCue)
+        val defenseOpening = standardGameSetup(startTime = opening.startTime)
+            .copy(pullPromptTarget = PullPromptTarget.FAR)
+            .startGame(OrientationPreference.PORTRAIT)
+        val defenseReminder = defenseOpening.dualPullCountdownDisplay(beforeGame)!!
+        assertNull(defenseReminder.signal.nextCue)
+        assertEquals("5 minutes to start", defenseReminder.pull.nextCue!!.message)
+
+        // A goal starts the regular pair, and a between-points timeout extends both deadlines.
+        val goalTime = pullEnd + 10_000L
+        val afterGoal = opening.beginLivePoint(pullEnd).recordGoal(TeamId.TEAM_ONE, goalTime)
+        val normal = afterGoal.dualPullCountdownDisplay(goalTime)!!
+        assertEquals(Duration.ofSeconds(afterGoal.rules.timeBetweenPointsSeconds.toLong()),
+            normal.signal.remaining)
+        assertEquals(normal.signal.remaining.plusSeconds(20), normal.pull.remaining)
+        val timeout = afterGoal.chargeTimeout(TeamId.TEAM_TWO, goalTime + 1_000L)
+        val extended = timeout.dualPullCountdownDisplay(goalTime)!!
+        assertEquals(normal.signal.remaining.plusSeconds(afterGoal.rules.timeoutSeconds.toLong()),
+            extended.signal.remaining)
+        assertEquals(normal.pull.remaining.plusSeconds(afterGoal.rules.timeoutSeconds.toLong()),
+            extended.pull.remaining)
+
+        // Halftime uses one timer, then starts both post-halftime deadlines in dual mode.
+        val halftime = afterGoal.startHalftimeNow(goalTime)
+        assertNull(halftime.dualPullCountdownDisplay(goalTime))
+        val halfEnd = halftime.countdown!!.targetEpoch
+        val secondHalf = halftime.applyAutomaticGameTransitions(
+            halfEnd, showDefenseCountdowns = false, dualPullCountdowns = true,
+        )
+        assertEquals(GamePhase.BETWEEN_POINTS, secondHalf.phase)
+        assertEquals(normal.signal.remaining, secondHalf.dualPullCountdownDisplay(halfEnd)!!.signal.remaining)
+        val inPointTimeout = opening.beginLivePoint(pullEnd)
+            .chargeTimeout(TeamId.TEAM_ONE, goalTime)
+        assertNull(inPointTimeout.dualPullCountdownDisplay(goalTime))
+
+        // Once both expire, each remains at zero while manual advancement is selected.
+        val expired = both.dualPullCountdownDisplay(both.countdown!!.targetEpoch + 1_000L)!!
+        assertEquals(Duration.ZERO, expired.signal.remaining)
+        assertEquals(Duration.ZERO, expired.pull.remaining)
+        assertTrue(both.hasExpiredPullActions(both.countdown!!.targetEpoch, dualPullCountdowns = true))
+
+        // The shared cue disappears once the sequence has no upcoming cues.
+        assertNull(both.dualPullCueText(both.countdown!!.targetEpoch + 1_000L, both.pullingTeam))
+
+        // During live play there is no dual countdown to display.
+        assertNull(opening.beginLivePoint(pullEnd).dualPullCountdownDisplay(pullEnd))
+
+        // A pulling-team warning has no remaining signal time, but retains its full pull reset.
+        val warning = opening.assessTimeViolation(opening.pullingTeam, pullEnd).state
+        val reset = warning.dualPullCountdownDisplay(pullEnd)!!
+        assertEquals(Duration.ZERO, reset.signal.remaining)
+        assertEquals(Duration.ofSeconds(30), reset.pull.remaining)
+    }
+
     /**
      * Test compact, device-independent notification text for a live game countdown.
      */
@@ -755,6 +877,16 @@ class TestTimingCues : GameDomainTestFixtures() {
         assertEquals(Duration.ofSeconds(20), openingDisplay.remaining)
         assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, openingDisplay.nextCue?.id)
         assertFalse(openingDisplay.isPaused)
+        assertEquals("Next cue at 0:20 - 20 seconds for a hand", openingDisplay.cueText())
+
+        // Pausing replaces the next cue text with the paused status.
+        val pausedPull = openingPull.toggleCountdownPaused(openingPull.startEpoch)
+        val pausedDisplay = pausedPull.activeCountdownDisplay(openingPull.startEpoch + 1_000L)!!
+        assertEquals("Paused", pausedDisplay.cueText())
+
+        // An expired countdown has no upcoming cue text.
+        val expiredDisplay = openingPull.activeCountdownDisplay(openingPull.countdown!!.targetEpoch + 1_000L)!!
+        assertNull(expiredDisplay.cueText())
 
         // A live point has no countdown for the UI to display.
         assertNull(openingPull.beginLivePoint().activeCountdownDisplay(openingPull.startEpoch))

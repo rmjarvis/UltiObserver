@@ -35,7 +35,106 @@ internal data class ActiveCountdownDisplay(
     val remaining: Duration,
     val nextCue: TimingCueDisplay?,
     val isPaused: Boolean,
-)
+) {
+    /** Format the cue line, including the paused state, or return null when there is no cue. */
+    fun cueText(): String? {
+        return if (isPaused) {
+            "Paused"
+        } else {
+            nextCue?.let { cue ->
+                "Next cue at ${formatDuration(cue.countdownTime)} - ${cue.message}"
+            }
+        }
+    }
+}
+
+/** Both team deadlines derived from the same authoritative pull sequence. */
+internal data class DualPullCountdownDisplay(
+    val signal: ActiveCountdownDisplay,
+    val pull: ActiveCountdownDisplay,
+) {
+    fun forTeam(team: TeamId, pullingTeam: TeamId): ActiveCountdownDisplay {
+        return if (team == pullingTeam) pull else signal
+    }
+
+    /** Keep only the earliest cue, favoring Signal when the two deadlines share a cue. */
+    fun withOnlyNextCue(): DualPullCountdownDisplay {
+        val nextCue = listOfNotNull(signal.nextCue, pull.nextCue).minByOrNull { it.targetEpoch }
+        return copy(
+            signal = signal.copy(nextCue = signal.nextCue.takeIf { it == nextCue }),
+            pull = pull.copy(nextCue = pull.nextCue.takeIf { it == nextCue }),
+        )
+    }
+}
+
+/** Format both timer values at the same nominal cue time, in the requested timer order. */
+internal fun GameState.dualPullCueText(now: Long, firstTeam: TeamId): String? {
+    val countdown = activeCountdown(now)!!
+    val cue = countdown.nextTimingCue(now) ?: return null
+    val signalTime = cue.countdownTime.plusMillis(
+        countdown.pullDeadline(BetweenPointsCountdownTarget.OFFENSE_READY) - countdown.targetEpoch
+    )
+    val pullTime = cue.countdownTime.plusMillis(
+        countdown.pullDeadline(BetweenPointsCountdownTarget.PULL) - countdown.targetEpoch
+    )
+    val firstTime: Duration
+    val secondTime: Duration
+    if (firstTeam != pullingTeam) {
+        firstTime = signalTime
+        secondTime = pullTime
+    } else {
+        firstTime = pullTime
+        secondTime = signalTime
+    }
+    return "Next cue at ${formatDuration(firstTime)}/${formatDuration(secondTime)}: ${cue.message}"
+}
+
+/** Build both pull timers and assign each upcoming cue to its team's timer. */
+internal fun GameState.dualPullCountdownDisplay(now: Long): DualPullCountdownDisplay? {
+    val countdown = activeCountdown(now) ?: return null
+    if (!countdown.kind.usesBetweenPointsTarget()) return null
+    val cues = countdown.upcomingTimingCues(now)
+    fun display(target: BetweenPointsCountdownTarget): ActiveCountdownDisplay {
+        val deadline = countdown.pullDeadline(target)
+        val signal = target == BetweenPointsCountdownTarget.OFFENSE_READY
+        val cue = cues.firstOrNull {
+            when (it.id) {
+                TimingCueId.RECEIVING_TWENTY_FOR_HAND,
+                TimingCueId.RECEIVING_TEN_FOR_HAND,
+                TimingCueId.RECEIVING_GIVE_HAND,
+                TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND -> signal
+                TimingCueId.PULLING_TWENTY_TO_PULL -> !signal ||
+                    it.message == "Give hand. 20 seconds to pull"
+                TimingCueId.PULLING_TEN_TO_PULL,
+                TimingCueId.PULLING_TIME_VIOLATION,
+                TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL -> !signal
+                else -> signal ==
+                    (countdown.betweenPointsTarget == BetweenPointsCountdownTarget.OFFENSE_READY)
+            }
+        }?.let {
+            it.copy(
+                message = if (it.message == "Give hand. 20 seconds to pull") {
+                    if (signal) "Give hand" else "20 seconds to pull"
+                } else {
+                    it.message
+                },
+                countdownTime = it.countdownTime.plusMillis(deadline - countdown.targetEpoch),
+            )
+        }
+        return ActiveCountdownDisplay(
+            label = target.label,
+            remaining = Duration.ofMillis(
+                (deadline - (countdown.pausedAtEpoch ?: now)).coerceAtLeast(0L)
+            ),
+            nextCue = cue,
+            isPaused = countdown.isPaused(),
+        )
+    }
+    return DualPullCountdownDisplay(
+        signal = display(BetweenPointsCountdownTarget.OFFENSE_READY),
+        pull = display(BetweenPointsCountdownTarget.PULL),
+    )
+}
 
 /**
  * Return the countdown currently represented on the live screen.

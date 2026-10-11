@@ -530,6 +530,12 @@ class TestSettings {
         assertTrue(settings.copy(automaticallyAdvanceNewCountdowns = true, newCountdownAdvanceSeconds = 3)
             .automaticallyAdvanceNewCountdownsDescription.contains("3 seconds already"))
 
+        // Single and dual pull displays explain which countdowns will be visible.
+        assertTrue(settings.copy(dualPullCountdowns = true).dualPullCountdownsDescription
+            .contains("both the offense and defense"))
+        assertTrue(settings.copy(dualPullCountdowns = false).dualPullCountdownsDescription
+            .contains("Show one pull countdown"))
+
         // Field and ratio descriptions distinguish the available display conventions.
         assertEquals(listOf("Teams fixed", "Ends fixed"), WatchOrientation.entries.map { it.label })
         assertTrue(WatchOrientation.TEAMS_FIXED.description.contains("Team 1 on the left"))

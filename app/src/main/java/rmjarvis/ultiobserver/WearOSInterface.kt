@@ -100,14 +100,16 @@ internal fun handleWearRequest(
                 game != null &&
                 snapshot.activeCardEntry == null &&
                 game.pendingGameDecision() == null &&
-                (request.action != WearCountdownAction.RESTART_PULL || game.hasExpiredPullActions(now)) &&
+                (request.action != WearCountdownAction.RESTART_PULL ||
+                    game.hasExpiredPullActions(now, snapshot.settings.dualPullCountdowns)) &&
                 (request.action in game.wearCountdownActions() ||
                     request.action in game.wearTimingControls(now, snapshot.settings)?.all().orEmpty())
             ) {
                 // No else branch: every WearCountdownAction value is handled.
                 val updated = when (request.action) {
                     WearCountdownAction.START_MISCONDUCT -> game.startMisconductCountdown(now)
-                    WearCountdownAction.RESTART_PULL -> game.restartPullCountdown(now)
+                    WearCountdownAction.RESTART_PULL ->
+                        game.restartPullCountdown(now, snapshot.settings.dualPullCountdowns)
                     WearCountdownAction.START_POINT -> game.beginLivePoint(now)
                     WearCountdownAction.CONTINUE_POINT -> game.continueLivePoint()
                     WearCountdownAction.OFFENSE_SET -> game.reportOffenseSet(now)
@@ -586,10 +588,22 @@ internal fun buildWearStateSnapshot(
                 )
             },
             countdown = activeCountdown?.let { countdown ->
+                val dualPull = settings.dualPullCountdowns && countdown.kind.usesBetweenPointsTarget()
                 WearCountdownSnapshot(
-                    label = countdown.label,
+                    label = if (dualPull) BetweenPointsCountdownTarget.PULL.label else countdown.label,
                     targetEpochMillis = countdown.targetEpoch,
                     pausedAtEpochMillis = countdown.pausedAtEpoch,
+                    signalTargetEpochMillis = if (dualPull) {
+                        countdown.pullDeadline(BetweenPointsCountdownTarget.OFFENSE_READY)
+                    } else {
+                        null
+                    },
+                    pullTargetEpochMillis = if (dualPull) {
+                        countdown.pullDeadline(BetweenPointsCountdownTarget.PULL)
+                    } else {
+                        null
+                    },
+                    signalLabel = if (dualPull) BetweenPointsCountdownTarget.OFFENSE_READY.label else null,
                     cues = countdown.pendingTimingCues(now).map { cue ->
                         WearCueSnapshot(
                             message = cue.message,

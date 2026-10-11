@@ -20,11 +20,13 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
     currentPhoneEpochMillis: Long,
     connected: Boolean,
 ): GameDisplay {
+    val countdown = this.countdown
     val nextCap = upcomingCaps.firstOrNull { cap ->
         cap.targetEpochMillis >= currentPhoneEpochMillis
     }
     val countdownRemainingMillis = countdown?.let { state ->
-        state.targetEpochMillis - (state.pausedAtEpochMillis ?: currentPhoneEpochMillis)
+        (state.pullTargetEpochMillis ?: state.targetEpochMillis) -
+            (state.pausedAtEpochMillis ?: currentPhoneEpochMillis)
     }
     val nextCue = countdown?.cues?.firstOrNull { cue ->
         cue.targetEpochMillis >= currentPhoneEpochMillis
@@ -53,6 +55,10 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
             )
         },
         countdownLabel = countdown?.label.orEmpty(),
+        signalCountdownLabel = countdown?.signalLabel.orEmpty(),
+        signalCountdownValue = if (gameOver) null else countdown?.signalTargetEpochMillis?.let {
+            formatDurationMillis(it - (countdown.pausedAtEpochMillis ?: currentPhoneEpochMillis))
+        },
         countdownValue = if (gameOver) {
             null
         } else {

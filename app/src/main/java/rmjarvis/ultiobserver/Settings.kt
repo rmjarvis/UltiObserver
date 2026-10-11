@@ -727,6 +727,7 @@ internal data class Settings(
     val accidentalTouchProtection: AccidentalTouchProtection = AccidentalTouchProtection.AUTO_LOCK,
     val requireWatchLongPress: Boolean = false,
     val showDefenseCountdowns: Boolean = false,
+    val dualPullCountdowns: Boolean = false,
     val automaticallyAdvanceNewCountdowns: Boolean = false,
     val newCountdownAdvanceSeconds: Int = DEFAULT_NEW_COUNTDOWN_ADVANCE_SECONDS,
     val showAbbaRatioAsSequence: Boolean = true,
@@ -767,6 +768,15 @@ internal data class Settings(
             "UltiObserver will not display the defense countdown for timeouts or " +
             "misconduct penalties. You should count the time for the defensive check " +
             "yourself with arm chops."
+        }
+
+    /// Explanation shown below the dual pull countdown setting.
+    val dualPullCountdownsDescription: String
+        get() = if (dualPullCountdowns) {
+            "Show separate pull countdowns for both the offense and defense on the screen."
+        } else {
+            "Show one pull countdown on the screen corresponding to which end you have " +
+            "requested getting the timing cue prompts."
         }
 
     /// Explanation shown below the automaticallyAdvanceNewCountdowns setting.
@@ -900,6 +910,7 @@ internal data class Settings(
         const val WATCH_LONG_PRESSES_QUESTION = "Require long presses?"
         const val AUTO_START_LIVE_PLAY_QUESTION = "Automatically start live play?"
         const val SHOW_DEFENSE_COUNTDOWNS_QUESTION = "Show defense countdowns?"
+        const val DUAL_PULL_COUNTDOWNS_QUESTION = "Dual pull countdowns?"
         const val ADVANCE_COUNTDOWNS_QUESTION = "Automatically advance countdowns by a few seconds?"
         const val ABBA_SEQUENCE_QUESTION = "Show ABBA gender ratio as M1/M2/W1/W2?"
 

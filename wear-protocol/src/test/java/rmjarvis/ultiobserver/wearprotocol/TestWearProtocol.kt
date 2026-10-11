@@ -62,6 +62,9 @@ class TestWearProtocol {
             targetEpochMillis = 2_000L,
             pausedAtEpochMillis = 1_250L,
             cues = listOf(cue),
+            signalTargetEpochMillis = 2_000L,
+            pullTargetEpochMillis = 22_000L,
+            signalLabel = "Signal in",
         )
         val cap = WearCapSnapshot("Hard cap", 3_000L)
         val transition = WearStatusMessageTransition(

@@ -53,6 +53,9 @@ data class WearCountdownSnapshot(
     val targetEpochMillis: Long,
     val pausedAtEpochMillis: Long?,
     val cues: List<WearCueSnapshot>,
+    val signalTargetEpochMillis: Long? = null,
+    val pullTargetEpochMillis: Long? = null,
+    val signalLabel: String? = null,
 )
 
 /** One scheduled change to phone-formatted text shown in the watch countdown area. */

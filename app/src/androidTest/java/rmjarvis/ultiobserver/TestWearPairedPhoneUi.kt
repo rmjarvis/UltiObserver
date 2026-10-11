@@ -185,6 +185,7 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         // The phone's Settings Test button still sends an immediate vibration to the watch.
         returnHomeFromGame()
         composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-category-TIMING").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-test-vibration").performScrollTo().performClick()
         composeRule.waitForIdle()
 
