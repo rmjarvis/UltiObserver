@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -81,7 +80,9 @@ internal fun DecisionScreen(
         return
     }
     PromptScreen(
-        prompt = decision,
+        title = decision.title,
+        messageLines = decision.messageLines,
+        presentation = decision.presentation,
         enabled = !commandPending,
         actions = listOf(
             PromptActionSpec(
@@ -97,6 +98,7 @@ internal fun DecisionScreen(
                 },
             ),
         ),
+        alternativeAction = null,
     )
 }
 
@@ -147,7 +149,9 @@ internal fun ActionConfirmationScreen(
     }
 
     PromptScreen(
-        prompt = prompt,
+        title = prompt.title,
+        messageLines = prompt.messageLines,
+        presentation = prompt.presentation,
         enabled = !commandPending,
         actions = listOf(
             PromptActionSpec(prompt.dismissLabel, onCancel),
@@ -169,15 +173,19 @@ internal fun ActionNoticeScreen(
         },
     )
     PromptScreen(
-        prompt = notice.prompt,
+        title = notice.prompt.title,
+        messageLines = notice.prompt.messageLines,
+        presentation = notice.prompt.presentation,
         enabled = true,
         actions = listOf(PromptActionSpec(notice.prompt.dismissLabel, onDismiss)),
+        alternativeAction = null,
     )
 }
 
 /** Hold watch interaction while the phone owns an active card workflow. */
 @Composable
 internal fun ContinueOnPhoneScreen(
+    cardType: CardType?,
     commandPendingState: MutableState<Boolean>,
     onCancel: ((Boolean) -> Unit) -> Unit,
 ) {
@@ -194,56 +202,24 @@ internal fun ContinueOnPhoneScreen(
             cancel()
         },
     )
-    UltiObserverTheme {
-        AppScaffold(
-            timeText = { AppTimeText() },
-            containerColor = Color.Black,
-            contentColor = Color.White,
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    text = "Continue on phone",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    lineHeight = 17.sp,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Box(
-                    modifier = Modifier
-                        .height(42.dp)
-                        .clickable(
-                            enabled = !commandPending,
-                            role = Role.Button,
-                            onClick = cancel,
-                        )
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "Cancel",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-            }
-        }
-    }
+    PromptScreen(
+        title = if (cardType == null) "Assess a card" else "${cardType.label} card",
+        messageLines = listOf(WearGuidanceLineSnapshot("Continue on phone", bold = false)),
+        presentation = WearGuidancePresentation.VISIBLE,
+        enabled = !commandPending,
+        actions = listOf(PromptActionSpec("Cancel", cancel)),
+        alternativeAction = null,
+    )
 }
 
 @Composable
 private fun PromptScreen(
-    prompt: WearPromptSnapshot,
+    title: String,
+    messageLines: List<WearGuidanceLineSnapshot>,
+    presentation: WearGuidancePresentation,
     enabled: Boolean,
     actions: List<PromptActionSpec>,
-    alternativeAction: PromptActionSpec? = null,
+    alternativeAction: PromptActionSpec?,
 ) {
     UltiObserverTheme {
         AppScaffold(
@@ -251,34 +227,37 @@ private fun PromptScreen(
             containerColor = DialogBackgroundColor,
             contentColor = DialogContentColor,
         ) {
-            if (prompt.presentation != WearGuidancePresentation.HIDDEN_AUTO_ACCEPT) {
+            if (presentation != WearGuidancePresentation.HIDDEN_AUTO_ACCEPT) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(DialogBackgroundColor)
                         .padding(top = 28.dp, start = 24.dp, end = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceEvenly,
                 ) {
                     Text(
-                        text = prompt.title,
+                        text = title,
                         color = DialogContentColor,
-                        fontSize = 15.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
                     )
-                    Text(
-                        text = prompt.messageLines.toAnnotatedString(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f, fill = false)
-                            .padding(vertical = 4.dp)
-                            .verticalScroll(rememberScrollState()),
-                        color = DialogContentColor,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
-                        textAlign = TextAlign.Start,
-                    )
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = messageLines.toAnnotatedString(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .verticalScroll(rememberScrollState()),
+                            color = DialogContentColor,
+                            fontSize = 15.sp,
+                            lineHeight = 19.sp,
+                            textAlign = TextAlign.Start,
+                        )
+                    }
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
@@ -325,19 +304,19 @@ private fun PromptAction(
 ) {
     Box(
         modifier = modifier
-            .height(42.dp)
+            .height(48.dp)
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
                 onClick = onClick,
             )
-            .padding(horizontal = 4.dp),
+            .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
             color = if (enabled) DialogContentColor else DisabledDialogContentColor,
-            fontSize = 12.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
             maxLines = 2,
@@ -368,7 +347,7 @@ private fun PromptAlternativeAction(
             )
             .padding(horizontal = 14.dp, vertical = 4.dp),
         color = if (enabled) DialogContentColor else DisabledDialogContentColor,
-        fontSize = 12.sp,
+        fontSize = 15.sp,
         fontWeight = FontWeight.Medium,
         maxLines = 1,
         softWrap = false,

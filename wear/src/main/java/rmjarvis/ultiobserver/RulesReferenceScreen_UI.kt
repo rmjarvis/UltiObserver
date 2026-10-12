@@ -48,7 +48,7 @@ internal fun RulesReferenceScreen(items: List<WearRulesReferenceItemSnapshot>, o
             ) {
                 Text(
                     text = "Game rules",
-                    fontSize = 15.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                 )
@@ -71,8 +71,8 @@ internal fun RulesReferenceScreen(items: List<WearRulesReferenceItemSnapshot>, o
                                     append(item.value)
                                 }
                             },
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
+                            fontSize = 15.sp,
+                            lineHeight = 19.sp,
                         )
                     }
                 }
@@ -81,7 +81,7 @@ internal fun RulesReferenceScreen(items: List<WearRulesReferenceItemSnapshot>, o
                         .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = "Back", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text(text = "Back", fontSize = 15.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }

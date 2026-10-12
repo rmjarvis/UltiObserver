@@ -97,6 +97,7 @@ internal fun CountdownActionButton(
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier,
+    fontScale: Float,
 ) {
     val shape = RoundedCornerShape(12.dp)
     val contentColor = Color(0xFF1F1A17)
@@ -116,8 +117,8 @@ internal fun CountdownActionButton(
         Text(
             text = label,
             color = contentColor,
-            fontSize = 12.sp,
-            lineHeight = 14.sp,
+            fontSize = 12.sp * fontScale,
+            lineHeight = 14.sp * fontScale,
             fontWeight = FontWeight.Medium,
             maxLines = 2,
             textAlign = TextAlign.Center,

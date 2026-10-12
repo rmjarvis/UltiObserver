@@ -312,12 +312,16 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
                 ),
             )
         }
+        // Starting Card on the phone leaves the color unselected while the watch offers Cancel.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "card")).performClick()
         signalReady("playerCardPhoneHandoff")
 
         // The watch starts recording a yellow card, then switches to the phone to record details.
 
         // This is our cue that the phone has a card dialog.
-        waitForPairedCardEntry()
+        waitForPairedCardEntry { entry ->
+            entry.cardType == CardType.YELLOW && entry.jerseyNumber == "17"
+        }
 
         // Finish recording the card details.
         waitForText("Yellow card")
@@ -342,7 +346,9 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
 
         // Signal that the first card is verified, so the watch can start the duplicate-number case.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "goal")).performClick()
-        waitForPairedCardEntry()
+        waitForPairedCardEntry { entry ->
+            entry.cardType == CardType.RED && entry.jerseyNumber == "3"
+        }
 
         // Recording Animal #3 on the watch requires the phone to distinguish these two players.
         waitForText("Which player is #3?")
@@ -531,10 +537,10 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         }
     }
 
-    private fun waitForPairedCardEntry() {
+    private fun waitForPairedCardEntry(condition: (ActiveCardEntry) -> Boolean) {
         catchAndDiagnoseFailure {
             composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
-                composeRule.activity.appState.state.value.activeCardEntry != null
+                composeRule.activity.appState.state.value.activeCardEntry?.let(condition) == true
             }
         }
     }

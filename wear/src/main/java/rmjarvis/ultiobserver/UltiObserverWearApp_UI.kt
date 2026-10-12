@@ -146,9 +146,10 @@ internal fun UltiObserverWearApp(
                     )
                 } else if (screen == WatchScreen.PHONE_ENTRY) {
                     ContinueOnPhoneScreen(
+                        cardType = phoneCardEntry!!.cardType,
                         commandPendingState = commandPendingState,
                         onCancel = { onFinished ->
-                            navigation = navigation.beginPhoneCancellation(phoneCardEntry!!)
+                            navigation = navigation.beginPhoneCancellation(phoneCardEntry)
                             onCancelCardEntry(
                                 phoneCardEntry.team,
                                 activeGame.stateToken,
@@ -446,8 +447,8 @@ private fun MessageScreen(
                         .fillMaxWidth(0.78f)
                         .padding(top = 8.dp),
                     color = Color.White,
-                    fontSize = 13.sp,
-                    lineHeight = 17.sp,
+                    fontSize = 15.sp,
+                    lineHeight = 19.sp,
                     textAlign = TextAlign.Center,
                 )
                 if (onRetry != null) {
@@ -478,7 +479,7 @@ internal fun RetryLabel(
         Text(
             text = "Retry",
             color = Color.White,
-            fontSize = 12.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
         )

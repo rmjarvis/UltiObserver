@@ -39,6 +39,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -48,11 +49,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.AppScaffold
+import androidx.wear.compose.material3.LocalTextStyle
 import androidx.wear.compose.material3.Text
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 import rmjarvis.ultiobserver.wearprotocol.WearGuidanceLineSnapshot
@@ -126,6 +129,62 @@ internal fun TeamActionsScreen(
             val actionHeight =
                 (maxHeight - contentTopPadding - titleHeight - cancelHeight - ActionGap * 4f) / 3f
             val primaryHeight = actionHeight * 2f + ActionGap
+            val goalWeight = 0.86f
+            val violationWeight = 1.15f
+            val cardWeight = 0.9f
+            val totalWeight = goalWeight + violationWeight + cardWeight
+            val actionRowWidth = contentWidth - ActionGap * 2f
+            val textMeasurer = rememberTextMeasurer()
+            val density = LocalDensity.current
+            val actionStyle = LocalTextStyle.current.copy(
+                fontSize = 15.sp,
+                lineHeight = 15.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            val actionWidths = listOf(
+                "Goal" to actionRowWidth * (goalWeight / totalWeight),
+                display.timeViolationLabel to actionRowWidth * (violationWeight / totalWeight),
+                display.pullViolationLabel to actionRowWidth * (violationWeight / totalWeight),
+                display.cardLabel to actionRowWidth * (cardWeight / totalWeight),
+                display.technicalFoulLabel to actionRowWidth * (cardWeight / totalWeight),
+                display.timeoutLabel to timeoutWidth,
+            )
+            val actionFontSize = remember(actionWidths, actionStyle, density, textMeasurer) {
+                fun fits(scale: Float): Boolean {
+                    val style = actionStyle.copy(
+                        fontSize = actionStyle.fontSize * scale,
+                        lineHeight = actionStyle.lineHeight * scale,
+                    )
+                    return actionWidths.all { (label, width) ->
+                        val measured = textMeasurer.measure(
+                            text = label,
+                            style = style,
+                            maxLines = 1,
+                            softWrap = false,
+                        ).size
+                        with(density) {
+                            // Weighted row allocation can differ by one pixel from the dp estimate.
+                            measured.width <= width.roundToPx() - 3.dp.roundToPx() * 2 - 1
+                        }
+                    }
+                }
+
+                if (fits(1f)) {
+                    actionStyle.fontSize
+                } else {
+                    var fittingScale = 0f
+                    var oversizedScale = 1f
+                    repeat(12) {
+                        val scale = (fittingScale + oversizedScale) / 2f
+                        if (fits(scale)) {
+                            fittingScale = scale
+                        } else {
+                            oversizedScale = scale
+                        }
+                    }
+                    actionStyle.fontSize * fittingScale
+                }
+            }
 
             Column(
                 modifier = Modifier
@@ -178,10 +237,10 @@ internal fun TeamActionsScreen(
                             enabled = display.goalEnabled,
                             background = GoalButtonColor,
                             contentColor = Color.White,
-                            fontSize = 12.sp,
+                            fontSize = actionFontSize,
                             onClick = onGoal,
                             modifier = Modifier
-                                .weight(0.86f)
+                                .weight(goalWeight)
                                 .fillMaxHeight(),
                         )
                         ActionPair(
@@ -192,9 +251,10 @@ internal fun TeamActionsScreen(
                             topColor = NeutralButtonColor,
                             bottomColor = NeutralButtonColor,
                             actionHeight = actionHeight,
+                            fontSize = actionFontSize,
                             onTop = onTimeViolation,
                             onBottom = onPullViolation,
-                            modifier = Modifier.weight(1.15f),
+                            modifier = Modifier.weight(violationWeight),
                         )
                         ActionPair(
                             topLabel = display.cardLabel,
@@ -204,9 +264,10 @@ internal fun TeamActionsScreen(
                             topColor = CardButtonColor,
                             bottomColor = TechButtonColor,
                             actionHeight = actionHeight,
+                            fontSize = actionFontSize,
                             onTop = onCard,
                             onBottom = onTechnicalFoul,
-                            modifier = Modifier.weight(0.9f),
+                            modifier = Modifier.weight(cardWeight),
                         )
                     }
                     ActionButton(
@@ -214,7 +275,7 @@ internal fun TeamActionsScreen(
                         enabled = display.timeoutEnabled,
                         background = TimeoutButtonColor,
                         contentColor = Color.Black,
-                        fontSize = 11.sp,
+                        fontSize = actionFontSize,
                         onClick = onTimeout,
                         modifier = Modifier
                             .width(timeoutWidth)
@@ -265,7 +326,7 @@ internal fun TeamInfoScreen(
         ) {
             Text(
                 text = team.name,
-                fontSize = 15.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
             )
@@ -277,8 +338,8 @@ internal fun TeamInfoScreen(
                 nameInfo.forEach { line ->
                     Text(
                         text = line.text,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
+                        fontSize = 15.sp,
+                        lineHeight = 19.sp,
                         fontWeight = if (line.bold) FontWeight.Bold else FontWeight.Normal,
                     )
                 }
@@ -288,7 +349,7 @@ internal fun TeamInfoScreen(
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = "Back", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Text(text = "Back", fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -327,13 +388,13 @@ internal fun CardChoiceScreen(
                     Text(
                         text = "Assess a card",
                         color = display.team.contentColor,
-                        fontSize = 17.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = display.team.name,
                         color = display.team.contentColor,
-                        fontSize = 13.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -350,7 +411,7 @@ internal fun CardChoiceScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(32.dp),
+                            .height(48.dp),
                         horizontalArrangement = Arrangement.spacedBy(ActionGap),
                     ) {
                         ActionButton(
@@ -358,8 +419,7 @@ internal fun CardChoiceScreen(
                             enabled = enabled,
                             background = YellowCardButtonColor,
                             contentColor = Color.Black,
-                            fontSize = 12.sp,
-                            shape = CardChoiceButtonShape,
+                            fontSize = 15.sp,
                             borderColor = null,
                             onClick = onYellow,
                             modifier = Modifier
@@ -371,8 +431,7 @@ internal fun CardChoiceScreen(
                             enabled = enabled,
                             background = RedCardButtonColor,
                             contentColor = Color.Black,
-                            fontSize = 12.sp,
-                            shape = CardChoiceButtonShape,
+                            fontSize = 15.sp,
                             borderColor = null,
                             onClick = onRed,
                             modifier = Modifier
@@ -384,8 +443,7 @@ internal fun CardChoiceScreen(
                             enabled = enabled,
                             background = BlueCardButtonColor,
                             contentColor = Color.White,
-                            fontSize = 12.sp,
-                            shape = CardChoiceButtonShape,
+                            fontSize = 15.sp,
                             borderColor = null,
                             onClick = onBlue,
                             modifier = Modifier
@@ -476,13 +534,13 @@ internal fun PlayerCardEntryOptionsScreen(
                     Text(
                         text = "${cardType.label} card",
                         color = display.team.contentColor,
-                        fontSize = 17.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = display.team.name,
                         color = display.team.contentColor,
-                        fontSize = 13.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -509,7 +567,7 @@ internal fun PlayerCardEntryOptionsScreen(
                         enabled = enabled,
                         background = NeutralButtonColor,
                         contentColor = Color.Black,
-                        fontSize = 12.sp,
+                        fontSize = 15.sp,
                         onClick = {
                             draftJerseyNumber = jerseyNumber
                             focusRequester.requestFocus()
@@ -525,7 +583,7 @@ internal fun PlayerCardEntryOptionsScreen(
                         enabled = enabled,
                         background = NeutralButtonColor,
                         contentColor = Color.Black,
-                        fontSize = 12.sp,
+                        fontSize = 15.sp,
                         onClick = onContinueOnPhone,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -537,7 +595,7 @@ internal fun PlayerCardEntryOptionsScreen(
                             enabled = enabled,
                             background = PrimaryActionButtonColor,
                             contentColor = Color.White,
-                            fontSize = 12.sp,
+                            fontSize = 15.sp,
                             onClick = onRecord,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -581,7 +639,7 @@ private fun TeamScreenCancel(
             text = "Cancel",
             modifier = Modifier.padding(bottom = 7.dp),
             color = color,
-            fontSize = 12.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
         )
     }
@@ -597,6 +655,7 @@ private fun ActionPair(
     topColor: Color,
     bottomColor: Color,
     actionHeight: Dp,
+    fontSize: TextUnit,
     onTop: () -> Unit,
     onBottom: () -> Unit,
     modifier: Modifier,
@@ -610,7 +669,7 @@ private fun ActionPair(
             enabled = topEnabled,
             background = topColor,
             contentColor = Color.Black,
-            fontSize = 10.sp,
+            fontSize = fontSize,
             onClick = onTop,
             modifier = Modifier
                 .fillMaxWidth()
@@ -621,7 +680,7 @@ private fun ActionPair(
             enabled = bottomEnabled,
             background = bottomColor,
             contentColor = Color.Black,
-            fontSize = 10.sp,
+            fontSize = fontSize,
             onClick = onBottom,
             modifier = Modifier
                 .fillMaxWidth()
@@ -678,7 +737,6 @@ private fun ActionButton(
 }
 
 private val PanelShape = RoundedCornerShape(8.dp)
-private val CardChoiceButtonShape = RoundedCornerShape(percent = 50)
 private val ActionPanelColor = Color(0xCCFFFFFF)
 private val GoalButtonColor = Color(0xFF2E7D32)
 private val PrimaryActionButtonColor = Color(0xFF2E7D32)

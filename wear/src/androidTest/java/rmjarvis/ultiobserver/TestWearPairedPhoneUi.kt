@@ -604,7 +604,7 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("Enter details on phone").performClick()
         waitForText("Continue on phone")
         dismissNotice("Cancel")
-        waitForText("Yellow card")
+        waitForText("Change number", substring = true)
         composeRule.onNodeWithText("Change number (8)").assertIsDisplayed()
         dismissNotice("Cancel")
         waitForText("Assess a card")
@@ -624,7 +624,7 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("Enter details on phone").performClick()
         waitForText("Continue on phone")
         dismissNotice("Cancel")
-        waitForText("Red card")
+        waitForText("Change number", substring = true)
         composeRule.onNodeWithText("Change number (17)").assertIsDisplayed()
         composeRule.onNodeWithText(VISCOUS_COUPLING).assertIsDisplayed()
         dismissNotice("Cancel")
@@ -645,6 +645,18 @@ class TestWearPairedPhoneUi {
     /** Begin a card on the watch, let the phone finish it, and observe the synchronized result. */
     @Test
     fun playerCardPhoneHandoff() {
+        // Phone-originated entry has no selected color and keeps Assess a card above the message.
+        waitForPairedText("Continue on phone")
+        composeRule.onNodeWithText("Assess a card").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").assertIsDisplayed()
+        dismissNotice("Cancel")
+        waitForText("Yellow")
+        composeRule.onNodeWithText("Assess a card").assertIsDisplayed()
+        composeRule.onNodeWithText("Continue on phone").assertDoesNotExist()
+        dismissNotice("Cancel")
+        waitForText("Goal")
+        dismissNotice("Cancel")
+
         waitForPairedText(VISCOUS_COUPLING)
         composeRule.onNodeWithText(VISCOUS_COUPLING).performClick()
         composeRule.onNodeWithText("Card").performClick()
@@ -1030,10 +1042,11 @@ class TestWearPairedPhoneUi {
         composeRule.waitForIdle()
     }
 
-    private fun waitForText(text: String) {
+    private fun waitForText(text: String, substring: Boolean = false) {
         catchAndDiagnoseFailure(composeRule) {
             composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
-                composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+                composeRule.onAllNodesWithText(text, substring = substring)
+                    .fetchSemanticsNodes().isNotEmpty()
             }
         }
     }
