@@ -140,7 +140,7 @@ When appropriate, this panel also offers **Start point**, **Continue point**, or
 to the main screen.
 
 If the countdown expires without advancing to the next phase of the game (e.g. because you
-have disabled **Automatically advance to live play** in the `Settings`),
+have disabled **Automatically start live play?** in the `Settings`),
 then the button to do so will display in the top countdown
 area where the timing cues are normally shown. Tapping the expired countdown will still
 open the bottom panel, where there may be an additional option (e.g. **Restart countdown**

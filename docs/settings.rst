@@ -258,7 +258,9 @@ Dual pull countdowns?
     In portrait mode, they will be ordered in the same relative position as the teams are
     on the field. (I.e., if the top team is pulling, the Pull countdown will be above the
     signal countdown, and vice versa.) In landscape mode, the countdowns will appear above
-    the team they correspond to.
+    the team they correspond to. On the Wear OS companion app, Signal will be above Pull.
+    In all cases, the cues still follow whichever end you requested in the setup. If you
+    want both countdowns and all connected cues, you should choose Both there.
 
 Gender ratio indicator
 ^^^^^^^^^^^^^^^^^^^^^^

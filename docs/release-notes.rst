@@ -1,6 +1,41 @@
 Release History
 ===============
 
+Version 1.5
+-----------
+
+This version includes some usability improvements, primarily on the Wear OS companion app,
+stemming from me using it at club regionals. Also a few new features requested by users or
+prompted by user feedback. It includes the following changes:
+
+- Improved the battery usage on the watch, primarily by blanking the screen when the watch
+  is not active. You can usually wake it by raising your wrist, but the specific wake
+  behavior is controlled by the watch settings.
+- Increased the size of most buttons on the watch to make them easier to press.
+- Increased the font size a little across almost all the screens on the watch.
+- Made the pull arrow on the watch easier to see on dark team colors.
+- Put the most likely relevant button on the main watch screen when a countdown has expired
+  but it has not moved on to a different phase.
+- Changed how the team ends are recorded in the setup screen. Now the ends are set directly,
+  rather than with "Pulling from", which should make it easier when a team chooses the end
+  before a team chooses O or D.
+- Added a small diagram in the field setup screen to help visualize the first pull orientation,
+  which will hopefully help avoid mistakes in the pull setup.
+- Fixed the brightness slider in the More colors dialog.
+- Made the default "Black" team color slightly greyer so it's not as harsh.
+- Added a Switch field ends action in the More actions menu.
+- Increased the size of the team action buttons on larger phone screens.
+- Improved the button layout in landscape mode on some devices.
+- Improved the Undo behavior for time violations.
+- Organized the Setting menu by category to make it easier to find specific settings.
+- Changed the watch notification settings to give options about when the watch should vibrate.
+- Added a dual pull countdown mode that shows both pull countdowns on the screen.
+- Added options to back up archived files and to restore files from a backup.
+- Added the ability to specifically select where you want sound outputs to be sent for when
+  you have multiple possible audio outputs.
+- Added the ability to globally mute sounds (and optionally vibrations) from the same sound
+  output dialog.
+
 Version 1.4
 -----------
 
