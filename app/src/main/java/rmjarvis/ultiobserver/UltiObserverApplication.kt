@@ -54,13 +54,14 @@ class UltiObserverApplication : Application() {
     private val wearVibrationSender by lazy { WearVibrationSender(this) }
 
     /** Deliver a complete vibration pattern to the currently selected vibration destination. */
-    internal suspend fun vibrateTimingCue(pattern: VibrationPattern) {
+    internal suspend fun vibrateTimingCueOnWatchOrPhone(pattern: VibrationPattern, onPhone: Boolean) {
         if (!soundOutputs.state.value.vibrationsMuted) {
             deliverTimingVibration(
                 preferences = appState.settings.timingAlerts,
                 pattern = pattern,
                 vibrateOnWatch = { wearVibrationSender.vibrate(it) },
                 vibrateOnPhone = { performTimingCueHaptic(it) },
+                onPhone = onPhone,
             )
         }
     }

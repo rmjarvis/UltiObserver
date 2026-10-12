@@ -457,8 +457,9 @@ internal suspend fun deliverTimingVibration(
     pattern: VibrationPattern,
     vibrateOnWatch: suspend (VibrationPattern) -> Boolean,
     vibrateOnPhone: (VibrationPattern) -> Unit,
+    onPhone: Boolean,
 ) {
-    val accepted = preferences.usesWatchVibration() && vibrateOnWatch(pattern)
+    val accepted = !onPhone && preferences.usesWatchVibration() && vibrateOnWatch(pattern)
     if (!accepted) {
         vibrateOnPhone(pattern)
     }

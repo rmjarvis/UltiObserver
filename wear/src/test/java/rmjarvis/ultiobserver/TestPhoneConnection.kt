@@ -14,6 +14,15 @@ class TestPhoneConnection {
         assertEquals(ConnectionState.CONNECTED, phone.connections.last())
         assertEquals(0L, phone.states.last().phoneClockOffsetMillis)
 
+        // Receiving startup state naturally confirms the exact snapshot to the phone.
+        val receipt = WearProtocolCodec.decode(WearSnapshotReceipt.serializer(), phone.receipts.last().bytes)
+        assertEquals(WearSnapshotReceipt(phone.snapshot.sessionId, phone.snapshot.sequenceNumber), receipt)
+
+        // A failed receipt send leaves the established session usable for the following game actions.
+        phone.receipts.last().failure()
+        assertEquals(ConnectionState.CONNECTED, phone.connections.last())
+        assertEquals(1, phone.startups.size)
+
         // A watch goal carries the displayed token and selected team, and completes only when
         // its acknowledgement arrives with authoritative phone state.
         var applied: Boolean? = null
@@ -777,10 +786,12 @@ private class PhoneSession : PhoneTransportInterface {
     class Lookup(val success: (List<PhoneNode>) -> Unit, val failure: () -> Unit)
     class Startup(val node: String, val bytes: ByteArray, val success: (ByteArray) -> Unit, val failure: () -> Unit)
     class Command(val path: String, val bytes: ByteArray, val failure: () -> Unit)
+    class Receipt(val bytes: ByteArray, val failure: () -> Unit)
     class Timer(val action: () -> Unit) { var cancelled = false }
     val lookups = mutableListOf<Lookup>()
     val startups = mutableListOf<Startup>()
     val sent = mutableListOf<Command>()
+    val receipts = mutableListOf<Receipt>()
     val timers = mutableListOf<Timer>()
     val states = mutableListOf<ReceivedState>()
     val connections = mutableListOf<ConnectionState>()
@@ -832,7 +843,11 @@ private class PhoneSession : PhoneTransportInterface {
     }
     override fun sendCommand(nodeId: String, path: String, bytes: ByteArray, onFailure: () -> Unit) {
         assertEquals("phone", nodeId)
-        sent.add(Command(path, bytes, onFailure))
+        if (path == WEAR_SNAPSHOT_RECEIPT_PATH) {
+            receipts.add(Receipt(bytes, onFailure))
+        } else {
+            sent.add(Command(path, bytes, onFailure))
+        }
     }
     override fun scheduleTimeout(delayMillis: Long, action: () -> Unit): () -> Unit {
         assertEquals(5_000L, delayMillis)

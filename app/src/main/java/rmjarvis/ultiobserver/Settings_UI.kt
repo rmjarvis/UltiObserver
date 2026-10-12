@@ -334,9 +334,9 @@ internal fun SettingsScreen(
                                 onTestVibration = { durationMillis ->
                                     vibrationScope.launch {
                                         (context.applicationContext as UltiObserverApplication)
-                                            .vibrateTimingCue(VibrationPattern(
+                                            .vibrateTimingCueOnWatchOrPhone(VibrationPattern(
                                                 durationMillis, 1, gapMillis = 0L,
-                                            ))
+                                            ), onPhone = false)
                                     }
                                 },
                             )

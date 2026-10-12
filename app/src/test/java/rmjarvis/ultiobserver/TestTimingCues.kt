@@ -542,7 +542,7 @@ class TestTimingCues : GameDomainTestFixtures() {
         }
         val phone: (VibrationPattern) -> Unit = { phonePatterns.add(it) }
         assertTrue(preferences.vibrateOnWatch)
-        deliverTimingVibration(preferences, VibrationPattern(420L, 3, 120L), watch, phone)
+        deliverTimingVibration(preferences, VibrationPattern(420L, 3, 120L), watch, phone, onPhone = false)
         assertEquals(listOf(VibrationPattern(420L, 3, 120L)), watchPatterns)
         assertTrue(phonePatterns.isEmpty())
 
@@ -579,8 +579,15 @@ class TestTimingCues : GameDomainTestFixtures() {
         )).timingAlertServiceCues(countdownPreferences)
         assertFalse(capCues.single().scheduledWatchVibration)
 
+        // Forcing phone delivery bypasses the enabled watch setting without contacting the watch.
+        val forcedPhonePatterns = mutableListOf<VibrationPattern>()
+        deliverTimingVibration(preferences, VibrationPattern(200L, 1, 0L), watch,
+            { forcedPhonePatterns.add(it) }, onPhone = true)
+        assertEquals(listOf(VibrationPattern(200L, 1, 0L)), forcedPhonePatterns)
+        assertEquals(listOf(VibrationPattern(420L, 3, 120L)), watchPatterns)
+
         // Opting out leaves the watch alone and delivers exactly one phone pulse.
-        deliverTimingVibration(preferences.copy(vibrateOnWatch = false), VibrationPattern(300L, 1, 120L), watch, phone)
+        deliverTimingVibration(preferences.copy(vibrateOnWatch = false), VibrationPattern(300L, 1, 120L), watch, phone, onPhone = false)
         assertEquals(listOf(VibrationPattern(420L, 3, 120L)), watchPatterns)
         assertEquals(listOf(VibrationPattern(300L, 1, 120L)), phonePatterns)
 
@@ -589,7 +596,7 @@ class TestTimingCues : GameDomainTestFixtures() {
         deliverTimingVibration(preferences, VibrationPattern(500L, 3, 120L), {
             attempts++
             false
-        }, phone)
+        }, phone, onPhone = false)
         assertEquals(1, attempts)
         assertEquals(listOf(VibrationPattern(300L, 1, 120L), VibrationPattern(500L, 3, 120L)), phonePatterns)
 
@@ -601,14 +608,14 @@ class TestTimingCues : GameDomainTestFixtures() {
             preferences.copy(watchConnectionMode = WatchConnectionMode.NOTIFICATIONS,
                 watchNotificationAlertMode = WatchNotificationAlertMode.ALL),
         )) {
-            deliverTimingVibration(notificationPreferences, VibrationPattern(200L, 1, 120L), watch, phone)
+            deliverTimingVibration(notificationPreferences, VibrationPattern(200L, 1, 120L), watch, phone, onPhone = false)
         }
         assertEquals(listOf(VibrationPattern(420L, 3, 120L)), watchPatterns)
         assertEquals(listOf(VibrationPattern(300L, 1, 120L), VibrationPattern(500L, 3, 120L), VibrationPattern(200L, 1, 120L), VibrationPattern(200L, 1, 120L), VibrationPattern(200L, 1, 120L)), phonePatterns)
 
         // Cancelling an obsolete cue must not create a fallback vibration.
         try {
-            deliverTimingVibration(preferences, VibrationPattern(600L, 1, 120L), { throw CancellationException() }, phone)
+            deliverTimingVibration(preferences, VibrationPattern(600L, 1, 120L), { throw CancellationException() }, phone, onPhone = false)
             fail("Cancellation should propagate")
         } catch (_: CancellationException) {
             assertEquals(listOf(VibrationPattern(300L, 1, 120L), VibrationPattern(500L, 3, 120L), VibrationPattern(200L, 1, 120L), VibrationPattern(200L, 1, 120L), VibrationPattern(200L, 1, 120L)), phonePatterns)

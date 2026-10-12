@@ -27,6 +27,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
 import rmjarvis.ultiobserver.wearprotocol.WearRedoRequest
+import rmjarvis.ultiobserver.wearprotocol.WEAR_SNAPSHOT_RECEIPT_PATH
+import rmjarvis.ultiobserver.wearprotocol.WearSnapshotReceipt
 
 /** Wait for both the startup timing reply and its published snapshot, in either arrival order. */
 internal class PendingStartup(
@@ -521,6 +523,13 @@ internal class PhoneConnectionController(
                 snapshot = snapshot,
                 phoneClockOffsetMillis = phoneClockOffsetMillis,
             )
+        )
+        transport.sendCommand(
+            reachablePhoneNodeId!!,
+            WEAR_SNAPSHOT_RECEIPT_PATH,
+            WearProtocolCodec.encode(WearSnapshotReceipt.serializer(),
+                WearSnapshotReceipt(snapshot.sessionId, snapshot.sequenceNumber)),
+            onFailure = {},
         )
     }
 }

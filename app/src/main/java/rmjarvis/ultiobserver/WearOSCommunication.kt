@@ -25,6 +25,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearStartupRequest
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearVibrationRequest
 import rmjarvis.ultiobserver.wearprotocol.WearVibrationResponse
+import rmjarvis.ultiobserver.wearprotocol.WEAR_SNAPSHOT_RECEIPT_PATH
+import rmjarvis.ultiobserver.wearprotocol.WearSnapshotReceipt
 
 /** Send a live pulse to a reachable watch and wait briefly for its acceptance. */
 internal class WearVibrationSender(
@@ -159,7 +161,14 @@ class WearOSRequestService : WearableListenerService() {
     }
 
     override fun onMessageReceived(event: MessageEvent) {
-        val action = WearRequestAction.fromPath(event.path) ?: return
+        if (event.path == WEAR_SNAPSHOT_RECEIPT_PATH) {
+            val app = application as UltiObserverApplication
+            app.wearCoordinator.receiveSnapshotReceipt(
+                WearProtocolCodec.decode(WearSnapshotReceipt.serializer(), event.data),
+            )
+            return
+        }
+        if (WearRequestAction.fromPath(event.path) == null) return
         val app = application as UltiObserverApplication
         app.wearCoordinator.handleRequest(
             requestedActionPath = event.path,

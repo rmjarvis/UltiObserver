@@ -40,6 +40,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearStateUpdate
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotReceiver
 import rmjarvis.ultiobserver.wearprotocol.WearPendingCommand
 import rmjarvis.ultiobserver.wearprotocol.WearOngoingGameStatus
+import rmjarvis.ultiobserver.wearprotocol.WearSnapshotReceipt
 
 /// Tests for the phone-side Wear OS interface.
 class TestWearOSInterface : GameDomainTestFixtures() {
@@ -538,6 +539,48 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             assertEquals(watchSettings.timingAlerts.watchCountdownVibration(cue.id), sent.vibration)
         }
         assertTrue(watchCountdown.cues.any { it.vibration != null })
+
+        // The phone records snapshot receipt even when it has already published an update.
+        val receiptState = activeWearState(watchSettings, activeGame)
+        val receiptUpdates = mutableListOf<WearStateUpdate>()
+        val receiptCoordinator = WearPhoneCoordinator(
+            receiptState, publish = { receiptUpdates.add(it) }, publishOngoingGame = {},
+            clock = { now }, vibrationsMuted = { false },
+        )
+
+        // A receipt arriving before any snapshot has been published cannot confirm delivery.
+        receiptCoordinator.receiveSnapshotReceipt(WearSnapshotReceipt("previous-phone-session", 1L))
+        assertFalse(receiptCoordinator.snapshotReceivedByWatch)
+
+        // Publishing the snapshot alone does not confirm that it reached the watch.
+        receiptCoordinator.publishCurrentState()
+        val firstSnapshot = receiptUpdates.last().snapshot
+        assertFalse(receiptCoordinator.snapshotReceivedByWatch)
+
+        // Receipts from another session or an unpublished sequence cannot confirm delivery.
+        receiptCoordinator.receiveSnapshotReceipt(
+            WearSnapshotReceipt("previous-phone-session", firstSnapshot.sequenceNumber))
+        receiptCoordinator.receiveSnapshotReceipt(
+            WearSnapshotReceipt(firstSnapshot.sessionId, firstSnapshot.sequenceNumber + 1))
+        assertFalse(receiptCoordinator.snapshotReceivedByWatch)
+
+        // A receipt remains valid when a newer snapshot has already been published.
+        receiptState.updateCurrentGame(receiptState.currentGame!!.addTimeToCountdown(5))
+        receiptCoordinator.receiveSnapshotReceipt(
+            WearSnapshotReceipt(firstSnapshot.sessionId, firstSnapshot.sequenceNumber))
+        assertTrue(receiptCoordinator.snapshotReceivedByWatch)
+
+        // A team-name change preserves the receipt state.
+        val receiptGame = receiptState.currentGame!!
+        receiptState.updateCurrentGame(receiptGame.copy(teamOne = receiptGame.teamOne.copy(name = "Renamed")))
+        assertTrue(receiptCoordinator.snapshotReceivedByWatch)
+
+        // Settings and countdown changes preserve the receipt state too.
+        receiptState.updateSettings(watchSettings.copy(timingAlerts = watchSettings.timingAlerts.copy(
+            vibrationDurationMillis = 500L,
+        )))
+        receiptState.updateCurrentGame(receiptState.currentGame!!.addTimeToCountdown(5))
+        assertTrue(receiptCoordinator.snapshotReceivedByWatch)
 
         // Disabling watch vibration removes the schedule while leaving the countdown available.
         val phoneVibrations = buildWearStateSnapshot(activeGame, watchSettings.copy(

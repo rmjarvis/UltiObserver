@@ -788,7 +788,8 @@ class TestTimingAlerts {
             )
             waitFor { platform.performedHaptics.lastOrNull() == VibrationPattern(15L, 1, 0L) }
 
-            // Countdown vibrations already scheduled on the watch must not be sent a second time.
+            // Countdown vibrations confirmed by the watch must not be sent a second time.
+            platform.snapshotReceivedByWatch = true
             val previousHaptics = platform.performedHaptics.toList()
             val previousSounds = platform.soundPlayer.playedSounds.size
             val watchCue = timingAlertServiceCue(
@@ -804,6 +805,18 @@ class TestTimingAlerts {
             )
             assertEquals(previousHaptics, platform.performedHaptics)
             assertEquals(previousSounds + 1, platform.soundPlayer.playedSounds.size)
+
+            // Until the watch confirms receipt, both vibration and sound cues vibrate on the phone.
+            platform.snapshotReceivedByWatch = false
+            controller.playTimingAlerts(
+                listOf(watchCue, watchCue.copy(alertMode = TimingAlertMode.BEEP)),
+                serviceSnapshot(vibrateWithSounds = true), platform.timingAlertPlayer(),
+            )
+            assertEquals(listOf(
+                VibrationPattern(40L, watchCue.repeatCount, TIMING_ALERT_REPEAT_HAPTIC_GAP_MS),
+                VibrationPattern(40L, 1, gapMillis = 0L),
+            ), platform.phoneHaptics)
+            assertEquals(previousHaptics, platform.performedHaptics)
 
             // Defensive coverage for a cue delivered after the snapshot has disappeared.  This is
             // not expected in normal use, but a service teardown racing a delivery coroutine should
@@ -1213,13 +1226,13 @@ class TestTimingAlerts {
             outputs.select(SOUND_OUTPUT_NONE)
             outputs.setAlsoMuteVibrations(true)
             val cuePreferences = application.appState.settings.timingAlerts
-            runBlocking { application.vibrateTimingCue(pattern) }
+            runBlocking { application.vibrateTimingCueOnWatchOrPhone(pattern, onPhone = true) }
             verifyNoInteractions(vibrator)
             assertEquals(cuePreferences, application.appState.settings.timingAlerts)
 
             // None with the vibration override off still permits the ordinary vibration request.
             outputs.setAlsoMuteVibrations(false)
-            runBlocking { application.vibrateTimingCue(pattern) }
+            runBlocking { application.vibrateTimingCueOnWatchOrPhone(pattern, onPhone = false) }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 verify(vibrator).vibrate(any(VibrationEffect::class.java), any(VibrationAttributes::class.java))
             } else {
@@ -1229,7 +1242,7 @@ class TestTimingAlerts {
             // Leaving None restores delivery even while the remembered override remains Yes.
             outputs.setAlsoMuteVibrations(true)
             outputs.select(null)
-            runBlocking { application.vibrateTimingCue(pattern) }
+            runBlocking { application.vibrateTimingCueOnWatchOrPhone(pattern, onPhone = false) }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 verify(vibrator, times(2)).vibrate(any(VibrationEffect::class.java), any(VibrationAttributes::class.java))
             } else {
@@ -1799,6 +1812,8 @@ private class FakeTimingAlertServicePlatform(
     )
     val scheduledCapAlarms = mutableListOf<ScheduledCapAlarm>()
     val performedHaptics = mutableListOf<VibrationPattern>()
+    val phoneHaptics = mutableListOf<VibrationPattern>()
+    override var snapshotReceivedByWatch = false
     val watchStatusNotifications = mutableListOf<PostedWatchNotification>()
     val watchCueNotifications = mutableListOf<PostedWatchNotification>()
     var exactAlarmAccess = true
@@ -1846,8 +1861,12 @@ private class FakeTimingAlertServicePlatform(
         return exactAlarmAccess
     }
 
-    override suspend fun performHaptic(pattern: VibrationPattern) {
-        performedHaptics += pattern
+    override suspend fun performHaptic(pattern: VibrationPattern, onPhone: Boolean) {
+        if (onPhone) {
+            phoneHaptics += pattern
+        } else {
+            performedHaptics += pattern
+        }
     }
 
     override fun postWatchStatusNotification(

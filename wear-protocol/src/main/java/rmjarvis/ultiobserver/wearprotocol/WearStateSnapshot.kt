@@ -23,6 +23,13 @@ const val PHONE_STATE_CAPABILITY = "ultiobserver_phone_state"
 /** Current wire-format version for phone-to-watch state snapshots. */
 const val WEAR_PROTOCOL_VERSION = 2
 
+/** Path for confirming receipt of a live snapshot on the watch. */
+const val WEAR_SNAPSHOT_RECEIPT_PATH = "/ultiobserver/snapshot-receipt"
+
+/** Watch confirmation that it received a live snapshot. */
+@Serializable
+data class WearSnapshotReceipt(val sessionId: String, val sequenceNumber: Long)
+
 /** Whether companion support is disabled, idle, or presenting an active game. */
 @Serializable
 enum class WearSnapshotStatus {

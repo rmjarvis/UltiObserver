@@ -167,9 +167,12 @@ class TimingAlertForegroundService : Service() {
                 return hasExactTimingAlertAlarmAccess()
             }
 
-            override suspend fun performHaptic(pattern: VibrationPattern) {
-                (application as UltiObserverApplication).vibrateTimingCue(pattern)
+            override suspend fun performHaptic(pattern: VibrationPattern, onPhone: Boolean) {
+                (application as UltiObserverApplication).vibrateTimingCueOnWatchOrPhone(pattern, onPhone)
             }
+
+            override val snapshotReceivedByWatch: Boolean
+                get() = (application as UltiObserverApplication).wearCoordinator.snapshotReceivedByWatch
 
             override fun postWatchStatusNotification(
                 content: WatchNotificationContent,
@@ -413,8 +416,12 @@ internal interface TimingAlertServicePlatform {
      * Submit one complete vibration pattern.
      *
      * @param pattern Requested pulses and spacing.
+     * @param onPhone Keep unconfirmed countdown cues local instead of making a watch request.
      */
-    suspend fun performHaptic(pattern: VibrationPattern)
+    suspend fun performHaptic(pattern: VibrationPattern, onPhone: Boolean)
+
+    /** Whether the watch has confirmed receiving a snapshot from this phone session. */
+    val snapshotReceivedByWatch: Boolean
 
     /** Post or update the main game-status notification mirrored to a watch. */
     fun postWatchStatusNotification(content: WatchNotificationContent, alert: Boolean)
@@ -597,12 +604,18 @@ internal class TimingAlertForegroundServiceController(
         cues.forEach { cue ->
             removeTimingAlertServiceCue(cue)
             val watchAlert = deliverWatchCue(cue)
+            val scheduledOnWatch = cue.scheduledWatchVibration && platform.snapshotReceivedByWatch
             if (cue.alertMode == TimingAlertMode.VIBRATE) {
                 // Don't vibrate on phone if the watch is doing the vibration.
-                if (!cue.scheduledWatchVibration && !watchAlert) {
+                // If cue.scheduledWatchVibration is true, but not received by the watch, then
+                // make the vibration play on the phone (onPhone=true).
+                // If cue.scheduledWatchVibration is false, then this is either a cap or watch
+                // vibrations are disabled. Either way, we can route this vibration the normal
+                // way -- check if the watch should take it; fall back to the phone if not.
+                if (!scheduledOnWatch && !watchAlert) {
                     platform.performHaptic(VibrationPattern(
                         snapshot.vibrationDurationMillis, cue.repeatCount, TIMING_ALERT_REPEAT_HAPTIC_GAP_MS,
-                    ))
+                    ), onPhone = cue.scheduledWatchVibration)
                 }
             } else if (cue.alertMode != TimingAlertMode.NONE) {
                 player.play(
@@ -611,10 +624,10 @@ internal class TimingAlertForegroundServiceController(
                     volume = snapshot.soundVolume,
                     priority = TIMING_ALERT_CUE_PRIORITY,
                 )
-                if (snapshot.vibrateWithSounds && !cue.scheduledWatchVibration && !watchAlert) {
+                if (snapshot.vibrateWithSounds && !scheduledOnWatch && !watchAlert) {
                     platform.performHaptic(VibrationPattern(
                         snapshot.vibrationDurationMillis, 1, gapMillis = 0L,
-                    ))
+                    ), onPhone = cue.scheduledWatchVibration)
                 }
             }
         }

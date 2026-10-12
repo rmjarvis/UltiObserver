@@ -10,6 +10,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearStartupRequest
 import rmjarvis.ultiobserver.wearprotocol.WEAR_PROTOCOL_VERSION
 import rmjarvis.ultiobserver.wearprotocol.WearOngoingGameStatus
+import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearSnapshotReceipt
 
 /**
  * Own the phone's Wear session and publish state with the most recent request acknowledgement.
@@ -27,6 +29,18 @@ internal class WearPhoneCoordinator(
     private var handlingWatchRequest = false
     private var latestAcknowledgement: WearAcknowledgement? = null
     private var ongoingGameStatus: WearOngoingGameStatus? = null
+    private var publishedSnapshot: WearStateSnapshot? = null
+    @Volatile
+    var snapshotReceivedByWatch = false
+        private set
+
+    /** Record that the watch received a snapshot from this phone session. */
+    fun receiveSnapshotReceipt(receipt: WearSnapshotReceipt) = synchronized(appState) {
+        val snapshot = publishedSnapshot ?: return@synchronized
+        if (receipt.sessionId == snapshot.sessionId && receipt.sequenceNumber <= snapshot.sequenceNumber) {
+            snapshotReceivedByWatch = true
+        }
+    }
 
     /**
      * When we first initialize this object, set up the appState to be able to use it for
@@ -111,6 +125,7 @@ internal class WearPhoneCoordinator(
     }
 
     private fun publishUpdate(update: WearStateUpdate) {
+        publishedSnapshot = update.snapshot
         updateOngoingGameStatus(update.snapshot.activeGame != null)
         publish(update)
     }
