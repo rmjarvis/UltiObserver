@@ -241,12 +241,86 @@ private fun StatusRegion(
 ) {
     BoxWithConstraints(modifier = modifier) {
         val topPadding = maxHeight * 0.22f
+        val contentTop = topPadding - 6.dp
+        val density = LocalDensity.current
+        val textMeasurer = rememberTextMeasurer()
+        val textStyle = LocalTextStyle.current
+        val compact = display.signalCountdownValue != null
+        var countdownSpacingScale = 1f
+        val countdownScale = if (display.connected && display.actionsAvailable &&
+            (display.countdownValue != null || display.countdownActions.isNotEmpty())
+        ) {
+            val valueStyle = textStyle.copy(
+                fontSize = if (compact) 20.sp else 27.sp,
+                lineHeight = if (compact) 22.sp else textStyle.lineHeight,
+                fontWeight = FontWeight.Medium,
+            )
+            val countdownHeight = display.countdownValue?.let { value ->
+                textMeasurer.measure(
+                    text = value,
+                    style = valueStyle,
+                    maxLines = 1,
+                    softWrap = false,
+                ).size.height * if (compact) 2 else 1
+            } ?: 0
+            val actionLabels = if (display.countdownActions.isNotEmpty()) {
+                display.countdownActions.map { it.label }
+            } else {
+                listOfNotNull(display.primaryCountdownAction?.label)
+            }
+            val footerHeight = if (actionLabels.isEmpty()) {
+                textMeasurer.measure(
+                    text = display.nextCue.orEmpty(),
+                    style = textStyle.copy(fontSize = 11.sp, fontWeight = FontWeight.Normal),
+                    maxLines = 1,
+                    softWrap = false,
+                ).size.height
+            } else {
+                val actionWidth = maxWidth - 32.dp - 28.dp -
+                    if (display.countdownActions.isNotEmpty()) 16.dp else 0.dp
+                actionLabels.sumOf { label ->
+                    textMeasurer.measure(
+                        text = label,
+                        style = textStyle.copy(
+                            fontSize = 12.sp,
+                            lineHeight = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                        constraints = androidx.compose.ui.unit.Constraints(
+                            maxWidth = with(density) { actionWidth.roundToPx() },
+                        ),
+                        maxLines = 2,
+                    ).size.height
+                }
+            }
+            val capHeight = display.capStatus?.let { capStatus ->
+                textMeasurer.measure(
+                    text = capStatus,
+                    style = textStyle.copy(fontSize = 10.sp, fontWeight = FontWeight.Normal),
+                    maxLines = 1,
+                    softWrap = false,
+                ).size.height
+            } ?: 0
+            with(density) {
+                val fixedHeight = contentTop + 6.dp + 2.dp + 8.dp * actionLabels.size
+                val preferredHeight = maxOf(12.dp.toPx(), capHeight.toFloat()) +
+                    countdownHeight + footerHeight
+                val availableHeight = (maxHeight - fixedHeight).toPx()
+                val gapCount = if (display.countdownValue != null) 1 else actionLabels.size - 1
+                val preferredSpacing = 8.dp + 4.dp * gapCount
+                countdownSpacingScale =
+                    ((availableHeight - preferredHeight) / preferredSpacing.toPx()).coerceIn(0f, 1f)
+                (availableHeight / preferredHeight).coerceAtMost(1f)
+            }
+        } else {
+            1f
+        }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    top = topPadding - if (display.signalCountdownValue != null) 10.dp else 6.dp,
+                    top = contentTop,
                     start = 16.dp,
                     end = 16.dp,
                 ),
@@ -256,7 +330,7 @@ private fun StatusRegion(
                 modifier = Modifier.fillMaxWidth()
                     .gameClickable(enabled = true, role = Role.Button, onClick = onRulesReference)
                     .semantics { contentDescription = "Game rules" }
-                    .padding(vertical = if (display.signalCountdownValue != null) 4.dp else 6.dp),
+                    .padding(top = 6.dp, bottom = 6.dp * countdownSpacingScale),
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -266,7 +340,7 @@ private fun StatusRegion(
                         style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
                         modifier = Modifier.weight(1f, fill = false),
                         color = StatusTextColor,
-                        fontSize = 10.sp,
+                        fontSize = 10.sp * countdownScale,
                         fontWeight = FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -276,7 +350,7 @@ private fun StatusRegion(
                     imageVector = Icons.Outlined.Description,
                     contentDescription = null,
                     tint = StatusTextColor,
-                    modifier = Modifier.size(12.dp),
+                    modifier = Modifier.size(12.dp * countdownScale),
                 )
             }
             if (!display.connected) {
@@ -289,20 +363,60 @@ private fun StatusRegion(
                 )
                 RetryLabel(onRetry)
             } else if (!display.actionsAvailable && !display.gameOver) {
-                Text(
-                    text = "Resume current game on phone to enable actions",
-                    modifier = Modifier.padding(top = 13.dp),
-                    color = StatusTextColor,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 2,
-                    textAlign = TextAlign.Center,
-                )
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 2.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val message = "Resume current game on phone to enable actions"
+                    val preferredStyle = textStyle.copy(
+                        fontSize = 15.sp,
+                        lineHeight = 19.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    val messageStyle = remember(constraints, preferredStyle, density, textMeasurer) {
+                        fun styleAt(scale: Float) = preferredStyle.copy(
+                            fontSize = preferredStyle.fontSize * scale,
+                            lineHeight = preferredStyle.lineHeight * scale,
+                        )
+                        fun fits(scale: Float) = textMeasurer.measure(
+                            text = message,
+                            style = styleAt(scale),
+                            constraints = androidx.compose.ui.unit.Constraints(
+                                maxWidth = constraints.maxWidth,
+                            ),
+                        ).size.height <= constraints.maxHeight
+
+                        if (fits(1f)) {
+                            preferredStyle
+                        } else {
+                            var fittingScale = 0f
+                            var oversizedScale = 1f
+                            repeat(12) {
+                                val scale = (fittingScale + oversizedScale) / 2f
+                                if (fits(scale)) {
+                                    fittingScale = scale
+                                } else {
+                                    oversizedScale = scale
+                                }
+                            }
+                            styleAt(fittingScale)
+                        }
+                    }
+                    Text(
+                        text = message,
+                        style = messageStyle,
+                        color = StatusTextColor,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             } else if (display.countdownActions.isNotEmpty()) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 4.dp),
+                    modifier = Modifier.fillMaxWidth().weight(1f)
+                        .padding(bottom = 2.dp + 2.dp * countdownSpacingScale),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+                    verticalArrangement = Arrangement.spacedBy(
+                        4.dp * countdownSpacingScale, Alignment.CenterVertically,
+                    ),
                 ) {
                     display.countdownActions.forEach { action ->
                         CountdownActionButton(
@@ -312,6 +426,7 @@ private fun StatusRegion(
                                 onCountdownAction(action)
                             },
                             modifier = Modifier.padding(horizontal = 8.dp),
+                            fontScale = countdownScale,
                         )
                     }
                 }
@@ -327,7 +442,8 @@ private fun StatusRegion(
                 )
             } else if (display.countdownValue != null) {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().weight(1f)
+                        .padding(bottom = 2.dp + 2.dp * countdownSpacingScale),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Box(
@@ -343,16 +459,18 @@ private fun StatusRegion(
                                 CountdownStatus(
                                     display.signalCountdownLabel, display.signalCountdownValue,
                                     compact = true, valueTag = "signal-countdown-value",
+                                    fontScale = countdownScale,
                                 )
                             }
                             CountdownStatus(
                                 display.countdownLabel, display.countdownValue,
                                 compact = display.signalCountdownValue != null,
                                 valueTag = "countdown-value",
+                                fontScale = countdownScale,
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(4.dp * countdownSpacingScale))
                     val action = display.primaryCountdownAction
                     if (action != null) {
                         CompositionLocalProvider(LocalRequireLongPress provides false) {
@@ -363,13 +481,14 @@ private fun StatusRegion(
                                     onCountdownAction(action)
                                 },
                                 modifier = Modifier,
+                                fontScale = countdownScale,
                             )
                         }
                     } else {
                         Text(
                             text = display.nextCue.orEmpty(),
                             color = StatusTextColor,
-                            fontSize = 11.sp,
+                            fontSize = 11.sp * countdownScale,
                             fontWeight = FontWeight.Normal,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -382,7 +501,25 @@ private fun StatusRegion(
 }
 
 @Composable
-private fun CountdownStatus(label: String, value: String, compact: Boolean, valueTag: String) {
+private fun CountdownStatus(
+    label: String,
+    value: String,
+    compact: Boolean,
+    valueTag: String,
+    fontScale: Float,
+) {
+    val preferredLineHeight = if (compact) {
+        22.sp
+    } else {
+        val textMeasurer = rememberTextMeasurer()
+        val measuredHeight = textMeasurer.measure(
+            text = value,
+            style = LocalTextStyle.current.copy(fontSize = 27.sp, fontWeight = FontWeight.Medium),
+            maxLines = 1,
+            softWrap = false,
+        ).size.height
+        with(LocalDensity.current) { measuredHeight.toDp().toSp() }
+    }
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -391,8 +528,8 @@ private fun CountdownStatus(label: String, value: String, compact: Boolean, valu
         BoxWithConstraints(modifier = Modifier.weight(1f, fill = false)) {
             val textMeasurer = rememberTextMeasurer()
             val labelStyle = LocalTextStyle.current.copy(
-                fontSize = if (compact) 14.sp else 18.sp,
-                lineHeight = if (compact) 22.sp else LocalTextStyle.current.lineHeight,
+                fontSize = (if (compact) 14.sp else 18.sp) * fontScale,
+                lineHeight = preferredLineHeight * fontScale,
                 fontWeight = FontWeight.Normal,
             )
             val naturalWidth = textMeasurer.measure(
@@ -420,9 +557,9 @@ private fun CountdownStatus(label: String, value: String, compact: Boolean, valu
             modifier = Modifier.testTag(valueTag),
             style = LocalTextStyle.current.copy(
                 fontFeatureSettings = "tnum",
-                lineHeight = if (compact) 22.sp else LocalTextStyle.current.lineHeight,
+                lineHeight = preferredLineHeight * fontScale,
             ),
-            fontSize = if (compact) 20.sp else 27.sp,
+            fontSize = (if (compact) 20.sp else 27.sp) * fontScale,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             softWrap = false,
@@ -832,6 +969,7 @@ private fun TimingControls(
                             onAction(action)
                         },
                         modifier = Modifier.fillMaxSize(),
+                        fontScale = 1f,
                     )
                 }
             }
