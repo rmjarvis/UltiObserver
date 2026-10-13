@@ -152,13 +152,13 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
         replaceText("setup-far-end-name", "Trees")
         replaceText("setup-near-end-name", "Parking lot")
         clickTag("setup-pulling-team-${TeamId.TEAM_ONE.name}", scroll = true)
-        clickTag("setup-pulling-from-${FieldEnd.NEAR.name}", scroll = true)
+        clickTag("setup-team-one-end-${FieldEnd.NEAR.name}", scroll = true)
         clickTag(
             "setup-initial-gender-ratio-${GenderRatio.FOUR_WOMEN_THREE_MEN.name}",
             scroll = true,
         )
         clickTag("setup-pull-prompts-${PullPromptTarget.FAR.name}", scroll = true)
-        composeRule.onNodeWithText("Pulling team").performScrollTo()
+        composeRule.onNodeWithText("Which team is pulling?").performScrollTo()
         capture("FieldStartingPullTop.png")
         closeSetupEditor()
         composeRule.waitForIdle()
