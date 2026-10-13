@@ -50,7 +50,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 10
-        versionName = "1.5.0alpha"
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "rmjarvis.ultiobserver.UltiObserverTestRunner"
     }
