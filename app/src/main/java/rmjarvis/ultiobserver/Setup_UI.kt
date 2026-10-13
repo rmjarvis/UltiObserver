@@ -1588,6 +1588,7 @@ private fun StartingPullSetupDialog(
     var initialGenderRatio by remember { mutableStateOf(state.initialGenderRatio) }
     var firstHalfGenZone by remember { mutableStateOf(state.firstHalfGenZone) }
     var watchLeftEnd by remember { mutableStateOf(state.watchLeftEnd) }
+    val firstEnd = if (preference == OrientationPreference.LANDSCAPE) FieldEnd.FAR else FieldEnd.NEAR
     val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
 
     fun commitNearEndLabel() {
@@ -1680,6 +1681,7 @@ private fun StartingPullSetupDialog(
                 Text("${TeamId.TEAM_ONE.setupName(state)} starts at which end?", fontWeight = FontWeight.SemiBold)
                 FieldEndChoiceRow(
                     selected = teamOneEnd,
+                    firstEnd = firstEnd,
                     nearLabel = displayFieldEndName(FieldEnd.NEAR),
                     farLabel = displayFieldEndName(FieldEnd.FAR),
                     onSelected = { teamOneEnd = it },
@@ -1715,6 +1717,7 @@ private fun StartingPullSetupDialog(
                             Text("The team in this end zone decided the gender ratio for each point.")
                             FieldEndChoiceRow(
                                 selected = firstHalfGenZone,
+                                firstEnd = firstEnd,
                                 nearLabel = displayFieldEndName(FieldEnd.NEAR),
                                 farLabel = displayFieldEndName(FieldEnd.FAR),
                                 onSelected = { firstHalfGenZone = it },
@@ -1727,6 +1730,7 @@ private fun StartingPullSetupDialog(
                 Text("Timing prompts for which end?", fontWeight = FontWeight.SemiBold)
                 PullPromptTargetChoiceRow(
                     selected = pullPromptTarget,
+                    firstEnd = firstEnd,
                     nearLabel = displayFieldEndName(FieldEnd.NEAR),
                     farLabel = displayFieldEndName(FieldEnd.FAR),
                     onSelected = { pullPromptTarget = it },
@@ -1740,6 +1744,7 @@ private fun StartingPullSetupDialog(
                     val farLabel = displayFieldEndName(FieldEnd.FAR)
                     FieldEndChoiceRow(
                         selected = watchLeftEnd,
+                        firstEnd = firstEnd,
                         nearLabel = "$nearLabel | $farLabel",
                         farLabel = "$farLabel | $nearLabel",
                         onSelected = {
@@ -2987,6 +2992,7 @@ private fun StartingPullDiagram(
 @Composable
 private fun FieldEndChoiceRow(
     selected: FieldEnd,
+    firstEnd: FieldEnd,
     nearLabel: String,
     farLabel: String,
     onSelected: (FieldEnd) -> Unit,
@@ -2996,22 +3002,16 @@ private fun FieldEndChoiceRow(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        SetupChoiceChip(
-            label = nearLabel,
-            selected = selected == FieldEnd.NEAR,
-            onClick = {
-                onSelected(FieldEnd.NEAR)
-            },
-            tag = "$testTagPrefix-${FieldEnd.NEAR.name}",
-        )
-        SetupChoiceChip(
-            label = farLabel,
-            selected = selected == FieldEnd.FAR,
-            onClick = {
-                onSelected(FieldEnd.FAR)
-            },
-            tag = "$testTagPrefix-${FieldEnd.FAR.name}",
-        )
+        listOf(firstEnd, firstEnd.flip()).forEach { end ->
+            SetupChoiceChip(
+                label = if (end == FieldEnd.NEAR) nearLabel else farLabel,
+                selected = selected == end,
+                onClick = {
+                    onSelected(end)
+                },
+                tag = "$testTagPrefix-${end.name}",
+            )
+        }
     }
 }
 
@@ -3027,6 +3027,7 @@ private fun FieldEndChoiceRow(
 @Composable
 internal fun PullPromptTargetChoiceRow(
     selected: PullPromptTarget,
+    firstEnd: FieldEnd,
     nearLabel: String,
     farLabel: String,
     testTagPrefix: String = "setup-pull-prompts",
@@ -3051,8 +3052,13 @@ internal fun PullPromptTargetChoiceRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            ChoiceChip(PullPromptTarget.NEAR)
-            ChoiceChip(PullPromptTarget.FAR)
+            if (firstEnd == FieldEnd.FAR) {
+                ChoiceChip(PullPromptTarget.FAR)
+                ChoiceChip(PullPromptTarget.NEAR)
+            } else {
+                ChoiceChip(PullPromptTarget.NEAR)
+                ChoiceChip(PullPromptTarget.FAR)
+            }
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(6.dp),

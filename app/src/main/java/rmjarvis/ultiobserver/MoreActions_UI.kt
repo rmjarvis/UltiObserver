@@ -762,6 +762,11 @@ private fun ChangePullPromptsDialog(
                 )
                 PullPromptTargetChoiceRow(
                     selected = selected,
+                    firstEnd = if (layout == ActiveGameOrientation.LANDSCAPE) {
+                        FieldEnd.FAR
+                    } else {
+                        FieldEnd.NEAR
+                    },
                     nearLabel = state.fieldEndName(FieldEnd.NEAR, layout),
                     farLabel = state.fieldEndName(FieldEnd.FAR, layout),
                     testTagPrefix = "more-actions-pull-prompts",
