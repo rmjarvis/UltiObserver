@@ -212,11 +212,36 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertTrue(defaultSnapshot.teamOne.actions.technicalFoulEnabled)
         assertTrue(defaultSnapshot.teamOne.actions.timeoutEnabled)
 
+        // Fixed Landscape uses the phone's Left/Right names, following the teams after a goal.
+        val landscapeSettings = settings.copy(orientationPreference = OrientationPreference.LANDSCAPE)
+        val landscapeSnapshot = buildWearStateSnapshot(defaultGame, landscapeSettings, now).activeGame!!
+        assertEquals("Left end", landscapeSnapshot.teamOne.fieldEndName)
+        assertEquals("Right end", landscapeSnapshot.teamTwo.fieldEndName)
+        val landscapeGoal = defaultGame.recordGoal(TeamId.TEAM_ONE, now)
+        val landscapeScored = buildWearStateSnapshot(landscapeGoal, landscapeSettings, now).activeGame!!
+        assertEquals("Right end", landscapeScored.teamOne.fieldEndName)
+        assertEquals("Left end", landscapeScored.teamTwo.fieldEndName)
+        val landscapeUndone = buildWearStateSnapshot(
+            landscapeGoal.undoLastAction(), landscapeSettings, now,
+        ).activeGame!!
+        assertEquals(landscapeSnapshot.teamOne.fieldEndName, landscapeUndone.teamOne.fieldEndName)
+        assertEquals(landscapeSnapshot.teamTwo.fieldEndName, landscapeUndone.teamTwo.fieldEndName)
+
+        // Auto-rotate retains Near/Far names, as on the phone.
+        val autoRotateSnapshot = buildWearStateSnapshot(
+            defaultGame, settings.copy(orientationPreference = OrientationPreference.AUTO_ROTATE), now,
+        ).activeGame!!
+        assertEquals("Far end", autoRotateSnapshot.teamOne.fieldEndName)
+        assertEquals("Near end", autoRotateSnapshot.teamTwo.fieldEndName)
+
         // Custom field-end names follow the teams when they switch ends after a goal.
         val namedEnds = defaultGame.copy(nearEndName = "Road", farEndName = "Clubhouse")
         val namedSnapshot = buildWearStateSnapshot(namedEnds, settings, now).activeGame!!
         assertEquals("Clubhouse", namedSnapshot.teamOne.fieldEndName)
         assertEquals("Road", namedSnapshot.teamTwo.fieldEndName)
+        val namedLandscape = buildWearStateSnapshot(namedEnds, landscapeSettings, now).activeGame!!
+        assertEquals("Clubhouse", namedLandscape.teamOne.fieldEndName)
+        assertEquals("Road", namedLandscape.teamTwo.fieldEndName)
         val scored = namedEnds.recordGoal(TeamId.TEAM_ONE, now)
         val scoredSnapshot = buildWearStateSnapshot(scored, settings, now).activeGame!!
         assertEquals("Road", scoredSnapshot.teamOne.fieldEndName)

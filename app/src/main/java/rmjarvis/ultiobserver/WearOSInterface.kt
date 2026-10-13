@@ -616,8 +616,8 @@ internal fun buildWearStateSnapshot(
             countdownActions = game.wearCountdownActions(),
             timingControls = game.wearTimingControls(now, settings),
             statusMessageTransitions = game.wearStatusMessageTransitions(now),
-            teamOne = game.wearTeamSnapshot(TeamId.TEAM_ONE, now),
-            teamTwo = game.wearTeamSnapshot(TeamId.TEAM_TWO, now),
+            teamOne = game.wearTeamSnapshot(TeamId.TEAM_ONE, now, settings.orientationPreference),
+            teamTwo = game.wearTeamSnapshot(TeamId.TEAM_TWO, now, settings.orientationPreference),
             leftTeam = leftTeam,
             pullDirection = if (game.pullingTeam == leftTeam) {
                 WearSnapshotPullDirection.LEFT_TO_RIGHT
@@ -730,6 +730,7 @@ private fun GameState.wearStatusMessageTransitions(
 private fun GameState.wearTeamSnapshot(
     teamId: TeamId,
     now: Long,
+    orientationPreference: OrientationPreference,
 ): WearTeamSnapshot {
     val team = teamFor(teamId)
     val backgroundArgb = if (team.color == TeamColorChoice.CUSTOM) {
@@ -747,7 +748,7 @@ private fun GameState.wearTeamSnapshot(
         score = team.score,
         fieldEndName = fieldEndName(
             if (teamId == pullingTeam) pullingFromEnd else pullingFromEnd.flip(),
-            ActiveGameOrientation.PORTRAIT,
+            orientationPreference,
         ),
         backgroundArgb = backgroundArgb,
         contentArgb = contentArgb,
