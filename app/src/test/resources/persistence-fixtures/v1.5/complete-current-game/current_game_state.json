@@ -1,0 +1,256 @@
+{
+    "versionName": "1.5.1",
+    "versionCode": 12,
+    "data": {
+        "state": {
+            "gameId": "00000000-0000-4000-8000-000000000015",
+            "startDate": "2026-10-13",
+            "startTime": "10:00",
+            "timeZone": "America/New_York",
+            "endEpoch": 1791900180000,
+            "officialClockOffsetMillis": 0,
+            "tournamentName": "Migration Invitational",
+            "division": null,
+            "level": "",
+            "gameContext": "",
+            "observerNames": [],
+            "fieldName": "",
+            "nearEndName": "Road",
+            "farEndName": "Trees",
+            "rules": {
+                "gameTo": 15,
+                "halftimeMinutes": 7,
+                "timeBetweenPointsSeconds": 60,
+                "useHalfCap": true,
+                "halfCapMinutes": 45,
+                "useSoftCap": true,
+                "softCapMinutes": 90,
+                "useHardCap": true,
+                "hardCapMinutes": 105,
+                "timeoutsPerHalf": 2,
+                "hasFloaterTimeout": false,
+                "timeoutSeconds": 70,
+                "genderRatioRule": "ABBA",
+                "switchGenZoneAtHalftime": true,
+                "useAirQualityGuidelines": false,
+                "heatLevel": "NONE",
+                "waterBreakMinutes": 3
+            },
+            "teamOne": {
+                "name": "Bees",
+                "color": "YELLOW",
+                "customColorArgb": null,
+                "coaches": "",
+                "fieldCaptains": "",
+                "spiritCaptains": "",
+                "score": 1,
+                "timeoutsUsedThisHalf": 0,
+                "firstHalfTimeoutsUsed": 0,
+                "offsides": 0,
+                "falseStarts": 0,
+                "majorityPullViolations": 0,
+                "timeViolations": 0,
+                "technicalFouls": 0,
+                "blueCards": 0
+            },
+            "teamTwo": {
+                "name": "Ferns",
+                "color": "GREEN",
+                "customColorArgb": null,
+                "coaches": "",
+                "fieldCaptains": "",
+                "spiritCaptains": "",
+                "score": 1,
+                "timeoutsUsedThisHalf": 0,
+                "firstHalfTimeoutsUsed": 0,
+                "offsides": 0,
+                "falseStarts": 0,
+                "majorityPullViolations": 0,
+                "timeViolations": 0,
+                "technicalFouls": 0,
+                "blueCards": 0
+            },
+            "teamOnePlayers": [
+                {
+                    "jerseyNumber": "7",
+                    "playerName": "Bee Seven",
+                    "priorYellows": 0,
+                    "priorReds": 0,
+                    "cards": [
+                        {
+                            "cardType": "YELLOW",
+                            "index": 0,
+                            "reason": {
+                                "preset": "Dangerous play",
+                                "otherText": "",
+                                "details": ""
+                            }
+                        }
+                    ]
+                }
+            ],
+            "teamTwoPlayers": [],
+            "eventLog": [
+                {
+                    "timeText": "10:00",
+                    "type": "FIRST_PULL",
+                    "team": "TEAM_ONE"
+                },
+                {
+                    "timeText": "10:00",
+                    "type": "YELLOW_CARD",
+                    "team": "TEAM_ONE",
+                    "player": {
+                        "jerseyNumber": "7",
+                        "playerName": "Bee Seven"
+                    }
+                },
+                {
+                    "timeText": "10:01",
+                    "type": "GOAL",
+                    "team": "TEAM_ONE"
+                },
+                {
+                    "timeText": "10:02",
+                    "type": "GOAL",
+                    "team": "TEAM_TWO"
+                },
+                {
+                    "timeText": "10:03",
+                    "type": "GAME_OVER"
+                }
+            ],
+            "pullingTeam": "TEAM_TWO",
+            "pullingFromEnd": "NEAR",
+            "topDisplayedEnd": "FAR",
+            "watchLeftEnd": "NEAR",
+            "pullPromptTarget": "NEAR",
+            "initialGenderRatio": "FOUR_MEN_THREE_WOMEN",
+            "firstHalfGenZone": "FAR",
+            "openingPullingTeam": "TEAM_ONE",
+            "openingPullingFromEnd": "FAR",
+            "phase": "GAME_OVER",
+            "countdown": null,
+            "pullSequenceOffsidesRecorded": false,
+            "pullSequenceFalseStartRecorded": false,
+            "pullSkippedForCurrentPoint": false,
+            "pendingMisconductCountdown": false,
+            "halftimeTaken": false,
+            "halftimeTargetScore": null,
+            "halftimeHighScore": null,
+            "pendingWaterBreakOffer": false,
+            "winningScore": null,
+            "halfCapApplied": false,
+            "softCapApplied": false,
+            "hardCapApplied": false,
+            "pendingCapOffer": null,
+            "pendingScoreTransition": null,
+            "undoEntry": null,
+            "redoEntry": null
+        },
+        "undoEntry": {
+            "label": "Undo End game",
+            "patchToPrevious": {
+                "endEpoch": {
+                    "value": null
+                },
+                "eventLog": {
+                    "previousSize": 4
+                },
+                "phase": "BETWEEN_POINTS",
+                "countdown": {
+                    "value": {
+                        "kind": "BETWEEN_POINTS",
+                        "label": "Pull in",
+                        "durationSeconds": 80,
+                        "targetEpoch": 1791900200000,
+                        "betweenPointsTarget": "PULL",
+                        "pullTiming": {
+                            "offenseReadySeconds": 60,
+                            "pullSeconds": 80
+                        },
+                        "pausedAtEpoch": null
+                    }
+                }
+            },
+            "previousUndoEntry": {
+                "label": "Undo Goal by Ferns",
+                "patchToPrevious": {
+                    "teamTwo": {
+                        "score": 0
+                    },
+                    "eventLog": {
+                        "previousSize": 3
+                    },
+                    "pullingTeam": "TEAM_ONE",
+                    "countdown": {
+                        "value": {
+                            "kind": "BETWEEN_POINTS",
+                            "label": "Pull in",
+                            "durationSeconds": 80,
+                            "targetEpoch": 1791900140000,
+                            "betweenPointsTarget": "PULL",
+                            "pullTiming": {
+                                "offenseReadySeconds": 60,
+                                "pullSeconds": 80
+                            },
+                            "pausedAtEpoch": null
+                        }
+                    }
+                },
+                "previousUndoEntry": {
+                    "label": "Undo Goal by Bees",
+                    "patchToPrevious": {
+                        "teamOne": {
+                            "score": 0
+                        },
+                        "eventLog": {
+                            "previousSize": 2
+                        },
+                        "pullingFromEnd": "FAR",
+                        "phase": "LIVE_POINT",
+                        "countdown": {
+                            "value": null
+                        }
+                    },
+                    "previousUndoEntry": {
+                        "label": "Undo Yellow on #7 of Bees",
+                        "patchToPrevious": {
+                            "teamOnePlayers": {
+                                "previousSize": 0
+                            },
+                            "eventLog": {
+                                "previousSize": 1
+                            }
+                        },
+                        "previousUndoEntry": {
+                            "label": "Undo Start point",
+                            "patchToPrevious": {
+                                "eventLog": {
+                                    "previousSize": 0
+                                },
+                                "phase": "PRE_GAME",
+                                "countdown": {
+                                    "value": {
+                                        "kind": "OPENING_PULL",
+                                        "label": "Signal in",
+                                        "durationSeconds": 20,
+                                        "targetEpoch": 1791900020000,
+                                        "betweenPointsTarget": "OFFENSE_READY",
+                                        "pullTiming": {
+                                            "offenseReadySeconds": 20,
+                                            "pullSeconds": 40
+                                        },
+                                        "pausedAtEpoch": null
+                                    }
+                                }
+                            },
+                            "previousUndoEntry": null
+                        }
+                    }
+                }
+            }
+        },
+        "redoEntry": null
+    }
+}

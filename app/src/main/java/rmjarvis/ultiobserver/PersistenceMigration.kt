@@ -130,6 +130,15 @@ private val knownVersionMigrations = listOf(
         archivedGame = V1_4ToV1_5::migrateArchivedGame,
         decodedGame = V1_4ToV1_5::migrateCountdowns,
     ),
+    VersionMigration(
+        sourceVersion = "1.5",
+        targetVersion = "1.6",
+        currentGame = null,
+        profile = null,
+        settings = null,
+        archivedGame = null,
+        decodedGame = null,
+    ),
 )
 
 /**

@@ -377,14 +377,13 @@ class TestMigration : GameDomainTestFixtures() {
     }
 
     /**
-     * Verify every v1.1 fixture scenario loads into the current app model without startup
-     * recovery and preserves the standard persisted workflow shapes.
+     * Load the v1.1 saves, applying any necessary migrations.
      *
      * The asserted fixture values come from
      * `tools/persistence-fixtures/v1.1/PersistenceFixtureGeneratorTool.kt`.
      */
     @Test
-    fun migrateFixturesFromV1_1() {
+    fun loadFixturesFromV1_1() {
         // default-buckets was created with the defaults for everything.
         val defaultBuckets = loadMigratedFixture("v1.1", "default-buckets")
         assertNull(defaultBuckets.currentGame)
@@ -477,8 +476,7 @@ class TestMigration : GameDomainTestFixtures() {
     }
 
     /**
-     * Verify every v1.2 fixture scenario loads into the current app model without startup
-     * recovery and preserves the new 1.2 rules and settings.
+     * Load the v1.2 saves, applying any necessary migrations.
      *
      * The asserted fixture values come from
      * `tools/persistence-fixtures/v1.2/PersistenceFixtureGeneratorTool.kt`.
@@ -667,8 +665,7 @@ class TestMigration : GameDomainTestFixtures() {
     }
 
     /**
-     * Verify every standard v1.3 fixture scenario loads into the current app model without
-     * startup recovery and preserves its workflow and settings state.
+     * Load the v1.3 saves, applying any necessary migrations.
      *
      * The asserted fixture values come from
      * `tools/persistence-fixtures/v1.3/PersistenceFixtureGeneratorTool.kt`.
@@ -749,7 +746,7 @@ class TestMigration : GameDomainTestFixtures() {
         )
     }
 
-    /** Load the standard v1.4 saves directly through the v1.4-to-v1.5 migration. */
+    /** Load the v1.4 saves, applying any necessary migrations. */
     @Test
     fun loadFixturesFromV1_4() {
         // The standard v1.4 scenarios retain the profile/settings values used in v1.3.
@@ -870,6 +867,72 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(GamePhase.BETWEEN_POINTS, expiredPull.phase)
         assertEquals(0, expiredPull.teamTwo.timeViolations)
         assertEquals(restored.startEpoch + 20 * 60_000L, expiredPull.countdown!!.targetEpoch)
+    }
+
+    /** Load the v1.5 saves, applying any necessary migrations. */
+    @Test
+    fun loadFixturesFromV1_5() {
+        // Empty default buckets remain empty without a recovery notice.
+        val defaults = loadMigratedFixture("v1.5", "default-buckets")
+        assertNull(defaults.currentGame)
+        assertFalse(defaults.hasSetupDraft)
+        assertTrue(defaults.archivedGames.isEmpty())
+        assertEquals(Profile(), defaults.profile)
+        assertEquals(Settings(), defaults.settings)
+
+        // A newly started game retains its existing identity, countdown, and empty history.
+        val started = loadMigratedFixture("v1.5", "started-game-no-events")
+        assertStartedGameNoEvents(started)
+        assertEquals("00000000-0000-4000-8000-000000000015", started.currentGame!!.gameId)
+        assertEquals(CountdownKind.OPENING_PULL, started.currentGame!!.countdown!!.kind)
+
+        // An editable draft retains its field names, watch placement, and 1.5 settings.
+        val setup = loadMigratedFixture("v1.5", "setup-draft")
+        assertTrue(setup.hasSetupDraft)
+        assertEquals("Migration Invitational", setup.setupGame.tournamentName)
+        assertEquals("Road", setup.setupGame.nearEndName)
+        assertEquals("Trees", setup.setupGame.farEndName)
+        assertEquals(FieldEnd.NEAR, setup.setupGame.watchLeftEnd)
+        assertEquals(Profile(name = "Casey Observer"), setup.profile)
+        assertEquals(OrientationPreference.LANDSCAPE, setup.settings.orientationPreference)
+        assertTrue(setup.settings.dualPullCountdowns)
+        assertTrue(setup.settings.requireWatchLongPress)
+        assertEquals(WatchOrientation.ENDS_FIXED, setup.settings.watchOrientation)
+        assertEquals(WatchConnectionMode.WEAR_OS, setup.settings.timingAlerts.watchConnectionMode)
+
+        // An active game's patch history retains scores and can still undo and redo a goal.
+        val active = loadMigratedFixture("v1.5", "active-game")
+        val game = active.currentGame!!
+        assertEquals(GamePhase.BETWEEN_POINTS, game.phase)
+        assertEquals(1, game.teamOne.score)
+        assertEquals(1, game.teamTwo.score)
+        assertEquals("00000000-0000-4000-8000-000000000015", game.gameId)
+        val undone = game.undoLastAction()
+        assertEquals(0, undone.teamTwo.score)
+        assertEquals(game, undone.redoLastAction())
+        assertEquals("Bee Seven", game.teamOnePlayers.single().playerName)
+        assertEquals(1, active.archivedGames.size)
+        assertEquals("00000000-0000-4000-8000-000000000025", active.archivedGames.single().gameId)
+
+        // A completed current game keeps the End game undo state and its preceding countdown.
+        val completed = loadMigratedFixture("v1.5", "complete-current-game").currentGame!!
+        assertEquals(GamePhase.GAME_OVER, completed.phase)
+        assertEquals("Undo End game", completed.undoEntry!!.label)
+        assertEquals(game, completed.undoEntry!!.previous)
+        assertEquals(GamePhase.BETWEEN_POINTS, completed.undoLastAction().phase)
+        assertNotNull(completed.undoLastAction().countdown)
+
+        // Completed archives retain both identities and usable patch histories after pruning.
+        val archived = loadMigratedFixture("v1.5", "completed-archive")
+        assertNull(archived.currentGame)
+        assertEquals(2, archived.archivedGames.size)
+        assertEquals(listOf(game.gameId, active.archivedGames.single().gameId),
+            archived.archivedGames.map { it.gameId })
+        for (entry in archived.archivedGames) {
+            assertEquals(GamePhase.GAME_OVER, entry.phase)
+            assertEquals(GamePhase.BETWEEN_POINTS, entry.undoLastAction().phase)
+            assertNotNull(entry.undoLastAction().countdown)
+        }
     }
 
     private fun assertMigratedV1_2TerminalCurrentGame(
