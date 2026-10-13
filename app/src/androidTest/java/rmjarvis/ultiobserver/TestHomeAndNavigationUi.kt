@@ -874,7 +874,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "https://play.google.com/store/apps/details?id=rmjarvis.ultiobserver"
         val sourceCodeUrl = "https://github.com/rmjarvis/UltiObserver"
         val documentationUrl = "https://rmjarvis.github.io/UltiObserver/"
-        val privacyPolicyUrl = "https://github.com/rmjarvis/UltiObserver/blob/main/PRIVACY.md"
+        val privacyPolicyUrl = "https://rmjarvis.github.io/UltiObserver/privacy.html"
         composeRule.onNodeWithText("Check for updates").assertIsDisplayed()
         composeRule.onNodeWithText(sourceCodeUrl).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(documentationUrl).performScrollTo().assertIsDisplayed()

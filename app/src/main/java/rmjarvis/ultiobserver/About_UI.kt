@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 
 private const val SOURCE_CODE_URL = "https://github.com/rmjarvis/UltiObserver"
 private const val DOCUMENTATION_URL = "https://rmjarvis.github.io/UltiObserver/"
-private const val PRIVACY_POLICY_URL = "https://github.com/rmjarvis/UltiObserver/blob/main/PRIVACY.md"
+private const val PRIVACY_POLICY_URL = "https://rmjarvis.github.io/UltiObserver/privacy.html"
 private const val PLAY_STORE_URL =
     "https://play.google.com/store/apps/details?id=rmjarvis.ultiobserver"
 
