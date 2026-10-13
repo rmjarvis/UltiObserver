@@ -273,7 +273,6 @@ class TestArchiveBackupUi : MainActivityUiTestFixtures() {
             assertEquals(listOf(games[0]), context.contentResolver.openInputStream(backup)!!.use(::readArchiveBackup))
 
             // Reopening backup remembers the folder and saves there through the real Android picker.
-            pressAppBack()
             composeRule.onNodeWithText("Back up archived games").performClick()
             composeRule.onNodeWithText("Back up 2 games").performClick()
             val secondBackup = saveBackupInPicker(device, "archive-ui-test-${System.nanoTime()}.zip", 2)
@@ -281,7 +280,6 @@ class TestArchiveBackupUi : MainActivityUiTestFixtures() {
             val directory = ArchiveBackupDirectory(context).directory()!!
             assertEquals(games.toSet(), context.contentResolver.openInputStream(secondBackup)!!
                 .use(::readArchiveBackup).toSet())
-            pressAppBack()
 
             // A changed backup offers per-game choices; Keep both retains the backup's ID.
             // In practice, this would be done by restoring the archive and then doing something
@@ -381,7 +379,6 @@ class TestArchiveBackupUi : MainActivityUiTestFixtures() {
             assertEquals(DocumentsContract.getDocumentId(directory), DocumentsContract.getTreeDocumentId(reused))
 
             // Restoring a phone archive makes its backup unavailable until the phone copy is archived.
-            tapTopBarBack()
             composeRule.onNodeWithText("Archived games (3)").performClick()
             composeRule.onNodeWithTag("archived-game-0").performClick()
             composeRule.onNodeWithText("Restore game").performClick()
@@ -706,6 +703,7 @@ class TestArchiveBackupUi : MainActivityUiTestFixtures() {
         assertTrue(device.wait(Until.hasObject(By.pkg(composeRule.activity.packageName)), 10_000L))
         waitForText("Backed up ${countedNounPhrase(gameCount, "game")} to $documentName.")
         composeRule.onNodeWithText("OK").performClick()
+        waitForText("Load games from backup")
         val context = composeRule.activity.applicationContext
         val directory = ArchiveBackupDirectory(context).directory()!!
         val children = DocumentsContract.buildChildDocumentsUriUsingTree(

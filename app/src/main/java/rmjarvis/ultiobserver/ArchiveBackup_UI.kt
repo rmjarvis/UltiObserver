@@ -69,6 +69,7 @@ internal fun ArchiveTransferScreen(appState: AppState, backup: Boolean, onBack: 
     var imported by remember { mutableStateOf<List<GameState>?>(null) }
     var busy by remember { mutableStateOf(false) }
     var message by rememberSaveable { mutableStateOf<String?>(null) }
+    var backupSaved by rememberSaveable { mutableStateOf(false) }
     var filterDialog by remember { mutableStateOf(false) }
     var sortDialog by remember { mutableStateOf(false) }
     var pickerOpened by rememberSaveable { mutableStateOf(false) }
@@ -113,6 +114,7 @@ internal fun ArchiveTransferScreen(appState: AppState, backup: Boolean, onBack: 
                     } else {
                         "Backed up ${countedNounPhrase(games.size, "game")} to $filename."
                     }
+                    backupSaved = true
                 }
             }
         }
@@ -401,10 +403,20 @@ internal fun ArchiveTransferScreen(appState: AppState, backup: Boolean, onBack: 
         )
     }
     message?.let { text ->
+        fun dismissMessage() {
+            message = null
+            if (backupSaved) onBack()
+        }
         AlertDialog(
-            onDismissRequest = { message = null },
+            onDismissRequest = {
+                dismissMessage()
+            },
             text = { Text(text) },
-            confirmButton = { TextButton(label = "OK", onClick = { message = null }) },
+            confirmButton = {
+                TextButton(label = "OK", onClick = {
+                    dismissMessage()
+                })
+            },
         )
     }
 }
