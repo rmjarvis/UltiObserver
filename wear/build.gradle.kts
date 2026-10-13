@@ -44,8 +44,8 @@ android {
         applicationId = "rmjarvis.ultiobserver"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.5.1"
+        versionCode = 15
+        versionName = "1.6.0alpha"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
