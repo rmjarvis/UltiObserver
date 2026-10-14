@@ -8,8 +8,9 @@ pull violations, misconduct, and caps.
 After the game, it lets you share a summary with the tournament director or head observer.
 It is intended to replace both the paper score sheet and the stopwatch observers typically use.
 
-The app is Android-first and designed for phone use in portrait mode. If you have a
-Wear OS smart watch, there is a companion app that lets you control the game from your watch.
+The app is currently available on Android phones, with portrait, landscape, and
+auto-rotate modes for the active game screen. If you have a Wear OS smart watch,
+there is a companion app that lets you control the game from your watch.
 
 Documentation
 -------------
@@ -19,8 +20,8 @@ The user documentation lives at:
 <https://rmjarvis.github.io/UltiObserver/>
 
 The docs cover installation, game setup, live-game workflows, timing cues,
-misconduct, saved and archived games, privacy, troubleshooting, and planned
-improvements.
+misconduct, the Wear OS companion app, saved and archived games,
+privacy, troubleshooting, and planned improvements.
 
 Installation
 ------------
@@ -40,10 +41,10 @@ The app stores your profile, settings, current game, and archived games locally
 on your device. Android may include this app data in its normal device backup
 system, depending on your phone and Google account backup settings.
 
-Release builds use Firebase crash and diagnostic reporting to help debug
-stability problems.
+Release builds use Firebase Crashlytics for
+crash and diagnostic reporting to help debug stability problems.
 
-For more detail, see the [UltiObserver privacy policy](PRIVACY.md).
+For more detail, see the [UltiObserver privacy policy](https://rmjarvis.github.io/UltiObserver/privacy.html).
 
 Reporting Issues
 ----------------
