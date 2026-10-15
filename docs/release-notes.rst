@@ -36,6 +36,11 @@ prompted by user feedback. It includes the following changes:
 - Added the ability to globally mute sounds (and optionally vibrations) from the same sound
   output dialog.
 
+**Version 1.3.1 update:**
+
+- Fixed an error in the displayed end names on the watch for landscape mode.
+- Fixed the order of the displayed end choices in setup for landscape.
+
 Version 1.4
 -----------
 
